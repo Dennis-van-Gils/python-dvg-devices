@@ -10,7 +10,7 @@ __date__ = "01-07-2020"  # 0.0.1 was stamped 11-12-2018
 __version__ = "0.0.1"  # 0.0.1 corresponds to prototype 1.2.0
 
 from PyQt5 import QtCore
-import DvG_dev_Arduino__proto_serial
+import DvG_dev_Arduino__protocol_serial
 from DvG_QDeviceIO import QDeviceIO, DAQ_trigger
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
@@ -18,11 +18,11 @@ DEBUG_worker_DAQ = False
 DEBUG_worker_jobs = False
 
 # ------------------------------------------------------------------------------
-#   Arduino_pyqt
+#   Arduino_qdev
 # ------------------------------------------------------------------------------
 
 
-class Arduino_pyqt(QDeviceIO, QtCore.QObject):
+class Arduino_qdev(QDeviceIO, QtCore.QObject):
     """Manages multithreaded communication and periodical data acquisition for
     an Arduino(-like) device.
 
@@ -41,7 +41,7 @@ class Arduino_pyqt(QDeviceIO, QtCore.QObject):
 
     Args:
         dev:
-            Reference to a 'DvG_dev_Arduino__proto_serial.Arduino' instance.
+            Reference to a 'DvG_dev_Arduino__protocol_serial.Arduino' instance.
 
         (*) DAQ_function
         (*) DAQ_interval_ms
@@ -67,7 +67,7 @@ class Arduino_pyqt(QDeviceIO, QtCore.QObject):
 
     def __init__(
         self,
-        dev: DvG_dev_Arduino__proto_serial.Arduino,
+        dev: DvG_dev_Arduino__protocol_serial.Arduino,
         DAQ_trigger=DAQ_trigger.CONTINUOUS,
         DAQ_function=None,
         DAQ_interval_ms=1000,
@@ -76,7 +76,7 @@ class Arduino_pyqt(QDeviceIO, QtCore.QObject):
         calc_DAQ_rate_every_N_iter=25,
         parent=None,
     ):
-        super(Arduino_pyqt, self).__init__(parent=parent)
+        super(Arduino_qdev, self).__init__(parent=parent)
 
         self.attach_device(dev)
 

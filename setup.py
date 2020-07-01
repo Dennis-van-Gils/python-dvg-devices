@@ -77,7 +77,7 @@ setup(
         "dvg-debug-functions>=1.1.2",
         "dvg-qdeviceio>=0.0.12",
         "pyserial==3.4",
-        "pyqt5~=5.9.2",
+        "pyqt5~=5.12",
         "numpy~=1.15",
         "pyvisa~=1.9.1",
         "matplotlib~=3.1.3",

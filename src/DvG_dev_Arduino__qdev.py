@@ -42,6 +42,10 @@ class Arduino_qdev(QDeviceIO, QtCore.QObject):
     Args:
         dev:
             Reference to a 'DvG_dev_Arduino__protocol_serial.Arduino' instance.
+            
+        debug:
+            Show debug info in terminal? Warning: Slow! Do not leave on
+            unintentionally.
 
         (*) DAQ_function
         (*) DAQ_interval_ms
@@ -74,6 +78,7 @@ class Arduino_qdev(QDeviceIO, QtCore.QObject):
         DAQ_timer_type=QtCore.Qt.PreciseTimer,
         critical_not_alive_count=3,
         calc_DAQ_rate_every_N_iter=25,
+        debug=False,
         parent=None,
     ):
         super(Arduino_qdev, self).__init__(parent=parent)
@@ -87,10 +92,10 @@ class Arduino_qdev(QDeviceIO, QtCore.QObject):
             DAQ_timer_type=DAQ_timer_type,
             critical_not_alive_count=critical_not_alive_count,
             calc_DAQ_rate_every_N_iter=calc_DAQ_rate_every_N_iter,
-            debug=DEBUG_worker_DAQ,
+            debug=debug,
         )
 
-        self.create_worker_jobs(debug=DEBUG_worker_jobs)
+        self.create_worker_jobs(debug=debug)
 
     # --------------------------------------------------------------------------
     #   queued_write

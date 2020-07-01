@@ -2,8 +2,6 @@
     :target: https://pypi.org/project/dvg-devices
 .. image:: https://img.shields.io/pypi/pyversions/dvg-devices
     :target: https://pypi.org/project/dvg-devices
-.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
-    :target: https://github.com/psf/black
 .. image:: https://img.shields.io/badge/License-MIT-purple.svg
     :target: https://github.com/Dennis-van-Gils/python-dvg-devices/blob/master/LICENSE.txt
 

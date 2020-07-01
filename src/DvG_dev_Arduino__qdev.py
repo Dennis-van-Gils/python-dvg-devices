@@ -13,10 +13,6 @@ from PyQt5 import QtCore
 import DvG_dev_Arduino__protocol_serial
 from DvG_QDeviceIO import QDeviceIO, DAQ_trigger
 
-# ------------------------------------------------------------------------------
-#   Arduino_qdev
-# ------------------------------------------------------------------------------
-
 
 class Arduino_qdev(QDeviceIO, QtCore.QObject):
     """Manages multithreaded communication and periodical data acquisition for

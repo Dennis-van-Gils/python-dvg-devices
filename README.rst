@@ -10,9 +10,9 @@ DvG_Devices
 Collection of interfaces to communicate with laboratory devices, with support
 for multithreading in PyQt5.
 
-* Arduino
+* Arduino -- microcontroller
 * Bronkhorst -- mass flow controller
-* Compax3 -- traverse controller
+* Compax3 -- servo controller
 * Keysight 3497xA -- digital multimeter
 * Keysight N8700 -- power supply
 * Picotech PT104 -- temperature logger

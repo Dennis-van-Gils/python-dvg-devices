@@ -12,7 +12,7 @@ __version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 import sys
 
 import visa
-import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 
 from PyQt5 import QtCore, QtGui
@@ -427,7 +427,7 @@ if __name__ == '__main__':
 
     # Pen styles for plotting
     PENS = [None] * N_channels
-    cm = mpl.cm.get_cmap('gist_rainbow')
+    cm = plt.get_cmap('gist_rainbow')
     params = {'width': 2}
     for i in range(N_channels):
         color = cm(1.*i/N_channels)  # color will now be an RGBA tuple

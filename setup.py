@@ -24,7 +24,7 @@ def read(*names, **kwargs):
 
 setup(
     name="dvg-devices",
-    version="0.0.2",
+    version="0.0.3",
     license="MIT",
     description="Collection of interfaces to communicate with laboratory devices, with support for multithreading in PyQt5.",
     long_description="%s\n%s"
@@ -81,9 +81,9 @@ setup(
         "numpy~=1.15",
         "pyvisa~=1.9",
         "matplotlib~=3.1",
-        # "DvG_pyqt_controls",
-        # "DvG_pyqt_ChartHistory",
-        # "DvG_pyqt_FileLogger",
+        # "dvg_pyqt_controls",
+        # "dvg_pyqt_charthistory",
+        # "dvg_pyqt_filelogger",
         
     ],
     extras_require={},

@@ -7,11 +7,12 @@ This library is intended to be used with multiplexer board(s), as it will
 scan over the board's input channels to retrieve the readings. Hence, we also
 refer to this device as a multiplexer, or mux.
 """
-__author__      = "Dennis van Gils"
+__author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
-__url__         = ""
-__date__        = "18-09-2018"
-__version__     = "1.0.0"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 18-09-2018
+__version__ = "0.0.3"  # 0.0.1 corresponds to prototype 1.0.0
+
 
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid

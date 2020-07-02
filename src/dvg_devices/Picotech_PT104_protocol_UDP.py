@@ -6,7 +6,7 @@ __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "02-07-2020"  # 0.0.1 was stamped 15-09-2018
-__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
+__version__ = "0.0.3"  # 0.0.1 corresponds to prototype 1.0.0
 
 import socket
 import numpy as np

@@ -20,11 +20,11 @@ from PyQt5 import QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
 import pyqtgraph as pg
 
-from DvG_pyqt_controls import (create_Toggle_button,
+from dvg_utils.dvg_pyqt_controls import (create_Toggle_button,
                                SS_TEXTBOX_READ_ONLY,
                                SS_GROUP)
-from DvG_pyqt_ChartHistory import ChartHistory
-from DvG_pyqt_FileLogger import FileLogger
+from dvg_utils.dvg_pyqt_charthistory import ChartHistory
+from dvg_utils.dvg_pyqt_filelogger import FileLogger
 
 from dvg_devices.Keysight_3497xA_protocol_SCPI import Keysight_3497xA
 from dvg_devices.Keysight_3497xA_qdev import Keysight_3497xA_qdev, INFINITY_CAP

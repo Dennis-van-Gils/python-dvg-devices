@@ -16,7 +16,7 @@ from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 
 from dvg_debug_functions import ANSI
-from DvG_pyqt_controls import SS_TEXTBOX_READ_ONLY
+from dvg_utils.dvg_pyqt_controls import SS_TEXTBOX_READ_ONLY
 
 from dvg_devices.ThermoFlex_chiller_protocol_RS232 import ThermoFlex_chiller
 from dvg_devices.ThermoFlex_chiller_qdev import ThermoFlex_chiller_qdev

@@ -15,7 +15,7 @@ from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 
 from dvg_debug_functions import ANSI
-from DvG_pyqt_controls import SS_TEXTBOX_READ_ONLY, SS_GROUP
+from dvg_utils.dvg_pyqt_controls import SS_TEXTBOX_READ_ONLY, SS_GROUP
 
 from dvg_devices.Compax3_servo_protocol_RS232 import Compax3_servo
 from dvg_devices.Compax3_servo_qdev import Compax3_servo_qdev

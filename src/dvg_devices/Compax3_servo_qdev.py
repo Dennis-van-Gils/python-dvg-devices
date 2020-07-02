@@ -12,7 +12,7 @@ __version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 
-from DvG_pyqt_controls import (SS_GROUP,
+from dvg_utils.dvg_pyqt_controls import (SS_GROUP,
                                SS_TEXTBOX_ERRORS,
                                create_error_LED,
                                create_tiny_LED)

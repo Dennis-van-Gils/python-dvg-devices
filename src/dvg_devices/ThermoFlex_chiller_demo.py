@@ -3,11 +3,11 @@
 """Multithreaded PyQt5 GUI to interface with a Thermo Scientific ThermoFlex
 recirculating chiller.
 """
-__author__      = "Dennis van Gils"
+__author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
-__url__         = ""
-__date__        = "14-09-2018"
-__version__     = "1.0.0"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 14-09-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 
 import sys
 from pathlib import Path
@@ -15,11 +15,11 @@ from pathlib import Path
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 
-from DvG_debug_functions import ANSI
+from dvg_debug_functions import ANSI
 from DvG_pyqt_controls import SS_TEXTBOX_READ_ONLY
 
-import DvG_dev_ThermoFlex_chiller__fun_RS232 as chiller_funtions
-import DvG_dev_ThermoFlex_chiller__pyqt_lib  as chiller_pyqt_lib
+from dvg_devices.ThermoFlex_chiller_protocol_RS232 import ThermoFlex_chiller
+from dvg_devices.ThermoFlex_chiller_qdev import ThermoFlex_chiller_qdev
 
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -46,7 +46,7 @@ class MainWindow(QtWid.QWidget):
         # Round up full window
         vbox = QtWid.QVBoxLayout(self)
         vbox.addLayout(grid_top)
-        vbox.addLayout(chiller_pyqt.hbly_GUI)
+        vbox.addLayout(chiller_qdev.hbly_GUI)
         vbox.addStretch(1)
 
 # ------------------------------------------------------------------------------
@@ -56,7 +56,7 @@ class MainWindow(QtWid.QWidget):
 def about_to_quit():
     print("About to quit")
     app.processEvents()
-    chiller_pyqt.close_all_threads()
+    chiller_qdev.quit()
     try: chiller.close()
     except: pass
 
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     #   Connect to ThermoFlex chiller
     # --------------------------------------------------------------------------
 
-    chiller = chiller_funtions.ThermoFlex_chiller(
+    chiller = ThermoFlex_chiller(
                         min_setpoint_degC=MIN_SETPOINT_DEG_C,
                         max_setpoint_degC=MAX_SETPOINT_DEG_C,
                         name='chiller')
@@ -101,15 +101,13 @@ if __name__ == '__main__':
     #   Set up communication threads for the chiller
     # --------------------------------------------------------------------------
 
-    chiller_pyqt = chiller_pyqt_lib.ThermoFlex_chiller_pyqt(chiller,
-                                                            UPDATE_INTERVAL_MS)
+    chiller_qdev = ThermoFlex_chiller_qdev(chiller, UPDATE_INTERVAL_MS)
 
     # For DEBUG info
-    chiller_pyqt.worker_DAQ.DEBUG_color = ANSI.YELLOW
-    chiller_pyqt.worker_send.DEBUG_color = ANSI.CYAN
+    chiller_qdev.worker_DAQ.debug_color = ANSI.YELLOW
+    chiller_qdev.worker_jobs.debug_color = ANSI.CYAN
 
-    chiller_pyqt.start_thread_worker_DAQ()
-    chiller_pyqt.start_thread_worker_send()
+    chiller_qdev.start()
 
     # --------------------------------------------------------------------------
     #   Start the main GUI event loop

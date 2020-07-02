@@ -2,15 +2,12 @@
 # -*- coding: utf-8 -*-
 """PyQt5 module to provide multithreaded communication and periodical data
 acquisition for a Keysight N8700 power supply (PSU).
-
-TO DO: Adjust docstring to include option
-DvG_dev_Base__pyqt_lib.DAQ_trigger.EXTERNAL_WAKE_UP_CALL
 """
-__author__      = "Dennis van Gils"
+__author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
-__url__         = ""
-__date__        = "19-09-2018"
-__version__     = "1.0.0"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 19-09-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 
 import numpy as np
 
@@ -21,12 +18,11 @@ from DvG_pyqt_controls import (create_Toggle_button,
                                create_tiny_error_LED,
                                SS_TEXTBOX_ERRORS,
                                SS_GROUP)
-from DvG_debug_functions import dprint, print_fancy_traceback as pft
+from dvg_debug_functions import dprint, print_fancy_traceback as pft
+from dvg_pid_controller import PID_Controller
 
-import DvG_PID_controller
-import DvG_dev_Keysight_N8700_PSU__fun_SCPI as N8700_functions
-import DvG_dev_Base__pyqt_lib               as Dev_Base_pyqt_lib
-from   DvG_dev_Base__pyqt_lib import DAQ_trigger
+from dvg_qdeviceio import QDeviceIO, DAQ_trigger
+from dvg_devices.Keysight_N8700_protocol_SCPI import Keysight_N8700
 
 # Monospace font
 FONT_MONOSPACE = QtGui.QFont("Monospace", 12, weight=QtGui.QFont.Bold)
@@ -39,15 +35,8 @@ class GUI_input_fields():
 # Short-hand alias for DEBUG information
 def get_tick(): return QtCore.QDateTime.currentMSecsSinceEpoch()
 
-# Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
-DEBUG_worker_DAQ  = False
-DEBUG_worker_send = False
 
-# ------------------------------------------------------------------------------
-#   PSU_pyqt
-# ------------------------------------------------------------------------------
-
-class PSU_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
+class Keysight_N8700_qdev(QDeviceIO, QtCore.QObject):
     """Manages multithreaded communication and periodical data acquisition for
     a Keysight N8700 power supply (PSU), referred to as the 'device'.
 
@@ -60,34 +49,29 @@ class PSU_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         - Worker_DAQ:
             Periodically acquires data from the device.
 
-        - Worker_send:
+        - Worker_jobs:
             Maintains a thread-safe queue where desired device I/O operations
             can be put onto, and sends the queued operations first in first out
             (FIFO) to the device.
 
-    (*): See 'DvG_dev_Base__pyqt_lib.py' for details.
+    (*): See 'dvg_qdeviceio.QDeviceIO()' for details.
 
     Args:
         dev:
-            Reference to a 'DvG_dev_Bronkhorst_MFC__fun_RS232.Bronkhorst_MFC'
-            instance.
+            Reference to a
+            'dvg_devices.Keysight_N8700_protocol_SCPI.Keysight_N8700' instance.
 
-        (*) DAQ_update_interval_ms
-        (*) DAQ_critical_not_alive_count
+        (*) DAQ_interval_ms
+        (*) critical_not_alive_count
         (*) DAQ_timer_type
 
     Main methods:
-        (*) start_thread_worker_DAQ(...)
-        (*) start_thread_worker_send(...)
-        (*) close_all_threads()
-
-    Inner-class instances:
-        (*) worker_DAQ
-        (*) worker_send
+        (*) start(...)
+        (*) quit()
 
     Main data attributes:
         (*) DAQ_update_counter
-        (*) obtained_DAQ_update_interval_ms
+        (*) obtained_DAQ_interval_ms
         (*) obtained_DAQ_rate_Hz
 
     Main GUI objects:
@@ -100,29 +84,34 @@ class PSU_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
     signal_GUI_input_field_update = QtCore.pyqtSignal(int)
 
     def __init__(self,
-                 dev: N8700_functions.PSU,
-                 DAQ_update_interval_ms=200,
-                 DAQ_critical_not_alive_count=1,
+                 dev: Keysight_N8700,
+                 DAQ_trigger=DAQ_trigger.INTERNAL_TIMER,
+                 DAQ_interval_ms=200,
                  DAQ_timer_type=QtCore.Qt.CoarseTimer,
-                 DAQ_trigger_by=DAQ_trigger.INTERNAL_TIMER,
+                 critical_not_alive_count=1,
+                 calc_DAQ_rate_every_N_iter=5,
+                 debug=False,
                  parent=None):
-        super(PSU_pyqt, self).__init__(parent=parent)
+        super(Keysight_N8700_qdev, self).__init__(parent=parent)
 
         self.attach_device(dev)
 
         # Add PID controller on the power output
         # DvG, 25-06-2018: Kp=0.5, Ki=2, Kd=0
-        self.dev.PID_power = DvG_PID_controller.PID(Kp=0.5, Ki=2, Kd=0)
+        self.dev.PID_power = PID_Controller(Kp=0.5, Ki=2, Kd=0)
 
-        self.create_worker_DAQ(DAQ_update_interval_ms,
-                               self.DAQ_update,
-                               DAQ_critical_not_alive_count,
-                               DAQ_timer_type,
-                               DAQ_trigger_by=DAQ_trigger_by,
-                               DEBUG=DEBUG_worker_DAQ)
+        self.create_worker_DAQ(
+            DAQ_trigger=DAQ_trigger,
+            DAQ_function=self.DAQ_function,
+            DAQ_interval_ms=DAQ_interval_ms,
+            DAQ_timer_type=DAQ_timer_type,
+            critical_not_alive_count=critical_not_alive_count,
+            calc_DAQ_rate_every_N_iter=calc_DAQ_rate_every_N_iter,
+            debug=debug,
+            )
 
-        self.create_worker_send(self.alt_process_jobs_function,
-                                DEBUG=DEBUG_worker_send)
+        self.create_worker_jobs(jobs_function=self.jobs_function,
+                                debug=debug)
 
         self.create_GUI()
         self.signal_DAQ_updated.connect(self.update_GUI)
@@ -133,10 +122,10 @@ class PSU_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         self.update_GUI_input_field()
 
     # --------------------------------------------------------------------------
-    #   DAQ_update
+    #   DAQ_function
     # --------------------------------------------------------------------------
 
-    def DAQ_update(self):
+    def DAQ_function(self):
         DEBUG_local = False
         if DEBUG_local: tick = get_tick()
 
@@ -216,10 +205,10 @@ class PSU_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         return True
 
     # --------------------------------------------------------------------------
-    #   alt_process_jobs_function
+    #   jobs_function
     # --------------------------------------------------------------------------
 
-    def alt_process_jobs_function(self, func, args):
+    def jobs_function(self, func, args):
         if (func == "signal_GUI_input_field_update"):
             # Special instruction
             self.signal_GUI_input_field_update.emit(*args)
@@ -484,17 +473,17 @@ class PSU_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
     def process_pbtn_ENA_output(self):
         if self.pbtn_ENA_output.isChecked():
             # Clear output protection, if triggered and turn on output
-            self.worker_send.queued_instruction(
+            self.send(
                     self.dev.clear_output_protection_and_turn_on)
         else:
             # Turn off output
-            self.worker_send.queued_instruction(self.dev.turn_off)
+            self.send(self.dev.turn_off)
 
     def process_pbtn_ENA_PID(self):
         self.dev.state.ENA_PID = self.pbtn_ENA_PID.isChecked()
 
     def process_pbtn_ENA_OCP(self):
-        self.worker_send.queued_instruction(self.dev.set_ENA_OCP,
+        self.send(self.dev.set_ENA_OCP,
                                             self.pbtn_ENA_OCP.isChecked())
 
     def process_pbtn_ackn_errors(self):
@@ -514,10 +503,10 @@ class PSU_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
 
         if reply == QtWid.QMessageBox.Yes:
             self.dev.read_config_file()
-            self.worker_send.add_to_queue(self.dev.reinitialize)
-            self.worker_send.add_to_queue("signal_GUI_input_field_update",
+            self.add_to_send_queue(self.dev.reinitialize)
+            self.add_to_send_queue("signal_GUI_input_field_update",
                                           GUI_input_fields.ALL)
-            self.worker_send.process_queue()
+            self.process_send_queue()
 
             self.dev.state.ENA_PID = False
 
@@ -554,15 +543,15 @@ class PSU_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         except (TypeError, ValueError):
             voltage = 0.0
         except:
-            raise()
+            raise
 
         if (voltage < 0): voltage = 0
 
-        self.worker_send.add_to_queue(self.dev.set_V_source, voltage)
-        self.worker_send.add_to_queue(self.dev.query_V_source)
-        self.worker_send.add_to_queue("signal_GUI_input_field_update",
+        self.add_to_send_queue(self.dev.set_V_source, voltage)
+        self.add_to_send_queue(self.dev.query_V_source)
+        self.add_to_send_queue("signal_GUI_input_field_update",
                                       GUI_input_fields.V_source)
-        self.worker_send.process_queue()
+        self.process_send_queue()
 
     def send_I_source_from_textbox(self):
         try:
@@ -570,15 +559,15 @@ class PSU_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         except (TypeError, ValueError):
             current = 0.0
         except:
-            raise()
+            raise
 
         if (current < 0): current = 0
 
-        self.worker_send.add_to_queue(self.dev.set_I_source, current)
-        self.worker_send.add_to_queue(self.dev.query_I_source)
-        self.worker_send.add_to_queue("signal_GUI_input_field_update",
+        self.add_to_send_queue(self.dev.set_I_source, current)
+        self.add_to_send_queue(self.dev.query_I_source)
+        self.add_to_send_queue("signal_GUI_input_field_update",
                                       GUI_input_fields.I_source)
-        self.worker_send.process_queue()
+        self.process_send_queue()
 
     def set_P_source_from_textbox(self):
         try:
@@ -586,7 +575,7 @@ class PSU_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         except (TypeError, ValueError):
             power = 0.0
         except:
-            raise()
+            raise
 
         if (power < 0): power = 0
         self.dev.state.P_source = power
@@ -598,13 +587,13 @@ class PSU_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         except (TypeError, ValueError):
             OVP_level = 0.0
         except:
-            raise()
+            raise
 
-        self.worker_send.add_to_queue(self.dev.set_OVP_level, OVP_level)
-        self.worker_send.add_to_queue(self.dev.query_OVP_level)
-        self.worker_send.add_to_queue("signal_GUI_input_field_update",
+        self.add_to_send_queue(self.dev.set_OVP_level, OVP_level)
+        self.add_to_send_queue(self.dev.query_OVP_level)
+        self.add_to_send_queue("signal_GUI_input_field_update",
                                       GUI_input_fields.OVP_level)
-        self.worker_send.process_queue()
+        self.process_send_queue()
 
     # --------------------------------------------------------------------------
     #   connect_signals_to_slots

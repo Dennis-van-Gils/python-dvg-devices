@@ -6,10 +6,12 @@ Supported models:
     PD07R-20, PD07R-40, PD7LR-20, PD15R-30, PD15R-40, PD20R-30, PD28R-30,
     PD45R-20, PD07H200, PD15H200, PD20H200, PD28H200, PD15RCAL, PD15HCAL.
 Tested on model PD15R-30‐A12E
-
-Dennis_van_Gils
-04-09-2018
 """
+__author__ = "Dennis van Gils"
+__authoremail__ = "vangils.dennis@gmail.com"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 04-09-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 
 import serial
 import serial.tools.list_ports
@@ -25,11 +27,7 @@ BATH_MAX_SETPOINT_DEG_C = 87     # [deg C]
 RS232_BAUDRATE = 57600      # Baudrate according to the manual
 RS232_TIMEOUT  = 0.5        # [sec]
 
-# ------------------------------------------------------------------------------
-#   Class PolyScience_bath
-# ------------------------------------------------------------------------------
-
-class PolyScience_bath():
+class PolyScience_PD_bath():
     class State():
         # Container for the process and measurement variables
         setpoint = np.nan     # Setpoint read out of the bath              ['C]
@@ -43,10 +41,6 @@ class PolyScience_bath():
     def __init__(self):
         # serial.Serial device instance
         self.ser = None
-
-        # Placeholder for a future mutex instance needed for proper
-        # multithreading (e.g. instance of QtCore.Qmutex())
-        self.mutex = None
 
         # Container for the process and measurement variables
         self.state = self.State()
@@ -118,7 +112,6 @@ class PolyScience_bath():
             return False
         except:
             raise
-            sys.exit(0)
 
         try:
             # Disable the command echo of the PolyScience bath.
@@ -225,7 +218,6 @@ class PolyScience_bath():
             print("ERROR: serial.write() failed in query()")
         except:
             raise
-            sys.exit(0)
         else:
             try:
                 # Read all bytes in the line that is terminated with a carriage
@@ -238,7 +230,6 @@ class PolyScience_bath():
                 print("ERROR: _readline() failed in query()")
             except:
                 raise
-                sys.exit(0)
             else:
                 # Convert bytes into string and remove termination chars and
                 # spaces
@@ -439,8 +430,7 @@ if __name__ == "__main__":
     # Path to the config textfile containing the (last used) RS232 port
     PATH_CONFIG = Path("config/port_PolyScience.txt")
 
-    # Create a PolyScience_bath class instance
-    bath = PolyScience_bath()
+    bath = PolyScience_PD_bath()
 
     # Were we able to connect to a PolyScience bath?
     if bath.auto_connect(PATH_CONFIG):

@@ -3,11 +3,11 @@
 """Multithreaded PyQt5 GUI to interface with a Picotech PT-104 pt100/1000
 temperature logger.
 """
-__author__      = "Dennis van Gils"
+__author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
-__url__         = ""
-__date__        = "17-09-2018"
-__version__     = "1.0.0"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 17-09-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 
 import sys
 
@@ -16,8 +16,8 @@ from PyQt5 import QtWidgets as QtWid
 
 from DvG_pyqt_controls import SS_TEXTBOX_READ_ONLY
 
-import DvG_dev_Picotech_PT104__fun_UDP  as pt104_functions
-import DvG_dev_Picotech_PT104__pyqt_lib as pt104_pyqt_lib
+from dvg_devices.Picotech_PT104_protocol_UDP import Picotech_PT104
+from dvg_devices.Picotech_PT104_qdev import Picotech_PT104_qdev
 
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -45,10 +45,10 @@ class MainWindow(QtWid.QWidget):
         # Round up full window
         vbox = QtWid.QVBoxLayout(self)
         vbox.addLayout(grid_top)
-        vbox.addWidget(pt104_pyqt.qgrp)
+        vbox.addWidget(pt104_qdev.qgrp)
         vbox.addStretch(1)
-        vbox.setAlignment(pt104_pyqt.qgrp, QtCore.Qt.AlignLeft)
-        pt104_pyqt.qgrp.setTitle('')
+        vbox.setAlignment(pt104_qdev.qgrp, QtCore.Qt.AlignLeft)
+        pt104_qdev.qgrp.setTitle('')
 
 # ------------------------------------------------------------------------------
 #   about_to_quit
@@ -57,7 +57,7 @@ class MainWindow(QtWid.QWidget):
 def about_to_quit():
     print("About to quit")
     app.processEvents()
-    pt104_pyqt.close_all_threads()
+    pt104_qdev.quit()
     try: pt104.close()
     except: pass
 
@@ -75,7 +75,7 @@ if __name__ == '__main__':
     #   Connect to and set up Picotech PT-104
     # --------------------------------------------------------------------------
 
-    pt104 = pt104_functions.PT104(name="PT104")
+    pt104 = Picotech_PT104(name="PT104")
     if pt104.connect(IP_ADDRESS, PORT):
         pt104.begin()
         pt104.start_conversion(ENA_channels, gain_channels)
@@ -95,9 +95,8 @@ if __name__ == '__main__':
     #   Set up communication threads for the PT104
     # --------------------------------------------------------------------------
 
-    pt104_pyqt = pt104_pyqt_lib.PT104_pyqt(dev=pt104,
-                                           DAQ_update_interval_ms=1000)
-    pt104_pyqt.start_thread_worker_DAQ()
+    pt104_qdev = Picotech_PT104_qdev(dev=pt104, DAQ_interval_ms=1000)
+    pt104_qdev.start()
 
     # --------------------------------------------------------------------------
     #   Start the main GUI event loop

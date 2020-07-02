@@ -3,31 +3,25 @@
 """PyQt5 module to provide multithreaded communication and periodical data
 acquisition for a Bronkhorst mass flow controller (MFC).
 """
-__author__      = "Dennis van Gils"
+__author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
-__url__         = ""
-__date__        = "18-09-2018"
-__version__     = "1.0.0"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 18-09-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
+
+
 
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
 
 from DvG_pyqt_controls import SS_GROUP, SS_TEXTBOX_READ_ONLY
-from DvG_debug_functions import print_fancy_traceback as pft
+from dvg_debug_functions import print_fancy_traceback as pft
 
-import DvG_dev_Bronkhorst_MFC__fun_RS232 as mfc_functions
-import DvG_dev_Base__pyqt_lib            as Dev_Base_pyqt_lib
+from dvg_qdeviceio import QDeviceIO, DAQ_trigger
+from dvg_devices.Bronkhorst_MFC_protocol_RS232 import Bronkhorst_MFC
 
-# Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
-DEBUG_worker_DAQ  = False
-DEBUG_worker_send = False
-
-# ------------------------------------------------------------------------------
-#   Bronkhorst_MFC_pyqt
-# ------------------------------------------------------------------------------
-
-class Bronkhorst_MFC_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
+class Bronkhorst_MFC_qdev(QDeviceIO, QtCore.QObject):
     """Manages multithreaded communication and periodical data acquisition for
     a Bronkhorst mass flow controller (MFC), referred to as the 'device'.
 
@@ -51,20 +45,20 @@ class Bronkhorst_MFC_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         - Worker_DAQ:
             Periodically acquires data from the device.
 
-        - Worker_send:
+        - Worker_jobs:
             Maintains a thread-safe queue where desired device I/O operations
             can be put onto, and sends the queued operations first in first out
             (FIFO) to the device.
 
-    (*): See 'DvG_dev_Base__pyqt_lib.py' for details.
+    (*): See 'dvg_qdeviceio.QDeviceIO()' for details.
 
     Args:
         dev:
-            Reference to a 'DvG_dev_Bronkhorst_MFC__fun_RS232.Bronkhorst_MFC'
+            Reference to a 'dvg_devices.Bronkhorst_MFC_protocol_RS232.Bronkhorst_MFC'
             instance.
 
-        (*) DAQ_update_interval_ms
-        (*) DAQ_critical_not_alive_count
+        (*) DAQ_interval_ms
+        (*) critical_not_alive_count
         (*) DAQ_timer_type
 
         valve_auto_close_deadtime_period_ms (optional, default=3000):
@@ -72,17 +66,12 @@ class Bronkhorst_MFC_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             setpoint > 0 has been send.
 
     Main methods:
-        (*) start_thread_worker_DAQ(...)
-        (*) start_thread_worker_send(...)
-        (*) close_all_threads()
-
-    Inner-class instances:
-        (*) worker_DAQ
-        (*) worker_send
+        (*) start(...)
+        (*) quit()
 
     Main data attributes:
         (*) DAQ_update_counter
-        (*) obtained_DAQ_update_interval_ms
+        (*) obtained_DAQ_interval_ms
         (*) obtained_DAQ_rate_Hz
 
     Main GUI objects:
@@ -98,24 +87,30 @@ class Bronkhorst_MFC_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
     signal_valve_auto_open  = QtCore.pyqtSignal()
 
     def __init__(self,
-                 dev: mfc_functions.Bronkhorst_MFC,
-                 DAQ_update_interval_ms=200,
-                 DAQ_critical_not_alive_count=1,
+                 dev: Bronkhorst_MFC,
+                 DAQ_interval_ms=200,
                  DAQ_timer_type=QtCore.Qt.CoarseTimer,
+                 critical_not_alive_count=1,
+                 calc_DAQ_rate_every_N_iter=5,
                  valve_auto_close_deadtime_period_ms=3000,
+                 debug=False,
                  parent=None):
-        super(Bronkhorst_MFC_pyqt, self).__init__(parent=parent)
+        super(Bronkhorst_MFC_qdev, self).__init__(parent=parent)
 
         self.attach_device(dev)
 
-        self.create_worker_DAQ(DAQ_update_interval_ms,
-                               self.DAQ_update,
-                               DAQ_critical_not_alive_count,
-                               DAQ_timer_type,
-                               DEBUG=DEBUG_worker_DAQ)
+        self.create_worker_DAQ(
+            DAQ_trigger=DAQ_trigger.INTERNAL_TIMER,
+            DAQ_function=self.DAQ_function,
+            DAQ_interval_ms=DAQ_interval_ms,
+            DAQ_timer_type=DAQ_timer_type,
+            critical_not_alive_count=critical_not_alive_count,
+            calc_DAQ_rate_every_N_iter=calc_DAQ_rate_every_N_iter,
+            debug=debug,
+        )
 
-        self.create_worker_send(self.alt_process_jobs_function,
-                                DEBUG=DEBUG_worker_send)
+        self.create_worker_jobs(jobs_function=self.jobs_function,
+                                debug=debug)
 
         self.create_GUI()
         self.signal_DAQ_updated.connect(self.update_GUI)
@@ -130,10 +125,10 @@ class Bronkhorst_MFC_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         self.dev.valve_auto_close_start_deadtime  = 0
 
     # --------------------------------------------------------------------------
-    #   DAQ_update
+    #   DAQ_function
     # --------------------------------------------------------------------------
 
-    def DAQ_update(self):
+    def DAQ_function(self):
         success = self.dev.query_setpoint()
         success &= self.dev.query_flow_rate()
 
@@ -160,10 +155,10 @@ class Bronkhorst_MFC_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         return success
 
     # --------------------------------------------------------------------------
-    #   alt_process_jobs_function
+    #   jobs_function
     # --------------------------------------------------------------------------
 
-    def alt_process_jobs_function(self, func, args):
+    def jobs_function(self, func, args):
         # Send I/O operation to the device
         try:
             func(*args)
@@ -259,10 +254,10 @@ class Bronkhorst_MFC_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         except (TypeError, ValueError):
             setpoint = 0.0
         except:
-            raise()
+            raise
 
         setpoint = max(setpoint, 0)
         setpoint = min(setpoint, self.dev.max_flow_rate)
         self.qled_send_setpoint.setText("%.2f" % setpoint)
 
-        self.worker_send.queued_instruction(self.dev.send_setpoint, setpoint)
+        self.send(self.dev.send_setpoint, setpoint)

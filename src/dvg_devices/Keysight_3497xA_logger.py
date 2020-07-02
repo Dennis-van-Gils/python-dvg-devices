@@ -3,11 +3,11 @@
 """Multithreaded PyQt5 GUI to interface with a a Keysight (former HP or Agilent)
 34970A/34972A data acquisition/switch unit.
 """
-__author__      = "Dennis van Gils"
+__author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
-__url__         = ""
-__date__        = "14-09-2018"
-__version__     = "1.0.0"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 14-09-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 
 import sys
 
@@ -26,8 +26,8 @@ from DvG_pyqt_controls import (create_Toggle_button,
 from DvG_pyqt_ChartHistory import ChartHistory
 from DvG_pyqt_FileLogger import FileLogger
 
-import DvG_dev_Keysight_3497xA__fun_SCPI as K3497xA_functions
-import DvG_dev_Keysight_3497xA__pyqt_lib as K3497xA_pyqt_lib
+from dvg_devices.Keysight_3497xA_protocol_SCPI import Keysight_3497xA
+from dvg_devices.Keysight_3497xA_qdev import Keysight_3497xA_qdev, INFINITY_CAP
 
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -146,7 +146,7 @@ class MainWindow(QtWid.QWidget):
         vbox1.addStretch(1)
 
         hbox1 = QtWid.QHBoxLayout()
-        hbox1.addWidget(mux_pyqt.qgrp, stretch=0, alignment=QtCore.Qt.AlignTop)
+        hbox1.addWidget(mux_qdev.qgrp, stretch=0, alignment=QtCore.Qt.AlignTop)
         hbox1.addWidget(self.gw_mux, stretch=1)
         hbox1.addLayout(vbox1)
 
@@ -274,7 +274,7 @@ def set_text_qpbt_record(text_str):
 def about_to_quit():
     print("About to quit")
     app.processEvents()
-    mux_pyqt.close_all_threads()
+    mux_qdev.quit()
     file_logger.close_log()
 
     try: mux.close()
@@ -297,10 +297,10 @@ def DAQ_postprocess_MUX_scan_function():
     # DEBUG info
     #dprint("thread: %s" % QtCore.QThread.currentThread().objectName())
 
-    if mux_pyqt.is_MUX_scanning:
+    if mux_qdev.is_MUX_scanning:
         readings = mux.state.readings
         for i in range(N_channels):
-            if readings[i] > K3497xA_pyqt_lib.INFINITY_CAP:
+            if readings[i] > INFINITY_CAP:
                 readings[i] = np.nan
     else:
         readings = [np.nan] * N_channels
@@ -393,7 +393,7 @@ if __name__ == '__main__':
 
     rm = visa.ResourceManager()
 
-    mux = K3497xA_functions.K3497xA(MUX_VISA_ADDRESS, "MUX")
+    mux = Keysight_3497xA(MUX_VISA_ADDRESS, "MUX")
     if mux.connect(rm):
         mux.begin(MUX_SCPI_COMMANDS)
 
@@ -409,12 +409,12 @@ if __name__ == '__main__':
     app.aboutToQuit.connect(about_to_quit)
 
     # Create PyQt GUI interfaces and communication threads per 3497xA
-    mux_pyqt = K3497xA_pyqt_lib.K3497xA_pyqt(
+    mux_qdev = Keysight_3497xA_qdev(
             dev=mux,
-            DAQ_update_interval_ms=MUX_SCANNING_INTERVAL_MS,
+            DAQ_interval_ms=MUX_SCANNING_INTERVAL_MS,
             DAQ_postprocess_MUX_scan_function=DAQ_postprocess_MUX_scan_function)
-    mux_pyqt.set_table_readings_format("%.5e")
-    mux_pyqt.qgrp.setFixedWidth(420)
+    mux_qdev.set_table_readings_format("%.5e")
+    mux_qdev.qgrp.setFixedWidth(420)
 
     # Create window
     window = MainWindow()
@@ -467,8 +467,7 @@ if __name__ == '__main__':
     #   Start threads
     # --------------------------------------------------------------------------
 
-    mux_pyqt.start_thread_worker_DAQ(QtCore.QThread.TimeCriticalPriority)
-    mux_pyqt.start_thread_worker_send()
+    mux_qdev.start(DAQ_priority=QtCore.QThread.TimeCriticalPriority)
 
     # --------------------------------------------------------------------------
     #   Connect remaining signals from GUI

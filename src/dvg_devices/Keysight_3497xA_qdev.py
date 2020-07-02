@@ -20,10 +20,11 @@ from DvG_pyqt_controls import (create_Toggle_button,
                                SS_TEXTBOX_ERRORS,
                                SS_TEXTBOX_READ_ONLY,
                                SS_GROUP)
-from DvG_debug_functions import dprint, print_fancy_traceback as pft
+from dvg_debug_functions import dprint, print_fancy_traceback as pft
 
-import DvG_dev_Keysight_3497xA__fun_SCPI as K3497xA_functions
-import DvG_dev_Base__pyqt_lib            as Dev_Base_pyqt_lib
+from dvg_qdeviceio import QDeviceIO, DAQ_trigger
+from dvg_devices.Keysight_3497xA_protocol_SCPI import Keysight_3497xA
+
 
 # Monospace font
 FONT_MONOSPACE = QtGui.QFont("Monospace", 12, weight=QtGui.QFont.Bold)
@@ -39,15 +40,8 @@ INFINITY_CAP = 9.8e37
 # Short-hand alias for DEBUG information
 def get_tick(): return QtCore.QDateTime.currentMSecsSinceEpoch()
 
-# Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
-DEBUG_worker_DAQ  = False
-DEBUG_worker_send = False
 
-# ------------------------------------------------------------------------------
-#   K3497xA_pyqt
-# ------------------------------------------------------------------------------
-
-class K3497xA_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
+class Keysight_3497xA_qdev(QDeviceIO, QtCore.QObject):
     """Manages multithreaded communication and periodical data acquisition for
     a Keysight (former HP or Agilent) 34970A/34972A data acquisition/switch
     unit, referred to as the 'device'. Different boards can be installed inside
@@ -64,19 +58,20 @@ class K3497xA_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         - Worker_DAQ:
             Periodically acquires data from the device.
 
-        - Worker_send:
+        - Worker_jobs:
             Maintains a thread-safe queue where desired device I/O operations
             can be put onto, and sends the queued operations first in first out
             (FIFO) to the device.
 
-    (*): See 'DvG_dev_Base__pyqt_lib.py' for details.
+    (*): See 'dvg_qdeviceio.QDeviceIO()' for details.
 
     Args:
         dev:
-            Reference to a 'DvG_dev_Keysight_3497xA__fun_SCPI.K3497xA' instance.
+            Reference to a
+            'dvg_devices.Keysight_3497xA_protocol_SCPI.Keysight_3497xA' instance.
 
-        (*) DAQ_update_interval_ms
-        (*) DAQ_critical_not_alive_count
+        (*) DAQ_interval_ms
+        (*) critical_not_alive_count
         (*) DAQ_timer_type
 
         DAQ_postprocess_MUX_data_function (optional, default=None):
@@ -86,16 +81,11 @@ class K3497xA_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             separate variables and post-process this data or log it.
 
     Main methods:
-        (*) start_thread_worker_DAQ(...)
-        (*) start_thread_worker_send(...)
-        (*) close_all_threads()
+        (*) start(...)
+        (*) quit()
 
         set_table_readings_format:
             TO DO: write description
-
-    Inner-class instances:
-        (*) worker_DAQ
-        (*) worker_send
 
     Main data attributes:
         is_MUX_scanning (read-only bool):
@@ -120,26 +110,31 @@ class K3497xA_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             'worker_DAQ' update.
     """
     def __init__(self,
-                 dev: K3497xA_functions.K3497xA,
-                 DAQ_update_interval_ms=1000,
-                 DAQ_critical_not_alive_count=3,
+                 dev: Keysight_3497xA,
+                 DAQ_interval_ms=1000,
                  DAQ_timer_type=QtCore.Qt.CoarseTimer,
+                 critical_not_alive_count=3,
+                 calc_DAQ_rate_every_N_iter=1,
                  DAQ_postprocess_MUX_scan_function=None,
+                 debug=False,
                  parent=None):
-        super(K3497xA_pyqt, self).__init__(parent=parent)
+        super(Keysight_3497xA_qdev, self).__init__(parent=parent)
 
         self.attach_device(dev)
 
         self.create_worker_DAQ(
-                DAQ_update_interval_ms=DAQ_update_interval_ms,
-                DAQ_function_to_run_each_update=self.DAQ_update,
-                DAQ_critical_not_alive_count=DAQ_critical_not_alive_count,
+                DAQ_trigger=DAQ_trigger.INTERNAL_TIMER,
+                DAQ_function=self.DAQ_function,
+                DAQ_interval_ms=DAQ_interval_ms,
                 DAQ_timer_type=DAQ_timer_type,
-                DEBUG=DEBUG_worker_DAQ)
+                critical_not_alive_count=critical_not_alive_count,
+                calc_DAQ_rate_every_N_iter=calc_DAQ_rate_every_N_iter,
+                debug=debug,
+        )
 
-        self.create_worker_send(
-                alt_process_jobs_function=self.alt_process_jobs_function,
-                DEBUG=DEBUG_worker_send)
+        self.create_worker_jobs(
+                jobs_function=self.jobs_function,
+                debug=debug)
 
         self.DAQ_postprocess_MUX_scan_function = (
                 DAQ_postprocess_MUX_scan_function)
@@ -177,7 +172,7 @@ class K3497xA_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         # NOTE: Would love to stop the old timer first, but for some strange
         # reason the very first Qtimer appears to be running in another
         # thread than the 'worker_state' thread, eventhough the routine in
-        # K3497xA_pyqt.__init__ has finished moving the worker_state thread.
+        # K3497xA_qdev.__init__ has finished moving the worker_state thread.
         # When timer is running in another thread than 'this' one, an
         # exception is thrown py Python saying we can't stop the timer from
         # another thread. Hence, I reassign a new Qtimer and hope that the
@@ -215,10 +210,10 @@ class K3497xA_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         QtWid.QApplication.processEvents()
 
     # --------------------------------------------------------------------------
-    #   DAQ_update
+    #   DAQ_function
     # --------------------------------------------------------------------------
 
-    def DAQ_update(self):
+    def DAQ_function(self):
         tick = get_tick()
 
         # Clear input and output buffers of the device. Seems to resolve
@@ -231,20 +226,20 @@ class K3497xA_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
 
             if success:
                 self.dev.wait_for_OPC()                     # Wait for OPC
-                if self.worker_DAQ.DEBUG:
+                if self.worker_DAQ.debug:
                     tock = get_tick()
                     dprint("opc? in: %i" % (tock - tick))
                     tick = tock
 
                 success &= self.dev.fetch_scan()            # Fetch scan
-                if self.worker_DAQ.DEBUG:
+                if self.worker_DAQ.debug:
                     tock = get_tick()
                     dprint("fetc in: %i" % (tock - tick))
                     tick = tock
 
             if success:
                 self.dev.wait_for_OPC()                     # Wait for OPC
-                if self.worker_DAQ.DEBUG:
+                if self.worker_DAQ.debug:
                     tock = get_tick()
                     dprint("opc? in: %i" % (tock - tick))
                     tick = tock
@@ -253,7 +248,7 @@ class K3497xA_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             # Do not throw additional timeout exceptions when .init_scan()
             # might have already failed. Hence this check for no success.
             self.dev.query_all_errors_in_queue()            # Query errors
-            if self.worker_DAQ.DEBUG:
+            if self.worker_DAQ.debug:
                 tock = get_tick()
                 dprint("err? in: %i" % (tock - tick))
                 tick = tock
@@ -262,7 +257,7 @@ class K3497xA_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             # intermittently (~once per 20 minutes). After this timeout,
             # everything times out.
             #self.dev.wait_for_OPC()
-            #if self.worker_DAQ.DEBUG:
+            #if self.worker_DAQ.debug:
             #    tock = get_tick()
             #    dprint("opc? in: %i" % (tock - tick))
             #    tick = tock
@@ -277,7 +272,7 @@ class K3497xA_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         if not (self.DAQ_postprocess_MUX_scan_function is None):
             self.DAQ_postprocess_MUX_scan_function()
 
-        if self.worker_DAQ.DEBUG:
+        if self.worker_DAQ.debug:
             tock = get_tick()
             dprint("extf in: %i" % (tock - tick))
             tick = tock
@@ -285,10 +280,10 @@ class K3497xA_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         return success
 
     # --------------------------------------------------------------------------
-    #   alt_process_jobs_function
+    #   jobs_function
     # --------------------------------------------------------------------------
 
-    def alt_process_jobs_function(self, func, args):
+    def jobs_function(self, func, args):
         # Send I/O operation to the device
         try:
             func(*args)
@@ -367,7 +362,7 @@ class K3497xA_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         self.qtbl_readings.setHorizontalHeaderLabels(["Readings"])
         self.qtbl_readings.horizontalHeaderItem(0).setFont(FONT_MONOSPACE_SMALL)
         self.qtbl_readings.verticalHeader().setFont(FONT_MONOSPACE_SMALL)
-        self.qtbl_readings.verticalHeader().setDefaultSectionSize(24);
+        self.qtbl_readings.verticalHeader().setDefaultSectionSize(24)
         self.qtbl_readings.setFont(FONT_MONOSPACE_SMALL)
         #self.qtbl_readings.setMinimumHeight(600)
         self.qtbl_readings.setFixedWidth(180)
@@ -405,7 +400,7 @@ class K3497xA_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                     "%s" % '\n'.join(self.dev.state.all_errors))
 
             self.qled_obtained_interval_ms.setText(
-                    "%.0f" % self.obtained_DAQ_update_interval_ms)
+                    "%.0f" % self.obtained_DAQ_interval_ms)
             self.qlbl_update_counter.setText("%s" % self.DAQ_update_counter)
 
             for i in range(len(self.dev.state.all_scan_list_channels)):
@@ -438,7 +433,7 @@ class K3497xA_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         self.qpte_SCPI_commands.setPlainText(
                 "%s" % '\n'.join(self.dev.SCPI_setup_commands))
         self.qled_scanning_interval_ms.setText(
-                "%i" % self.worker_DAQ.update_interval_ms)
+                "%i" % self.worker_DAQ._DAQ_interval_ms)
 
     # --------------------------------------------------------------------------
     #   Table widget related
@@ -494,10 +489,10 @@ class K3497xA_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         if reply == QtWid.QMessageBox.Yes:
             self.qpbt_start_scan.setChecked(False)
             self.stop_MUX_scan()
-            self.worker_send.add_to_queue(self.dev.wait_for_OPC)
-            self.worker_send.add_to_queue(self.dev.begin)
-            self.worker_send.process_queue()
+            self.add_to_send_queue(self.dev.wait_for_OPC)
+            self.add_to_send_queue(self.dev.begin)
+            self.process_send_queue()
 
     @QtCore.pyqtSlot()
     def process_qpbt_debug_test(self):
-        self.worker_send.queued_instruction(self.dev.write, "junk")
+        self.send(self.dev.write, "junk")

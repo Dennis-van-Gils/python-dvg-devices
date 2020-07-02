@@ -3,11 +3,11 @@
 """PyQt5 module to provide multithreaded communication and periodical data
 acquisition for a Compax3 traverse controller.
 """
-__author__      = "Dennis van Gils"
+__author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
-__url__         = ""
-__date__        = "14-09-2018"
-__version__     = "1.0.0"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 14-09-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
@@ -17,18 +17,10 @@ from DvG_pyqt_controls import (SS_GROUP,
                                create_error_LED,
                                create_tiny_LED)
 
-import DvG_dev_Compax3_traverse__fun_RS232 as compax3_functions
-import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
+from dvg_qdeviceio import QDeviceIO, DAQ_trigger
+from dvg_devices.Compax3_servo_protocol_RS232 import Compax3_servo
 
-# Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
-DEBUG_worker_DAQ  = False
-DEBUG_worker_send = False
-
-# ------------------------------------------------------------------------------
-#   Compax3_traverse_pyqt
-# ------------------------------------------------------------------------------
-
-class Compax3_traverse_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
+class Compax3_servo_qdev(QDeviceIO, QtCore.QObject):
     """Manages multithreaded communication and periodical data acquisition for
     a Compax3 traverse controller, referred to as the 'device'.
 
@@ -41,34 +33,29 @@ class Compax3_traverse_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         - Worker_DAQ:
             Periodically acquires data from the device.
 
-        - Worker_send:
+        - Worker_jobs:
             Maintains a thread-safe queue where desired device I/O operations
             can be put onto, and sends the queued operations first in first out
             (FIFO) to the device.
 
-    (*): See 'DvG_dev_Base__pyqt_lib.py' for details.
+    (*): See 'dvg_qdeviceio.QDeviceIO()' for details.
 
     Args:
         dev:
-            Reference to a 'DvG_dev_Compax3_traverse__fun_RS232.Compax3_traverse'
+            Reference to a 'dvg_devices.Compax3_servo_protocol_RS232.Compax3_servo'
             instance.
 
-        (*) DAQ_update_interval_ms
-        (*) DAQ_critical_not_alive_count
+        (*) DAQ_interval_ms
+        (*) critical_not_alive_count
         (*) DAQ_timer_type
 
     Main methods:
-        (*) start_thread_worker_DAQ(...)
-        (*) start_thread_worker_send(...)
-        (*) close_all_threads()
-
-    Inner-class instances:
-        (*) worker_DAQ
-        (*) worker_send
+        (*) start(...)
+        (*) quit()
 
     Main data attributes:
         (*) DAQ_update_counter
-        (*) obtained_DAQ_update_interval_ms
+        (*) obtained_DAQ_interval_ms
         (*) obtained_DAQ_rate_Hz
 
     Main GUI objects:
@@ -79,22 +66,28 @@ class Compax3_traverse_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         (*) signal_connection_lost()
     """
     def __init__(self,
-                 dev: compax3_functions.Compax3_traverse,
-                 DAQ_update_interval_ms=250,
-                 DAQ_critical_not_alive_count=1,
+                 dev: Compax3_servo,
+                 DAQ_interval_ms=250,
+                 critical_not_alive_count=1,
                  DAQ_timer_type=QtCore.Qt.CoarseTimer,
+                 calc_DAQ_rate_every_N_iter=4,
+                 debug=False,
                  parent=None):
-        super(Compax3_traverse_pyqt, self).__init__(parent=parent)
+        super(Compax3_servo_qdev, self).__init__(parent=parent)
 
         self.attach_device(dev)
 
-        self.create_worker_DAQ(DAQ_update_interval_ms,
-                               self.DAQ_update,
-                               DAQ_critical_not_alive_count,
-                               DAQ_timer_type,
-                               DEBUG=DEBUG_worker_DAQ)
+        self.create_worker_DAQ(
+            DAQ_trigger=DAQ_trigger.INTERNAL_TIMER,
+            DAQ_function=self.DAQ_function,
+            DAQ_interval_ms=DAQ_interval_ms,
+            DAQ_timer_type=DAQ_timer_type,
+            critical_not_alive_count=critical_not_alive_count,
+            calc_DAQ_rate_every_N_iter=calc_DAQ_rate_every_N_iter,
+            debug=debug,
+        )
 
-        self.create_worker_send(DEBUG=DEBUG_worker_send)
+        self.create_worker_jobs(debug=debug)
 
         self.create_GUI()
         self.signal_DAQ_updated.connect(self.update_GUI)
@@ -107,10 +100,10 @@ class Compax3_traverse_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         self.jog_minus_is_active = False
 
     # --------------------------------------------------------------------------
-    #   DAQ_update
+    #   DAQ_function
     # --------------------------------------------------------------------------
 
-    def DAQ_update(self):
+    def DAQ_function(self):
         success = self.dev.query_position()
         success &= self.dev.query_status_word_1()
 
@@ -133,7 +126,7 @@ class Compax3_traverse_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         self.sw1_zero_pos_known     = create_tiny_LED()
         self.sw1_pos_reached        = create_tiny_LED()
 
-        i = 0;
+        i = 0
         p = {'alignment': QtCore.Qt.AlignRight}
         grid = QtWid.QGridLayout()
         grid.setVerticalSpacing(4)
@@ -175,7 +168,7 @@ class Compax3_traverse_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         self.pbtn_stop = QtWid.QPushButton("\nSTOP &&\nREMOVE POWER\n")
         self.lbl_update_counter = QtWid.QLabel("0")
 
-        i = 0;
+        i = 0
         p = {'alignment': QtCore.Qt.AlignRight}
         grid = QtWid.QGridLayout()
         grid.setVerticalSpacing(4)
@@ -265,7 +258,7 @@ class Compax3_traverse_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
 
     @QtCore.pyqtSlot()
     def process_pbtn_ackn_error(self):
-        self.worker_send.queued_instruction(self.dev.acknowledge_error)
+        self.send(self.dev.acknowledge_error)
 
     @QtCore.pyqtSlot()
     def process_editingFinished_qled_new_pos(self):
@@ -274,7 +267,7 @@ class Compax3_traverse_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         except (TypeError, ValueError):
             new_pos = 0.0
         except:
-            raise()
+            raise
         self.qled_new_pos.setText("%.2f" % new_pos)
 
     @QtCore.pyqtSlot()
@@ -283,35 +276,35 @@ class Compax3_traverse_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         try:
             new_pos = float(self.qled_new_pos.text())
         except:
-            raise()
-        self.worker_send.queued_instruction(self.dev.move_to_target_position,
+            raise
+        self.send(self.dev.move_to_target_position,
                                             (new_pos, 2))
 
     @QtCore.pyqtSlot()
     def process_pbtn_jog_plus_pressed(self):
         if not(self.jog_plus_is_active):
             self.jog_plus_is_active = True
-            self.worker_send.queued_instruction(self.dev.jog_plus)
+            self.send(self.dev.jog_plus)
 
     @QtCore.pyqtSlot()
     def process_pbtn_jog_plus_released(self):
         self.jog_plus_is_active = False
-        self.worker_send.queued_instruction(self.dev.stop_motion_but_keep_power)
+        self.send(self.dev.stop_motion_but_keep_power)
 
     @QtCore.pyqtSlot()
     def process_pbtn_jog_minus_pressed(self):
         if not(self.jog_minus_is_active):
             self.jog_minus_is_active = True
-            self.worker_send.queued_instruction(self.dev.jog_minus)
+            self.send(self.dev.jog_minus)
 
     @QtCore.pyqtSlot()
     def process_pbtn_jog_minus_released(self):
         self.jog_minus_is_active = False
-        self.worker_send.queued_instruction(self.dev.stop_motion_but_keep_power)
+        self.send(self.dev.stop_motion_but_keep_power)
 
     @QtCore.pyqtSlot()
     def process_pbtn_stop(self):
-        self.worker_send.queued_instruction(self.dev.stop_motion_and_remove_power)
+        self.send(self.dev.stop_motion_and_remove_power)
 
     # --------------------------------------------------------------------------
     #   connect_signals_to_slots

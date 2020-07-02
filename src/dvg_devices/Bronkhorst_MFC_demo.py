@@ -3,11 +3,12 @@
 """Multithreaded PyQt5 GUI to interface with a Bronkhorst mass flow controller
 (MFC).
 """
-__author__      = "Dennis van Gils"
+__author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
-__url__         = ""
-__date__        = "14-09-2018"
-__version__     = "1.0.0"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 14-09-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
+
 
 import sys
 from pathlib import Path
@@ -15,8 +16,8 @@ from pathlib import Path
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 
-import DvG_dev_Bronkhorst_MFC__fun_RS232 as mfc_functions
-import DvG_dev_Bronkhorst_MFC__pyqt_lib  as mfc_pyqt_lib
+from dvg_devices.Bronkhorst_MFC_protocol_RS232 import Bronkhorst_MFC
+from dvg_devices.Bronkhorst_MFC_qdev import Bronkhorst_MFC_qdev
 
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -43,10 +44,10 @@ class MainWindow(QtWid.QWidget):
         # Round up full window
         vbox = QtWid.QVBoxLayout(self)
         vbox.addLayout(grid_top)
-        vbox.addWidget(mfc_pyqt.qgrp)
+        vbox.addWidget(mfc_qdev.qgrp)
         vbox.addStretch(1)
-        vbox.setAlignment(mfc_pyqt.qgrp, QtCore.Qt.AlignLeft)
-        mfc_pyqt.qgrp.setTitle('')
+        vbox.setAlignment(mfc_qdev.qgrp, QtCore.Qt.AlignLeft)
+        mfc_qdev.qgrp.setTitle('')
 
 # ------------------------------------------------------------------------------
 #   about_to_quit
@@ -55,7 +56,7 @@ class MainWindow(QtWid.QWidget):
 def about_to_quit():
     print("About to quit")
     app.processEvents()
-    mfc_pyqt.close_all_threads()
+    mfc_qdev.quit()
     try: mfc.close()
     except: pass
 
@@ -78,7 +79,7 @@ if __name__ == '__main__':
     #   Connect to Bronkhorst mass flow controller (MFC)
     # --------------------------------------------------------------------------
 
-    mfc = mfc_functions.Bronkhorst_MFC(name="MFC")
+    mfc = Bronkhorst_MFC(name="MFC")
     if mfc.auto_connect(PATH_CONFIG, SERIAL_MFC):
         mfc.begin()
 
@@ -96,9 +97,8 @@ if __name__ == '__main__':
     #   Set up communication threads for the MFC
     # --------------------------------------------------------------------------
 
-    mfc_pyqt = mfc_pyqt_lib.Bronkhorst_MFC_pyqt(mfc, UPDATE_INTERVAL_MS)
-    mfc_pyqt.start_thread_worker_DAQ()
-    mfc_pyqt.start_thread_worker_send()
+    mfc_qdev = Bronkhorst_MFC_qdev(mfc, UPDATE_INTERVAL_MS)
+    mfc_qdev.start()
 
     # --------------------------------------------------------------------------
     #   Start the main GUI event loop

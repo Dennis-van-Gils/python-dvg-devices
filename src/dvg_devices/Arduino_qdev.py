@@ -6,12 +6,13 @@ acquisition for an Arduino(-like) device.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "01-07-2020"  # 0.0.1 was stamped 11-12-2018
-__version__ = "0.0.1"  # 0.0.1 corresponds to prototype 1.2.0
+__date__ = "02-07-2020"  # 0.0.1 was stamped 11-12-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.2.0
 
 from PyQt5 import QtCore
-import DvG_dev_Arduino__protocol_serial
-from DvG_QDeviceIO import QDeviceIO, DAQ_trigger
+
+from dvg_qdeviceio import QDeviceIO, DAQ_trigger
+from dvg_devices.Arduino_protocol_serial import Arduino
 
 
 class Arduino_qdev(QDeviceIO, QtCore.QObject):
@@ -29,12 +30,12 @@ class Arduino_qdev(QDeviceIO, QtCore.QObject):
             can be put onto, and sends the queued operations first in first out
             (FIFO) to the device.
 
-    (*): See 'DvG_QDeviceIO.QDeviceIO' for details.
+    (*): See 'dvg_qdeviceio.QDeviceIO()' for details.
 
     Args:
         dev:
-            Reference to a 'DvG_dev_Arduino__protocol_serial.Arduino' instance.
-            
+            Reference to a 'dvg_devices.Arduino_protocol_serial.Arduino' instance.
+
         debug:
             Show debug info in terminal? Warning: Slow! Do not leave on
             unintentionally.
@@ -63,7 +64,7 @@ class Arduino_qdev(QDeviceIO, QtCore.QObject):
 
     def __init__(
         self,
-        dev: DvG_dev_Arduino__protocol_serial.Arduino,
+        dev: Arduino,
         DAQ_trigger=DAQ_trigger.INTERNAL_TIMER,
         DAQ_function=None,
         DAQ_interval_ms=100,

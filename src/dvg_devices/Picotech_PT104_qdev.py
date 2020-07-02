@@ -3,11 +3,11 @@
 """PyQt5 module to provide multithreaded communication and periodical data
 acquisition for a Picotech PT-104 pt100/1000 temperature logger.
 """
-__author__      = "Dennis van Gils"
+__author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
-__url__         = ""
-__date__        = "17-09-2018"
-__version__     = "1.0.0"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 17-09-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 
 import numpy as np
 
@@ -16,20 +16,14 @@ from PyQt5 import QtWidgets as QtWid
 
 from DvG_pyqt_controls import SS_GROUP
 
-import DvG_dev_Picotech_PT104__fun_UDP as pt104_functions
-import DvG_dev_Base__pyqt_lib          as Dev_Base_pyqt_lib
+from dvg_qdeviceio import QDeviceIO, DAQ_trigger
+from dvg_devices.Picotech_PT104_protocol_UDP import Picotech_PT104
 
 # Special characters
 CHAR_DEG_C = chr(176) + 'C'
 
-# Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
-DEBUG_worker_DAQ  = False
 
-# ------------------------------------------------------------------------------
-#   PT104_pyqt
-# ------------------------------------------------------------------------------
-
-class PT104_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
+class Picotech_PT104_qdev(QDeviceIO, QtCore.QObject):
     """Manages multithreaded communication and periodical data acquisition for
     a Picotech PT-104 pt100/1000 temperature logger referred to as the 'device'.
 
@@ -44,28 +38,26 @@ class PT104_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         - Worker_DAQ:
             Periodically acquires data from the device.
 
-    (*): See 'DvG_dev_Base__pyqt_lib.py' for details.
+    (*): See 'dvg_qdeviceio.QDeviceIO()' for details.
 
     Args:
         dev:
-            Reference to a 'DvG_dev_Picotech_PT104__fun_UDP.PT104' instance.
+            Reference to a
+            'dvg_devices.Picotech_PT104_protocol_UDP.Picotech_PT104' instance.
 
-        (*) DAQ_update_interval_ms:
+        (*) DAQ_interval_ms:
             The minimum interval is determined by the scan rate of the PT-104,
             which takes 720 ms to update a temperature reading of a single
             channel. This minimum interval is not stable and fluctuates. To
-            ensure a stable DAQ rate, set 'DAQ_update_interval_ms' to values
+            ensure a stable DAQ rate, set 'DAQ_interval_ms' to values
             larger than 720 ms with some head room. 1000 ms, should work fine.
 
-        (*) DAQ_critical_not_alive_count
+        (*) critical_not_alive_count
         (*) DAQ_timer_type
 
     Main methods:
-        (*) start_thread_worker_DAQ
-        (*) close_all_threads()
-
-    Inner-class instances:
-        (*) worker_DAQ
+        (*) start(...)
+        (*) quit()
 
     Main GUI objects:
         qgrp (PyQt5.QtWidgets.QGroupBox)
@@ -75,21 +67,25 @@ class PT104_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         (*) signal_connection_lost()
     """
     def __init__(self,
-                 dev: pt104_functions.PT104,
-                 DAQ_update_interval_ms=1000,
-                 DAQ_critical_not_alive_count=np.nan,
+                 dev: Picotech_PT104,
+                 DAQ_interval_ms=1000,
                  DAQ_timer_type=QtCore.Qt.CoarseTimer,
+                 critical_not_alive_count=np.nan,
+                 calc_DAQ_rate_every_N_iter=1,
+                 debug=False,
                  parent=None):
-        super(PT104_pyqt, self).__init__(parent=parent)
+        super(Picotech_PT104_qdev, self).__init__(parent=parent)
 
         self.attach_device(dev)
 
         self.create_worker_DAQ(
-                DAQ_update_interval_ms=DAQ_update_interval_ms,
-                DAQ_function_to_run_each_update=self.DAQ_update,
-                DAQ_critical_not_alive_count=DAQ_critical_not_alive_count,
+                DAQ_trigger=DAQ_trigger.INTERNAL_TIMER,
+                DAQ_function=self.DAQ_function,
+                DAQ_interval_ms=DAQ_interval_ms,
                 DAQ_timer_type=DAQ_timer_type,
-                DEBUG=DEBUG_worker_DAQ)
+                critical_not_alive_count=critical_not_alive_count,
+                calc_DAQ_rate_every_N_iter=calc_DAQ_rate_every_N_iter,
+                debug=debug)
 
         self.create_GUI()
         self.signal_DAQ_updated.connect(self.update_GUI)
@@ -97,11 +93,11 @@ class PT104_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             self.update_GUI()  # Correctly reflect an offline device
 
     # --------------------------------------------------------------------------
-    #   DAQ_update
+    #   DAQ_function
     # --------------------------------------------------------------------------
 
-    def DAQ_update(self):
-        #print("Obtained interval: %.0f" % self.obtained_DAQ_update_interval_ms)
+    def DAQ_function(self):
+        #print("Obtained interval: %.0f" % self.obtained_DAQ_interval_ms)
         return self.dev.scan_4_wire_temperature()
 
     # --------------------------------------------------------------------------

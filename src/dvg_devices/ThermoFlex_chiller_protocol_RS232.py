@@ -10,11 +10,13 @@ as opposed to terminating the program completely.
 State variables that read numpy.nan indicate that they are uninitialized or that
 the previous query resulted in a communication error.
 
-When this file is directly run from the terminal a demo will be shown.
-
-Dennis_van_Gils
-25-07-2018
+When this module is directly run from the terminal a demo will be shown.
 """
+__author__ = "Dennis van Gils"
+__authoremail__ = "vangils.dennis@gmail.com"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 25-07-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 
 import sys
 import serial
@@ -23,7 +25,7 @@ import time
 from pathlib import Path
 
 import numpy as np
-from DvG_debug_functions import print_fancy_traceback as pft
+from dvg_debug_functions import print_fancy_traceback as pft
 
 # Serial settings
 RS232_BAUDRATE = 9600       # Baudrate according to the manual
@@ -57,10 +59,6 @@ class Unit_of_measure():
 CHILLER_FLOW_UNIT = Unit_of_measure.LPM
 CHILLER_TEMP_UNIT = Unit_of_measure.deg_C
 CHILLER_PRES_UNIT = Unit_of_measure.bar
-
-# ------------------------------------------------------------------------------
-#   Class ThermoFlex_chiller
-# ------------------------------------------------------------------------------
 
 class ThermoFlex_chiller():
     """Containers for the process and measurement variables.
@@ -143,10 +141,6 @@ class ThermoFlex_chiller():
         # Is the connection to the device alive?
         self.is_alive = False
 
-        # Placeholder for a future mutex instance needed for proper
-        # multithreading (e.g. instance of QtCore.Qmutex())
-        self.mutex = None
-
         # Container for the units used and expected by the chiller.
         # Gets updated by calling the alarm value queries (e.g.
         # 'query_alarm_LO_flow()' etc.) or by calling 'begin()'.
@@ -214,7 +208,6 @@ class ThermoFlex_chiller():
             return False
         except:
             raise
-            sys.exit(0)
 
         try:
             # Query the 'Acknowledge' request.
@@ -732,7 +725,7 @@ class ThermoFlex_chiller():
         Returns: True if successful, False otherwise.
         """
         msg_bytes = bytes(RS232_START + [0x74, 0x00, 0x8a])  # includes checksum
-        [success, value, units] = self.query_data_as_float_and_uom(msg_bytes)
+        [success, value, _units] = self.query_data_as_float_and_uom(msg_bytes)
         self.values_PID.P = value
         return success
 
@@ -743,7 +736,7 @@ class ThermoFlex_chiller():
         Returns: True if successful, False otherwise.
         """
         msg_bytes = bytes(RS232_START + [0x75, 0x00, 0x89])  # includes checksum
-        [success, value, units] = self.query_data_as_float_and_uom(msg_bytes)
+        [success, value, _units] = self.query_data_as_float_and_uom(msg_bytes)
         self.values_PID.I = value
         return success
 
@@ -754,7 +747,7 @@ class ThermoFlex_chiller():
         Returns: True if successful, False otherwise.
         """
         msg_bytes = bytes(RS232_START + [0x76, 0x00, 0x88])  # includes checksum
-        [success, value, units] = self.query_data_as_float_and_uom(msg_bytes)
+        [success, value, _units] = self.query_data_as_float_and_uom(msg_bytes)
         self.values_PID.D = value
         return success
 
@@ -799,7 +792,7 @@ class ThermoFlex_chiller():
         Returns: True if successful, False otherwise.
         """
         msg_bytes = bytes(RS232_START + [0x70, 0x00, 0x8e])  # includes checksum
-        [success, value, units] = self.query_data_as_float_and_uom(msg_bytes)
+        [success, value, _units] = self.query_data_as_float_and_uom(msg_bytes)
         self.state.setpoint = value
         return success
 
@@ -811,7 +804,7 @@ class ThermoFlex_chiller():
         Returns: True if successful, False otherwise.
         """
         msg_bytes = bytes(RS232_START + [0x20, 0x00, 0xde])  # includes checksum
-        [success, value, units] = self.query_data_as_float_and_uom(msg_bytes)
+        [success, value, _units] = self.query_data_as_float_and_uom(msg_bytes)
         self.state.temp = value
         return success
 
@@ -823,7 +816,7 @@ class ThermoFlex_chiller():
         Returns: True if successful, False otherwise.
         """
         msg_bytes = bytes(RS232_START + [0x10, 0x00, 0xee])  # includes checksum
-        [success, value, units] = self.query_data_as_float_and_uom(msg_bytes)
+        [success, value, _units] = self.query_data_as_float_and_uom(msg_bytes)
         self.state.flow = value
         return success
 
@@ -835,7 +828,7 @@ class ThermoFlex_chiller():
         Returns: True if successful, False otherwise.
         """
         msg_bytes = bytes(RS232_START + [0x28, 0x00, 0xd6])  # includes checksum
-        [success, value, units] = self.query_data_as_float_and_uom(msg_bytes)
+        [success, value, _units] = self.query_data_as_float_and_uom(msg_bytes)
         self.state.supply_pres = value
         return success
 
@@ -847,7 +840,7 @@ class ThermoFlex_chiller():
         Returns: True if successful, False otherwise.
         """
         msg_bytes = bytes(RS232_START + [0x29, 0x00, 0xd5])  # includes checksum
-        [success, value, units] = self.query_data_as_float_and_uom(msg_bytes)
+        [success, value, _units] = self.query_data_as_float_and_uom(msg_bytes)
         self.state.suction_pres = value
         return success
 
@@ -906,7 +899,7 @@ class ThermoFlex_chiller():
         msg_bytes = bytes(msg)
 
         # Send setpoint to chiller and receive the set setpoint
-        [success, value, units] = self.query_data_as_float_and_uom(msg_bytes)
+        [success, value, _units] = self.query_data_as_float_and_uom(msg_bytes)
         self.state.setpoint = value
         return success
 

@@ -3,11 +3,13 @@
 """Multithreaded PyQt5 GUI to interface with a a Keysight (former HP or Agilent)
 34970A/34972A data acquisition/switch unit.
 """
-__author__      = "Dennis van Gils"
+__author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
-__url__         = ""
-__date__        = "14-09-2018"
-__version__     = "1.0.0"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 14-09-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
+
+
 
 import sys
 
@@ -18,8 +20,8 @@ from PyQt5 import QtWidgets as QtWid
 
 from DvG_pyqt_controls import SS_TEXTBOX_READ_ONLY
 
-import DvG_dev_Keysight_3497xA__fun_SCPI as K3497xA_functions
-import DvG_dev_Keysight_3497xA__pyqt_lib as K3497xA_pyqt_lib
+from dvg_devices.Keysight_3497xA_protocol_SCPI import Keysight_3497xA
+from dvg_devices.Keysight_3497xA_qdev import Keysight_3497xA_qdev
 
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -45,9 +47,9 @@ class MainWindow(QtWid.QWidget):
 
         # Bottom grid
         hbox1 = QtWid.QHBoxLayout()
-        hbox1.addWidget(mux_pyqt.qgrp)
+        hbox1.addWidget(mux_qdev.qgrp)
         hbox1.addStretch(1)
-        hbox1.setAlignment(mux_pyqt.qgrp, QtCore.Qt.AlignTop)
+        hbox1.setAlignment(mux_qdev.qgrp, QtCore.Qt.AlignTop)
 
         # Round up full window
         vbox = QtWid.QVBoxLayout(self)
@@ -62,7 +64,7 @@ class MainWindow(QtWid.QWidget):
 def about_to_quit():
     print("About to quit")
     app.processEvents()
-    mux_pyqt.close_all_threads()
+    mux_qdev.quit()
     try: mux.close()
     except: pass
     try: rm.close()
@@ -108,7 +110,7 @@ if __name__ == '__main__':
 
     rm = visa.ResourceManager()
 
-    mux = K3497xA_functions.K3497xA(MUX_VISA_ADDRESS, "MUX_1")
+    mux = Keysight_3497xA(MUX_VISA_ADDRESS, "MUX_1")
     if mux.connect(rm):
         mux.begin(MUX_SCPI_COMMANDS)
 
@@ -127,9 +129,8 @@ if __name__ == '__main__':
     #   Set up communication threads for the mux
     # --------------------------------------------------------------------------
 
-    mux_pyqt = K3497xA_pyqt_lib.K3497xA_pyqt(mux, MUX_SCANNING_INTERVAL_MS)
-    mux_pyqt.start_thread_worker_DAQ()
-    mux_pyqt.start_thread_worker_send()
+    mux_qdev = Keysight_3497xA_qdev(mux, MUX_SCANNING_INTERVAL_MS)
+    mux_qdev.start()
 
     # --------------------------------------------------------------------------
     #   Start the main GUI event loop

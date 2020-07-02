@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Dennis van Gils
-18-09-2018
-"""
+__author__ = "Dennis van Gils"
+__authoremail__ = "vangils.dennis@gmail.com"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 18-09-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 
 import sys
 import os
@@ -13,15 +14,15 @@ from pathlib import Path
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 
-from DvG_debug_functions import ANSI, dprint
+from dvg_debug_functions import ANSI, dprint
 from DvG_pyqt_controls import SS_TEXTBOX_READ_ONLY
 
-import DvG_dev_Keysight_N8700_PSU__fun_SCPI as N8700_functions
-import DvG_dev_Keysight_N8700_PSU__pyqt_lib as N8700_pyqt_lib
-from   DvG_dev_Base__pyqt_lib import DAQ_trigger
+from dvg_devices.Keysight_N8700_protocol_SCPI import Keysight_N8700
+from dvg_devices.Keysight_N8700_qdev import Keysight_N8700_qdev
+from dvg_qdeviceio import DAQ_trigger
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
-DEBUG = True
+DEBUG = False
 
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -47,8 +48,8 @@ class MainWindow(QtWid.QWidget):
 
         # PSU groups
         hbox1 = QtWid.QHBoxLayout()
-        for psu_pyqt in psus_pyqt:
-            hbox1.addWidget(psu_pyqt.grpb)
+        for psu_qdev in psus_qdev:
+            hbox1.addWidget(psu_qdev.grpb)
         hbox1.addStretch(1)
 
         # Round up full window
@@ -64,8 +65,8 @@ class MainWindow(QtWid.QWidget):
 def about_to_quit():
     print("About to quit")
     app.processEvents()
-    for psu_pyqt in psus_pyqt:
-        psu_pyqt.close_all_threads()
+    for psu_qdev in psus_qdev:
+        psu_qdev.quit()
     for psu in psus:
         try: psu.close()
         except: pass
@@ -77,9 +78,9 @@ def about_to_quit():
 # ------------------------------------------------------------------------------
 
 def trigger_update_psus():
-    if DEBUG: dprint("timer_psus: wake all DAQ")
-    for psu_pyqt in psus_pyqt:
-        psu_pyqt.worker_DAQ.wake_up()
+    if DEBUG: dprint("timer_psus: wake up all DAQ")
+    for psu_qdev in psus_qdev:
+        psu_qdev.worker_DAQ.wake_up()
 
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
@@ -112,9 +113,9 @@ if __name__ == '__main__':
 
     rm = visa.ResourceManager()
 
-    psu1 = N8700_functions.PSU(VISA_ADDRESS_PSU_1, PATH_CONFIG_PSU_1, "PSU 1")
-    psu2 = N8700_functions.PSU(VISA_ADDRESS_PSU_2, PATH_CONFIG_PSU_2, "PSU 2")
-    psu3 = N8700_functions.PSU(VISA_ADDRESS_PSU_3, PATH_CONFIG_PSU_3, "PSU 3")
+    psu1 = Keysight_N8700(VISA_ADDRESS_PSU_1, PATH_CONFIG_PSU_1, "PSU 1")
+    psu2 = Keysight_N8700(VISA_ADDRESS_PSU_2, PATH_CONFIG_PSU_2, "PSU 2")
+    psu3 = Keysight_N8700(VISA_ADDRESS_PSU_3, PATH_CONFIG_PSU_3, "PSU 3")
     psus = [psu1, psu2, psu3]
 
     for psu in psus:
@@ -137,26 +138,21 @@ if __name__ == '__main__':
     #   Set up communication threads for the PSUs
     # --------------------------------------------------------------------------
 
-    psus_pyqt = list()
+    psus_qdev = list()
     for i in range(len(psus)):
-        psus_pyqt.append(N8700_pyqt_lib.PSU_pyqt(
+        psus_qdev.append(Keysight_N8700_qdev(
                 dev=psus[i],
-                DAQ_trigger_by=DAQ_trigger.EXTERNAL_WAKE_UP_CALL))
+                DAQ_trigger=DAQ_trigger.SINGLE_SHOT_WAKE_UP,
+                debug=DEBUG))
 
     # DEBUG information
-    psus_pyqt[0].worker_DAQ.DEBUG  = DEBUG
-    psus_pyqt[0].worker_send.DEBUG = DEBUG
-    psus_pyqt[0].worker_DAQ.DEBUG_color  = ANSI.YELLOW
-    psus_pyqt[0].worker_send.DEBUG_color = ANSI.CYAN
+    psus_qdev[0].worker_DAQ.debug_color  = ANSI.YELLOW
+    psus_qdev[0].worker_jobs.debug_color = ANSI.CYAN
+    psus_qdev[1].worker_DAQ.debug_color  = ANSI.GREEN
+    psus_qdev[1].worker_jobs.debug_color = ANSI.RED
 
-    psus_pyqt[1].worker_DAQ.DEBUG  = DEBUG
-    psus_pyqt[1].worker_send.DEBUG = DEBUG
-    psus_pyqt[1].worker_DAQ.DEBUG_color  = ANSI.GREEN
-    psus_pyqt[1].worker_send.DEBUG_color = ANSI.RED
-
-    for psu_pyqt in psus_pyqt:
-        psu_pyqt.start_thread_worker_DAQ()
-        psu_pyqt.start_thread_worker_send()
+    for psu_qdev in psus_qdev:
+        psu_qdev.start()
 
     # --------------------------------------------------------------------------
     #   Set up PSU update timer

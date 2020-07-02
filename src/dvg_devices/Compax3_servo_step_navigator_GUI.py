@@ -8,14 +8,14 @@ Will emit pyqtSignals 'step_up', 'step_down', 'step_left' and 'step_right'
 whenever an arrow button is clicked in the GUI or an arrow key is pressed on the
 keyboard. Connect to these signals in your own application to act upon it.
 
-No communication with a Compax3 traverse controller will take place inside this
+No communication with a Compax3 servo controller will take place inside this
 module. It will only read out the software state. Pure GUI.
 """
-__author__      = "Dennis van Gils"
+__author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
-__url__         = ""
-__date__        = "14-09-2018"
-__version__     = "1.0.0"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 14-09-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 
 import sys
 import numpy as np
@@ -23,10 +23,10 @@ import numpy as np
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 
-from DvG_debug_functions import print_fancy_traceback as pft
+from dvg_debug_functions import print_fancy_traceback as pft
 from DvG_pyqt_controls import create_Toggle_button, SS_GROUP
 
-from DvG_dev_Compax3_traverse__fun_RS232 import Compax3_traverse
+from dvg_devices.Compax3_servo_protocol_RS232 import Compax3_servo
 
 class Compax3_step_navigator(QtWid.QWidget):
     step_up    = QtCore.pyqtSignal(float)
@@ -35,15 +35,15 @@ class Compax3_step_navigator(QtWid.QWidget):
     step_right = QtCore.pyqtSignal(float)
 
     def __init__(self,
-                 trav_horz: Compax3_traverse=None,
-                 trav_vert: Compax3_traverse=None,
+                 trav_horz: Compax3_servo=None,
+                 trav_vert: Compax3_servo=None,
                  parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
-        if not (isinstance(trav_horz, Compax3_traverse) or trav_horz is None):
+        if not (isinstance(trav_horz, Compax3_servo) or trav_horz is None):
             pft("Argument 'trav_horz' is of a wrong type.", 3)
             sys.exit(1)
-        if not (isinstance(trav_vert, Compax3_traverse) or trav_vert is None):
+        if not (isinstance(trav_vert, Compax3_servo) or trav_vert is None):
             pft("Argument 'trav_vert' is of a wrong type.", 3)
             sys.exit(1)
 
@@ -167,7 +167,7 @@ class Compax3_step_navigator(QtWid.QWidget):
         except (TypeError, ValueError):
             val = 0.0
         except:
-            raise()
+            raise
         val = max(0.0, val)
         self.qled_step_size.setText("%.2f" % val)
         self.step_size = val

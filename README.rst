@@ -10,7 +10,7 @@ DvG_Devices
 Collection of interfaces to communicate with laboratory devices, with support
 for multithreading in PyQt5.
 
-* Arduino -- microcontroller
+* Arduino -- microcontroller board
 * Bronkhorst -- mass flow controller
 * Compax3 -- servo controller
 * Keysight 3497xA -- digital multimeter
@@ -19,7 +19,7 @@ for multithreading in PyQt5.
 * PolyScience PD -- recirculating bath
 * ThermoFlex -- chiller
 
-IN PROGRESS:
+IN PROGRESS 02-07-2020:
 
 Currently this library contains the prototypes as used in the TMHT Tunnel
 facility. Everything has to be rewritten to make use of `DvG_QDeviceIO`. This

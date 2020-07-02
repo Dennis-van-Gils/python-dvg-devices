@@ -8,11 +8,13 @@ Only the ASCII version is supported, not the enhanced binary version. This
 library sends and receives messages to/from all nodes (code 80), hence just one
 MFC is assumed per port.
 
-When this file is directly run from the terminal a demo will be shown.
-
-Dennis_van_Gils
-25-07-2018
+When this module is directly run from the terminal a demo will be shown.
 """
+__author__ = "Dennis van Gils"
+__authoremail__ = "vangils.dennis@gmail.com"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 25-07-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 
 import sys
 import serial
@@ -20,15 +22,11 @@ import serial.tools.list_ports
 import struct
 from pathlib import Path
 
-from DvG_debug_functions import print_fancy_traceback as pft
+from dvg_debug_functions import print_fancy_traceback as pft
 
 # Serial settings
 RS232_BAUDRATE = 38400      # Baudrate according to the manual
 RS232_TIMEOUT  = 0.1        # [sec]
-
-# ------------------------------------------------------------------------------
-#   Class Bronkhorst_MFC
-# ------------------------------------------------------------------------------
 
 class Bronkhorst_MFC():
     class State():
@@ -50,10 +48,6 @@ class Bronkhorst_MFC():
 
         # Is the connection to the device alive?
         self.is_alive = False
-
-        # Placeholder for a future mutex instance needed for proper
-        # multithreading (e.g. instance of QtCore.Qmutex())
-        self.mutex = None
 
         # Container for the process and measurement variables
         self.state = self.State()
@@ -112,7 +106,6 @@ class Bronkhorst_MFC():
             return False
         except:
             raise
-            sys.exit(0)
 
         try:
             # Query the serial number string.
@@ -266,7 +259,6 @@ class Bronkhorst_MFC():
                 pft(err, 3)
             except:
                 raise
-                sys.exit(0)
             else:
                 try:
                     # Read all bytes in the line that is terminated with a
@@ -277,7 +269,6 @@ class Bronkhorst_MFC():
                     pft(err, 3)
                 except:
                     raise
-                    sys.exit(0)
                 else:
                     # Convert bytes into string and remove termination chars and
                     # spaces

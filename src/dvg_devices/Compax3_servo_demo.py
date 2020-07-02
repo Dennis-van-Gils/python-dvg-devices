@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 """Multithreaded PyQt5 GUI to interface with a Compax3 traverse controller.
 """
-__author__      = "Dennis van Gils"
+__author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
-__url__         = ""
-__date__        = "14-09-2018"
-__version__     = "1.0.0"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 14-09-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 
 import sys
 from pathlib import Path
@@ -14,12 +14,12 @@ from pathlib import Path
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 
-from DvG_debug_functions import ANSI
+from dvg_debug_functions import ANSI
 from DvG_pyqt_controls import SS_TEXTBOX_READ_ONLY, SS_GROUP
 
-import DvG_dev_Compax3_traverse__fun_RS232      as compax3_functions
-import DvG_dev_Compax3_traverse__pyqt_lib       as compax3_pyqt_lib
-import DvG_dev_Compax3_step_navigator__pyqt_lib as step_nav_pyqt_lib
+from dvg_devices.Compax3_servo_protocol_RS232 import Compax3_servo
+from dvg_devices.Compax3_servo_qdev import Compax3_servo_qdev
+from dvg_devices.Compax3_servo_step_navigator_GUI import Compax3_step_navigator
 
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -45,7 +45,7 @@ class MainWindow(QtWid.QWidget):
 
         # Traverse schematic image
         lbl_trav_img = QtWid.QLabel()
-        lbl_trav_img.setPixmap(QtGui.QPixmap("Traverse_layout.png"))
+        lbl_trav_img.setPixmap(QtGui.QPixmap(str(Path(sys.modules[__name__].__file__).parent) + "/Traverse_layout.png"))
         lbl_trav_img.setFixedSize(244, 240)
 
         grid = QtWid.QGridLayout()
@@ -63,12 +63,12 @@ class MainWindow(QtWid.QWidget):
         vbox.setAlignment(trav_step_nav.grpb, QtCore.Qt.AlignLeft)
 
         hbox = QtWid.QHBoxLayout()
-        hbox.addWidget(trav_vert_pyqt.qgrp)
-        hbox.addWidget(trav_horz_pyqt.qgrp)
+        hbox.addWidget(trav_vert_qdev.qgrp)
+        hbox.addWidget(trav_horz_qdev.qgrp)
         hbox.addLayout(vbox)
         hbox.addStretch(1)
-        hbox.setAlignment(trav_horz_pyqt.qgrp, QtCore.Qt.AlignTop)
-        hbox.setAlignment(trav_vert_pyqt.qgrp, QtCore.Qt.AlignTop)
+        hbox.setAlignment(trav_horz_qdev.qgrp, QtCore.Qt.AlignTop)
+        hbox.setAlignment(trav_vert_qdev.qgrp, QtCore.Qt.AlignTop)
 
         vbox = QtWid.QVBoxLayout(self)
         vbox.addLayout(grid_top)
@@ -80,23 +80,23 @@ class MainWindow(QtWid.QWidget):
 
 @QtCore.pyqtSlot()
 def act_upon_signal_step_up(new_pos: float):
-    trav_vert_pyqt.qled_new_pos.setText("%.2f" % new_pos)
-    trav_vert_pyqt.process_pbtn_move_to_new_pos()
+    trav_vert_qdev.qled_new_pos.setText("%.2f" % new_pos)
+    trav_vert_qdev.process_pbtn_move_to_new_pos()
 
 @QtCore.pyqtSlot()
 def act_upon_signal_step_down(new_pos: float):
-    trav_vert_pyqt.qled_new_pos.setText("%.2f" % new_pos)
-    trav_vert_pyqt.process_pbtn_move_to_new_pos()
+    trav_vert_qdev.qled_new_pos.setText("%.2f" % new_pos)
+    trav_vert_qdev.process_pbtn_move_to_new_pos()
 
 @QtCore.pyqtSlot()
 def act_upon_signal_step_left(new_pos: float):
-    trav_horz_pyqt.qled_new_pos.setText("%.2f" % new_pos)
-    trav_horz_pyqt.process_pbtn_move_to_new_pos()
+    trav_horz_qdev.qled_new_pos.setText("%.2f" % new_pos)
+    trav_horz_qdev.process_pbtn_move_to_new_pos()
 
 @QtCore.pyqtSlot()
 def act_upon_signal_step_right(new_pos: float):
-    trav_horz_pyqt.qled_new_pos.setText("%.2f" % new_pos)
-    trav_horz_pyqt.process_pbtn_move_to_new_pos()
+    trav_horz_qdev.qled_new_pos.setText("%.2f" % new_pos)
+    trav_horz_qdev.process_pbtn_move_to_new_pos()
 
 # ------------------------------------------------------------------------------
 #   about_to_quit
@@ -106,8 +106,8 @@ def about_to_quit():
     print("About to quit")
     app.processEvents()
 
-    for trav_pyqt in travs_pyqt:
-        trav_pyqt.close_all_threads()
+    for trav_qdev in travs_qdev:
+        trav_qdev.quit()
 
     for trav in travs:
         try: trav.close()
@@ -148,8 +148,8 @@ if __name__ == '__main__':
     #   Connect to and set up Compax3 traverse controllers
     # --------------------------------------------------------------------------
 
-    trav_horz = compax3_functions.Compax3_traverse(name=trav_conn_horz.name)
-    trav_vert = compax3_functions.Compax3_traverse(name=trav_conn_vert.name)
+    trav_horz = Compax3_servo(name=trav_conn_horz.name)
+    trav_vert = Compax3_servo(name=trav_conn_vert.name)
 
     if trav_horz.auto_connect(trav_conn_horz.path_config,
                               trav_conn_horz.serial):
@@ -191,16 +191,14 @@ if __name__ == '__main__':
     app.aboutToQuit.connect(about_to_quit)
 
     # Create PyQt GUI interfaces and communication threads for the device
-    trav_horz_pyqt = compax3_pyqt_lib.Compax3_traverse_pyqt(trav_horz,
-                                                            UPDATE_INTERVAL_MS)
+    trav_horz_qdev = Compax3_servo_qdev(trav_horz, UPDATE_INTERVAL_MS)
 
-    trav_vert_pyqt = compax3_pyqt_lib.Compax3_traverse_pyqt(trav_vert,
-                                                            UPDATE_INTERVAL_MS)
+    trav_vert_qdev = Compax3_servo_qdev(trav_vert, UPDATE_INTERVAL_MS)
 
-    travs_pyqt = [trav_horz_pyqt, trav_vert_pyqt]
+    travs_qdev = [trav_horz_qdev, trav_vert_qdev]
 
     # Create Compax3 single step navigator
-    trav_step_nav = step_nav_pyqt_lib.Compax3_step_navigator(
+    trav_step_nav = Compax3_step_navigator(
                         trav_horz=trav_horz, trav_vert=trav_vert)
     trav_step_nav.step_up.connect(act_upon_signal_step_up)
     trav_step_nav.step_down.connect(act_upon_signal_step_down)
@@ -208,10 +206,10 @@ if __name__ == '__main__':
     trav_step_nav.step_right.connect(act_upon_signal_step_right)
 
     # For DEBUG info
-    trav_horz_pyqt.worker_DAQ.DEBUG_color  = ANSI.YELLOW
-    trav_horz_pyqt.worker_send.DEBUG_color = ANSI.CYAN
-    trav_vert_pyqt.worker_DAQ.DEBUG_color  = ANSI.YELLOW
-    trav_vert_pyqt.worker_send.DEBUG_color = ANSI.CYAN
+    trav_horz_qdev.worker_DAQ.debug_color  = ANSI.YELLOW
+    trav_horz_qdev.worker_jobs.debug_color = ANSI.CYAN
+    trav_vert_qdev.worker_DAQ.debug_color  = ANSI.YELLOW
+    trav_vert_qdev.worker_jobs.debug_color = ANSI.CYAN
 
     # Create window
     window = MainWindow()
@@ -220,11 +218,8 @@ if __name__ == '__main__':
     #   Start threads
     # --------------------------------------------------------------------------
 
-    trav_horz_pyqt.start_thread_worker_DAQ()
-    trav_horz_pyqt.start_thread_worker_send()
-
-    trav_vert_pyqt.start_thread_worker_DAQ()
-    trav_vert_pyqt.start_thread_worker_send()
+    trav_horz_qdev.start()
+    trav_vert_qdev.start()
 
     # --------------------------------------------------------------------------
     #   Start the main GUI event loop

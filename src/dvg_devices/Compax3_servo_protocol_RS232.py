@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-RS232 function library for a Parker Compax3 traverse controller. Only the ASCII
+RS232 function library for a Parker Compax3 servo controller. Only the ASCII
 version is supported, not (yet) the binary version.
 
 Communication errors will be handled as non-fatal. This means it will struggle
@@ -11,11 +11,13 @@ as opposed to terminating the program completely.
 State variables that read numpy.nan indicate that they are uninitialized or that
 the previous query resulted in a communication error.
 
-When this file is directly run from the terminal a demo will be shown.
-
-Dennis van Gils
-01-08-2018
+When this module is directly run from the terminal a demo will be shown.
 """
+__author__ = "Dennis van Gils"
+__authoremail__ = "vangils.dennis@gmail.com"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 01-08-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 
 import sys
 import serial
@@ -23,7 +25,7 @@ import serial.tools.list_ports
 from pathlib import Path
 
 import numpy as np
-from DvG_debug_functions import print_fancy_traceback as pft
+from dvg_debug_functions import print_fancy_traceback as pft
 
 # Serial settings
 RS232_BAUDRATE = 115200
@@ -31,7 +33,7 @@ RS232_TIMEOUT  = 0.4  # [s]
 RS232_RTSCTS   = True
 TERM_CHAR = '\r'
 
-class Compax3_traverse():
+class Compax3_servo():
     """Containers for the process and measurement variables
     [numpy.nan] values indicate that the parameter is not initialized or that
     the last query was unsuccessful in communication.
@@ -68,10 +70,6 @@ class Compax3_traverse():
         # Is the connection to the device alive?
         self.is_alive = False
 
-        # Placeholder for a future mutex instance needed for proper
-        # multithreading (e.g. instance of QtCore.Qmutex())
-        self.mutex = None
-
         # Containers for the status, process and measurement variables
         self.status_word_1 = self.Status_word_1()
         self.state = self.State()
@@ -96,7 +94,7 @@ class Compax3_traverse():
         """Open the port at address 'port_str' and try to establish a
         connection. A query for the Compax3 serial number is send over the port.
         If it gives the proper response (and optionally has a matching serial
-        number) it must be the Compax3 traverse we're looking for.
+        number) it must be the Compax3 servo we're looking for.
 
         Args:
             port_str (str): Serial port address to open
@@ -113,9 +111,9 @@ class Compax3_traverse():
         if match_serial_str == '': match_serial_str = None
         if print_trying_message:
             if match_serial_str is None:
-                print("Connect to: Compax3 traverse")
+                print("Connect to: Compax3 servo")
             else:
-                print("Connect to: Compax3 traverse, serial %s" %
+                print("Connect to: Compax3 servo, serial %s" %
                       match_serial_str)
 
         print("  @ %-5s: " % port_str, end='')
@@ -131,14 +129,13 @@ class Compax3_traverse():
             return False
         except:
             raise
-            sys.exit(0)
 
         try:
             # Query the serial number string.
             # NOTE: this function can finish okay and return False as indication
             # that the device on the serial port gives /a/ reply but it is not a
-            # proper reply you would except from a Compax3 traverse. In other
-            # words: the device replies but it is not a Compax3 traverse.
+            # proper reply you would except from a Compax3 servo. In other
+            # words: the device replies but it is not a Compax3 servo.
             self.is_alive = True
             success = self.query_serial_str()
         except:
@@ -150,13 +147,13 @@ class Compax3_traverse():
         if success:
             print("serial %s: " % self.serial_str, end='')
             if match_serial_str is None:
-                # Found any Compax 3 traverse
+                # Found any Compax3 servo
                 print("Success!")
                 print("  Name: '%s'\n" % self.name)
                 self.is_alive = True
                 return True
             elif self.serial_str.lower() == match_serial_str.lower():
-                # Found the Compax3 traverse with matching serial
+                # Found the Compax3 servo with matching serial
                 print("Success!")
                 print("  Name: '%s'\n" % self.name)
                 self.is_alive = True
@@ -175,7 +172,7 @@ class Compax3_traverse():
         """Scan over all serial ports and try to establish a connection. A query
         for the Compax3 serial number is send over all ports. The port that
         gives the proper response (and optionally has a matching serial number)
-        must be the Compax3 traverse we're looking for.
+        must be the Compax3 servo we're looking for.
 
         Args:
             match_serial_str (str, optional): Serial string of the Compax3 to
@@ -186,9 +183,9 @@ class Compax3_traverse():
         """
         if match_serial_str == '': match_serial_str = None
         if match_serial_str is None:
-            print("Scanning ports for any Compax3 traverse ")
+            print("Scanning ports for any Compax3 servo ")
         else:
-            print(("Scanning ports for a Compax3 traverse with\n"
+            print(("Scanning ports for a Compax3 servo with\n"
                    "serial number '%s'") % match_serial_str)
 
         # Ports is a list of tuples
@@ -454,25 +451,25 @@ class Compax3_traverse():
         print("    decel = %.2f"   % decel)
         print("    jerk  = %.2f\n" % jerk)
 
-        [success, ans_str] = self.query(
+        [success, _ans_str] = self.query(
             "o1901.%d=%.2f" % (profile_number, target_position))
         if success:
-            [success, ans_str] = self.query(
+            [success, _ans_str] = self.query(
                 "o1902.%d=%.2f" % (profile_number, velocity))
         if success:
-            [success, ans_str] = self.query(
+            [success, _ans_str] = self.query(
                 "o1905.%d=%d"   % (profile_number, mode))
         if success:
-            [success, ans_str] = self.query(
+            [success, _ans_str] = self.query(
                 "o1906.%d=%.2f" % (profile_number, accel))
         if success:
-            [success, ans_str] = self.query(
+            [success, _ans_str] = self.query(
                 "o1907.%d=%.2f" % (profile_number, decel))
         if success:
-            [success, ans_str] = self.query(
+            [success, _ans_str] = self.query(
                 "o1908.%d=%.2f" % (profile_number, jerk))
         if success:
-            [success, ans_str] = self.query(
+            [success, _ans_str] = self.query(
                 "o1904.%d=$32"  % (profile_number))  # Store profile
 
         return success
@@ -486,11 +483,11 @@ class Compax3_traverse():
         #             start bit (bit 13) low
         CW_LO = 0b0100000000000011
         CW_LO = CW_LO + (profile_number << 8)
-        [success, ans_str] = self.query("o1100.3=%d" % CW_LO)
+        [success, _ans_str] = self.query("o1100.3=%d" % CW_LO)
         if success:
             # Then send start bit (bit 13) high
             CW_HI = CW_LO + (1 << 13)
-            [success, ans_str] = self.query("o1100.3=%d" % CW_HI)
+            [success, _ans_str] = self.query("o1100.3=%d" % CW_HI)
 
         return success
 
@@ -500,7 +497,7 @@ class Compax3_traverse():
         at least once with 'self.store_motion_profile' before moving.
         """
         # Send new target position
-        [success, ans_str] = self.query(
+        [success, _ans_str] = self.query(
             "o1901.%d=%.2f" % (profile_number, target_position))
 
         if success:
@@ -513,11 +510,11 @@ class Compax3_traverse():
         """
         # Control word (CW) for activating the jog+
         CW_LO = 0b0100000000000011
-        [success, ans_str] = self.query("o1100.3=%d" % CW_LO)
+        [success, _ans_str] = self.query("o1100.3=%d" % CW_LO)
         if success:
             # Then send jog+ bit (bit 2) high
             CW_HI = CW_LO + (1 << 2)
-            [success, ans_str] = self.query("o1100.3=%d" % CW_HI)
+            [success, _ans_str] = self.query("o1100.3=%d" % CW_HI)
 
         return success
 
@@ -526,11 +523,11 @@ class Compax3_traverse():
         """
         # Control word (CW) for activating the jog-
         CW_LO = 0b0100000000000011
-        [success, ans_str] = self.query("o1100.3=%d" % CW_LO)
+        [success, _ans_str] = self.query("o1100.3=%d" % CW_LO)
         if success:
             # Then send jog- bit (bit 3) high
             CW_HI = CW_LO + (1 << 3)
-            [success, ans_str] = self.query("o1100.3=%d" % CW_HI)
+            [success, _ans_str] = self.query("o1100.3=%d" % CW_HI)
 
         return success
 
@@ -538,14 +535,14 @@ class Compax3_traverse():
         """
         """
         CW_LO = 0b0100000000000011
-        [success, ans_str] = self.query("o1100.3=%d" % CW_LO)
+        [success, _ans_str] = self.query("o1100.3=%d" % CW_LO)
 
         return success
 
     def stop_motion_and_remove_power(self):
         """
         """
-        [success, ans_str] = self.query("o1100.3=0")
+        [success, _ans_str] = self.query("o1100.3=0")
 
         return success
 
@@ -559,9 +556,9 @@ class Compax3_traverse():
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans_str] = self.query("o1100.3=0")
+        [success, _ans_str] = self.query("o1100.3=0")
         if success:
-            [success, ans_str] = self.query("o1100.3=1")
+            [success, _ans_str] = self.query("o1100.3=1")
 
         return success
 
@@ -675,25 +672,25 @@ if __name__ == '__main__':
 
     # Specific connection settings of each traverse axis of our setup
     class Trav_connection_params():
-        # Serial number of the Compax3 traverse controller to connect to.
+        # Serial number of the Compax3 servo controller to connect to.
         # Set to '' or None to connect to any Compax3.
         serial = None
         # Display name
         name   = "TRAV"
         # Path to the config textfile containing the (last used) RS232 port
-        path_config = Path("config/port_Compax3_trav.txt")
+        path_config = Path("config/port_Compax3_servo.txt")
 
     # Horizontal axis
     trav_conn_horz = Trav_connection_params()
     trav_conn_horz.serial = "4409980001"
     trav_conn_horz.name   = "TRAV HORZ"
-    trav_conn_horz.path_config = Path("config/port_Compax3_trav_horz.txt")
+    trav_conn_horz.path_config = Path("config/port_Compax3_servo_horz.txt")
 
     # Vertical axis
     trav_conn_vert = Trav_connection_params()
     trav_conn_vert.serial = "4319370001"
     trav_conn_vert.name   = "TRAV VERT"
-    trav_conn_vert.path_config = Path("config/port_Compax3_trav_vert.txt")
+    trav_conn_vert.path_config = Path("config/port_Compax3_servo_vert.txt")
 
     # Connect to this specific traverse axis
     #trav_conn = Trav_connection_params()  # Any
@@ -703,8 +700,8 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
 
-    # Create connection to Compax3 traverse controller over RS232
-    trav = Compax3_traverse(name=trav_conn.name)
+    # Create connection to Compax3 servo controller over RS232
+    trav = Compax3_servo(name=trav_conn.name)
 
     if trav.auto_connect(trav_conn.path_config, trav_conn.serial):
         trav.begin()     # Retrieve necessary parameters

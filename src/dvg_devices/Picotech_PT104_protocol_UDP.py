@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 """
-__author__      = "Dennis van Gils"
+__author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
-__url__         = ""
-__date__        = "15-09-2018"
-__version__     = "1.0.0"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 15-09-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 
 import socket
 import numpy as np
@@ -36,11 +36,7 @@ SOCKET_TIMEOUT = 0.5 # 0.5 [s]
 
 DEBUG = False
 
-# ------------------------------------------------------------------------------
-#   Class PT104
-# ------------------------------------------------------------------------------
-
-class PT104():
+class Picotech_PT104():
     class Eeprom():
         # Container for the PT-104 specific values retreived from it's
         # memory
@@ -181,7 +177,7 @@ class PT104():
         try:
             ans_bytes = self._sock.recv(4096)
             success = True
-        except socket.timeout as err:
+        except socket.timeout:
             #print("ERROR: socket.recv() timed out in query()")
             pass  # Stay silent and continue
         except:
@@ -209,7 +205,7 @@ class PT104():
 
         # Try up to 3 times at maximum to receive the respective response
         # UDP packet belonging to above sent UDP packet.
-        for i in range(3):
+        for _i in range(3):
             [success, ans_bytes] = self.UDP_recv()
             if success:
                 if ans_bytes[:len(check_ans_bytes)] == check_ans_bytes:
@@ -225,22 +221,22 @@ class PT104():
     # --------------------------------------------------------------------------
 
     def lock(self):
-        success, ans = self.UDP_query_and_check(b"lock\r",
+        success, _ans = self.UDP_query_and_check(b"lock\r",
                                                 b"Lock Success")
         return success
 
     def set_mains_rejection_50Hz(self):
-        success, ans = self.UDP_query_and_check(bytes([0x30, 0x00]),
+        success, _ans = self.UDP_query_and_check(bytes([0x30, 0x00]),
                                                 b"Mains Changed")
         return success
 
     def set_mains_rejection_60Hz(self):
-        success, ans = self.UDP_query_and_check(bytes([0x30, 0x01]),
+        success, _ans = self.UDP_query_and_check(bytes([0x30, 0x01]),
                                                 b"Mains Changed")
         return success
 
     def keep_alive(self):
-        success, ans = self.UDP_query_and_check(bytes([0x34]),
+        success, _ans = self.UDP_query_and_check(bytes([0x34]),
                                                 b"Alive")
         if not success: print("PT104 is not alive anymore.")
         return success
@@ -298,7 +294,7 @@ class PT104():
         data_byte += gain_channels[2] * 64
         data_byte += gain_channels[3] * 128
 
-        success, ans = self.UDP_query_and_check(bytes([0x31, data_byte]),
+        success, _ans = self.UDP_query_and_check(bytes([0x31, data_byte]),
                                                 b"Converting")
         return success
 
@@ -498,7 +494,7 @@ if __name__ == '__main__':
     gain_channels = [1, 1, 0, 0]
 
     # Initialise PT104 instance
-    pt104 = PT104()
+    pt104 = Picotech_PT104()
 
     # Connect over UDP port and try to achieve a lock
     if pt104.connect(IP_ADDRESS, PORT):

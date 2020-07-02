@@ -9,10 +9,12 @@ as opposed to terminating the program completely.
 
 State variables that read numpy.nan indicate that they are uninitialized or that
 the previous query resulted in a communication error.
-
-Dennis van Gils
-10-10-2018
 """
+__author__ = "Dennis van Gils"
+__authoremail__ = "vangils.dennis@gmail.com"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 10-10-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 
 import os
 import time
@@ -20,7 +22,7 @@ import visa
 import numpy as np
 from pathlib import Path
 
-from DvG_debug_functions import print_fancy_traceback as pft
+from dvg_debug_functions import print_fancy_traceback as pft
 
 # 'No error left' reply from the PSU
 STR_NO_ERROR = "ERR 0"
@@ -31,7 +33,7 @@ VISA_TIMEOUT = 4000      # 4000 [msec]
 # Default config file path
 PATH_CONFIG = Path(os.getcwd() + "/config/settings_Keysight_PSU.txt")
 
-class PSU():
+class Keysight_N8700():
     class State():
         """Container for the process and measurement variables.
         [numpy.nan] values indicate that the parameter is not initialized or
@@ -102,10 +104,6 @@ class PSU():
 
         # Is the connection to the device alive?
         self.is_alive = False
-
-        # Placeholder for a future mutex instance needed for proper
-        # multithreading (e.g. instance of QtCore.Qmutex())
-        self.mutex = None #QtCore.QMutex()
 
         # Container for the process and measurement variables
         self.state = self.State()

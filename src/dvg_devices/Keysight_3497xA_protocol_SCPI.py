@@ -13,16 +13,18 @@ the query resulted in a communication error.
 
 State variables that are an empty list [] indicate that they are uninitialized
 or that the previous query resulted in a communication error.
-
-Dennis van Gils
-20-09-2018
 """
+__author__ = "Dennis van Gils"
+__authoremail__ = "vangils.dennis@gmail.com"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
+__date__ = "02-07-2020"  # 0.0.1 was stamped 20-09-2018
+__version__ = "0.0.2"  # 0.0.1 corresponds to prototype 1.0.0
 
 import time
 import visa
 import numpy as np
 
-from DvG_debug_functions import print_fancy_traceback
+from dvg_debug_functions import print_fancy_traceback
 
 WRITE_TERMINATION = '\n'
 READ_TERMINATION = '\n'
@@ -33,13 +35,15 @@ STR_NO_ERROR = "+0,"
 # VISA settings
 VISA_TIMEOUT = 2000      # 4000 [msec]
 
-class K3497xA():
+class Keysight_3497xA():
     """List of SCPI commands to be send to the 3497xA to set up the scan cycle.
-    Will be assigned by calling 'K3497xA.begin(SCPI_setup_commands=...)' in e.g.
-    the 'main' routine.
+    Will be assigned by calling 'Keysight_3497xA.begin(SCPI_setup_commands=...)'
+    in e.g. the 'main' routine.
 
     Example:
-        mux = dev_Keysight_3497xA__fun_SCPI.K3497xA("GPIB::09")
+        from dvg_devices.Keysight_3497xA_protocol_SCPI import Keysight_3497xA
+
+        mux = Keysight_3497xA("GPIB::09")
         scan_list = "(@101:106)"
         SCPI_setup_commands = [
                 "rout:open %s" % scan_list,
@@ -139,10 +143,6 @@ class K3497xA():
 
         # Is the connection to the device alive?
         self.is_alive = False
-
-        # Placeholder for a future mutex instance needed for proper
-        # multithreading (e.g. instance of QtCore.Qmutex())
-        self.mutex = None #QtCore.QMutex()
 
         # Container for the process and measurement variables
         self.state = self.State()

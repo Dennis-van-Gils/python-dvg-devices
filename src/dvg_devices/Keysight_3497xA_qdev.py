@@ -42,7 +42,7 @@ INFINITY_CAP = 9.8e37
 def get_tick(): return QtCore.QDateTime.currentMSecsSinceEpoch()
 
 
-class Keysight_3497xA_qdev(QDeviceIO, QtCore.QObject):
+class Keysight_3497xA_qdev(QDeviceIO):
     """Manages multithreaded communication and periodical data acquisition for
     a Keysight (former HP or Agilent) 34970A/34972A data acquisition/switch
     unit, referred to as the 'device'. Different boards can be installed inside
@@ -118,10 +118,8 @@ class Keysight_3497xA_qdev(QDeviceIO, QtCore.QObject):
                  calc_DAQ_rate_every_N_iter=1,
                  DAQ_postprocess_MUX_scan_function=None,
                  debug=False,
-                 parent=None):
-        super(Keysight_3497xA_qdev, self).__init__(parent=parent)
-
-        self.attach_device(dev)
+                 **kwargs,):
+        super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
 
         self.create_worker_DAQ(
                 DAQ_trigger=DAQ_trigger.INTERNAL_TIMER,

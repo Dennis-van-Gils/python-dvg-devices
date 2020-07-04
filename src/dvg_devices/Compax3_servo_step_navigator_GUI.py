@@ -37,8 +37,8 @@ class Compax3_step_navigator(QtWid.QWidget):
     def __init__(self,
                  trav_horz: Compax3_servo=None,
                  trav_vert: Compax3_servo=None,
-                 parent=None, **kwargs):
-        super().__init__(parent, **kwargs)
+                 **kwargs):
+        super().__init__(**kwargs)
 
         if not (isinstance(trav_horz, Compax3_servo) or trav_horz is None):
             pft("Argument 'trav_horz' is of a wrong type.", 3)

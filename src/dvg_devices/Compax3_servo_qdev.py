@@ -20,7 +20,7 @@ from dvg_utils.dvg_pyqt_controls import (SS_GROUP,
 from dvg_qdeviceio import QDeviceIO, DAQ_trigger
 from dvg_devices.Compax3_servo_protocol_RS232 import Compax3_servo
 
-class Compax3_servo_qdev(QDeviceIO, QtCore.QObject):
+class Compax3_servo_qdev(QDeviceIO):
     """Manages multithreaded communication and periodical data acquisition for
     a Compax3 traverse controller, referred to as the 'device'.
 
@@ -72,10 +72,8 @@ class Compax3_servo_qdev(QDeviceIO, QtCore.QObject):
                  DAQ_timer_type=QtCore.Qt.CoarseTimer,
                  calc_DAQ_rate_every_N_iter=4,
                  debug=False,
-                 parent=None):
-        super(Compax3_servo_qdev, self).__init__(parent=parent)
-
-        self.attach_device(dev)
+                 **kwargs,):
+        super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
 
         self.create_worker_DAQ(
             DAQ_trigger=DAQ_trigger.INTERNAL_TIMER,

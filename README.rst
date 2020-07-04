@@ -2,6 +2,9 @@
     :target: https://pypi.org/project/dvg-devices
 .. image:: https://img.shields.io/pypi/pyversions/dvg-devices
     :target: https://pypi.org/project/dvg-devices
+.. image:: https://requires.io/github/Dennis-van-Gils/python-dvg-devices/requirements.svg?branch=master
+    :target: https://requires.io/github/Dennis-van-Gils/python-dvg-devices/requirements/?branch=master
+    :alt: Requirements Status
 .. image:: https://img.shields.io/badge/License-MIT-purple.svg
     :target: https://github.com/Dennis-van-Gils/python-dvg-devices/blob/master/LICENSE.txt
 
@@ -19,8 +22,4 @@ for multithreading in PyQt5.
 * PolyScience PD -- recirculating bath
 * ThermoFlex -- chiller
 
-IN PROGRESS 02-07-2020:
-
-Currently this library contains the prototypes as used in the TMHT Tunnel
-facility. Everything has to be rewritten to make use of `DvG_QDeviceIO`. This
-is in progress and might take a while.
+TODO: Implement codestyle `Black`

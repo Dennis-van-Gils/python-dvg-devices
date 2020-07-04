@@ -25,7 +25,7 @@ from dvg_devices.ThermoFlex_chiller_protocol_RS232 import ThermoFlex_chiller
 CHAR_DEG_C = chr(176) + 'C'
 
 
-class ThermoFlex_chiller_qdev(QDeviceIO, QtCore.QObject):
+class ThermoFlex_chiller_qdev(QDeviceIO):
     """Manages multithreaded communication and periodical data acquisition for
     a Thermo Scientific ThermoFlex recirculating chiller, referred to as the
     'device'.
@@ -82,10 +82,8 @@ class ThermoFlex_chiller_qdev(QDeviceIO, QtCore.QObject):
                  critical_not_alive_count=1,
                  calc_DAQ_rate_every_N_iter=1,
                  debug=False,
-                 parent=None):
-        super(ThermoFlex_chiller_qdev, self).__init__(parent=parent)
-
-        self.attach_device(dev)
+                 **kwargs,):
+        super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
 
         self.create_worker_DAQ(
             DAQ_trigger=DAQ_trigger.INTERNAL_TIMER,

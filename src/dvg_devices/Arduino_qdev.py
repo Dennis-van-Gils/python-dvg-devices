@@ -15,7 +15,7 @@ from dvg_qdeviceio import QDeviceIO, DAQ_trigger
 from dvg_devices.Arduino_protocol_serial import Arduino
 
 
-class Arduino_qdev(QDeviceIO, QtCore.QObject):
+class Arduino_qdev(QDeviceIO):
     """Manages multithreaded communication and periodical data acquisition for
     an Arduino(-like) device.
 
@@ -72,11 +72,9 @@ class Arduino_qdev(QDeviceIO, QtCore.QObject):
         critical_not_alive_count=1,
         calc_DAQ_rate_every_N_iter=10,
         debug=False,
-        parent=None,
+        **kwargs,
     ):
-        super(Arduino_qdev, self).__init__(parent=parent)
-
-        self.attach_device(dev)
+        super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
 
         self.create_worker_DAQ(
             DAQ_trigger=DAQ_trigger,

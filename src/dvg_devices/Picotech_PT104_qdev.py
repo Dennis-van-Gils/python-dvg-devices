@@ -23,7 +23,7 @@ from dvg_devices.Picotech_PT104_protocol_UDP import Picotech_PT104
 CHAR_DEG_C = chr(176) + 'C'
 
 
-class Picotech_PT104_qdev(QDeviceIO, QtCore.QObject):
+class Picotech_PT104_qdev(QDeviceIO):
     """Manages multithreaded communication and periodical data acquisition for
     a Picotech PT-104 pt100/1000 temperature logger referred to as the 'device'.
 
@@ -73,10 +73,8 @@ class Picotech_PT104_qdev(QDeviceIO, QtCore.QObject):
                  critical_not_alive_count=np.nan,
                  calc_DAQ_rate_every_N_iter=1,
                  debug=False,
-                 parent=None):
-        super(Picotech_PT104_qdev, self).__init__(parent=parent)
-
-        self.attach_device(dev)
+                 **kwargs,):
+        super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
 
         self.create_worker_DAQ(
                 DAQ_trigger=DAQ_trigger.INTERNAL_TIMER,

@@ -36,7 +36,7 @@ class GUI_input_fields():
 def get_tick(): return QtCore.QDateTime.currentMSecsSinceEpoch()
 
 
-class Keysight_N8700_qdev(QDeviceIO, QtCore.QObject):
+class Keysight_N8700_qdev(QDeviceIO):
     """Manages multithreaded communication and periodical data acquisition for
     a Keysight N8700 power supply (PSU), referred to as the 'device'.
 
@@ -91,10 +91,8 @@ class Keysight_N8700_qdev(QDeviceIO, QtCore.QObject):
                  critical_not_alive_count=1,
                  calc_DAQ_rate_every_N_iter=5,
                  debug=False,
-                 parent=None):
-        super(Keysight_N8700_qdev, self).__init__(parent=parent)
-
-        self.attach_device(dev)
+                 **kwargs,):
+        super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
 
         # Add PID controller on the power output
         # DvG, 25-06-2018: Kp=0.5, Ki=2, Kd=0

@@ -21,7 +21,7 @@ from dvg_debug_functions import print_fancy_traceback as pft
 from dvg_qdeviceio import QDeviceIO, DAQ_trigger
 from dvg_devices.Bronkhorst_MFC_protocol_RS232 import Bronkhorst_MFC
 
-class Bronkhorst_MFC_qdev(QDeviceIO, QtCore.QObject):
+class Bronkhorst_MFC_qdev(QDeviceIO):
     """Manages multithreaded communication and periodical data acquisition for
     a Bronkhorst mass flow controller (MFC), referred to as the 'device'.
 
@@ -94,10 +94,8 @@ class Bronkhorst_MFC_qdev(QDeviceIO, QtCore.QObject):
                  calc_DAQ_rate_every_N_iter=5,
                  valve_auto_close_deadtime_period_ms=3000,
                  debug=False,
-                 parent=None):
-        super(Bronkhorst_MFC_qdev, self).__init__(parent=parent)
-
-        self.attach_device(dev)
+                 **kwargs,):
+        super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
 
         self.create_worker_DAQ(
             DAQ_trigger=DAQ_trigger.INTERNAL_TIMER,

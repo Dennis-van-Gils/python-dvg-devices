@@ -22,4 +22,4 @@ for multithreading in PyQt5.
 * PolyScience PD -- recirculating bath
 * ThermoFlex -- chiller
 
-TODO: Implement codestyle *Black*
+TODO: Implement codestyle Black

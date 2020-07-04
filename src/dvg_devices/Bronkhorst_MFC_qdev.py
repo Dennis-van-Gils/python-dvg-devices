@@ -54,6 +54,10 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
             Deadtime period in milliseconds of the auto close signal after a
             setpoint > 0 has been send.
 
+        debug:
+            Show debug info in terminal? Warning: Slow! Do not leave on
+            unintentionally.
+
     Main GUI objects:
         qgrp (PyQt5.QtWidgets.QGroupBox)
 

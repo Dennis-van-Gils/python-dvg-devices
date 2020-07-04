@@ -6,8 +6,8 @@ acquisition for an Arduino(-like) device.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "02-07-2020"  # 0.0.1 was stamped 11-12-2018
-__version__ = "0.0.3"  # 0.0.1 corresponds to prototype 1.2.0
+__date__ = "04-07-2020"  # 0.0.1 was stamped 11-12-2018
+__version__ = "0.0.4"  # 0.0.1 corresponds to prototype 1.2.0
 
 from PyQt5 import QtCore
 

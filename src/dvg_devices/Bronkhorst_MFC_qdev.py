@@ -151,7 +151,7 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
         # Send I/O operation to the device
         try:
             func(*args)
-        except Exception as err:
+        except Exception as err:  # pylint: disable=broad-except
             pft(err)
 
         # Check to signal auto open or close of an optional peripheral valve
@@ -254,7 +254,7 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
             setpoint = float(self.qled_send_setpoint.text())
         except (TypeError, ValueError):
             setpoint = 0.0
-        except:
+        except:  # pylint: disable=broad-except, try-except-raise
             raise
 
         setpoint = max(setpoint, 0)

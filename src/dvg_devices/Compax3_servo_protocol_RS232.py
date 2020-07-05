@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-RS232 function library for a Parker Compax3 servo controller. Only the ASCII
+"""RS232 function library for a Parker Compax3 servo controller. Only the ASCII
 version is supported, not (yet) the binary version.
 
 Communication errors will be handled as non-fatal. This means it will struggle
@@ -16,30 +15,34 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "02-07-2020"  # 0.0.1 was stamped 01-08-2018
-__version__ = "0.0.3"  # 0.0.1 corresponds to prototype 1.0.0
+__date__ = "05-07-2020"  # 0.0.1 was stamped 01-08-2018
+__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
+# pylint: disable=bare-except, disable=broad-except, try-except-raise
 
 import sys
+from pathlib import Path
 import serial
 import serial.tools.list_ports
-from pathlib import Path
 
 import numpy as np
 from dvg_debug_functions import print_fancy_traceback as pft
 
 # Serial settings
 RS232_BAUDRATE = 115200
-RS232_TIMEOUT  = 0.4  # [s]
-RS232_RTSCTS   = True
-TERM_CHAR = '\r'
+RS232_TIMEOUT = 0.4  # [s]
+RS232_RTSCTS = True
+TERM_CHAR = "\r"
 
-class Compax3_servo():
+
+class Compax3_servo:
     """Containers for the process and measurement variables
     [numpy.nan] values indicate that the parameter is not initialized or that
     the last query was unsuccessful in communication.
     """
-    class Status_word_1():
+
+    class Status_word_1:
         # Container for Status word 1
+        # fmt: off
         I0 = np.nan                 # bit 0
         I1 = np.nan                 # bit 1
         I2 = np.nan                 # bit 2
@@ -56,16 +59,19 @@ class Compax3_servo():
         PSB0 = np.nan               # bit 13
         PSB1 = np.nan               # bit 14
         PSB2 = np.nan               # bit 15
+        # fmt: on
 
-    class State():
+    class State:
         # Container for the process and measurement variables
+        # fmt: off
         cur_pos = np.nan            # position [mm]
         error_msg = np.nan          # error string message
+        # fmt: on
 
-    def __init__(self, name='trav'):
-        self.ser = None                 # serial.Serial device instance
+    def __init__(self, name="trav"):
+        self.ser = None  # serial.Serial device instance
         self.name = name
-        self.serial_str = None          # Serial number of the Compax3
+        self.serial_str = None  # Serial number of the Compax3
 
         # Is the connection to the device alive?
         self.is_alive = False
@@ -80,7 +86,7 @@ class Compax3_servo():
 
     def close(self):
         if not self.is_alive:
-            pass    # Remain silent
+            pass  # Remain silent
         else:
             self.ser.close()
             self.is_alive = False
@@ -89,8 +95,9 @@ class Compax3_servo():
     #   connect_at_port
     # --------------------------------------------------------------------------
 
-    def connect_at_port(self, port_str, match_serial_str=None,
-                        print_trying_message=True):
+    def connect_at_port(
+        self, port_str, match_serial_str=None, print_trying_message=True
+    ):
         """Open the port at address 'port_str' and try to establish a
         connection. A query for the Compax3 serial number is send over the port.
         If it gives the proper response (and optionally has a matching serial
@@ -108,22 +115,24 @@ class Compax3_servo():
         """
         self.is_alive = False
 
-        if match_serial_str == '': match_serial_str = None
+        if match_serial_str == "":
+            match_serial_str = None
         if print_trying_message:
             if match_serial_str is None:
                 print("Connect to: Compax3 servo")
             else:
-                print("Connect to: Compax3 servo, serial %s" %
-                      match_serial_str)
+                print("Connect to: Compax3 servo, serial %s" % match_serial_str)
 
-        print("  @ %-5s: " % port_str, end='')
+        print("  @ %-5s: " % port_str, end="")
         try:
             # Open the serial port
-            self.ser = serial.Serial(port=port_str,
-                                     baudrate=RS232_BAUDRATE,
-                                     rtscts=RS232_RTSCTS,
-                                     timeout=RS232_TIMEOUT,
-                                     write_timeout=RS232_TIMEOUT)
+            self.ser = serial.Serial(
+                port=port_str,
+                baudrate=RS232_BAUDRATE,
+                rtscts=RS232_RTSCTS,
+                timeout=RS232_TIMEOUT,
+                write_timeout=RS232_TIMEOUT,
+            )
         except serial.SerialException:
             print("Could not open port")
             return False
@@ -140,12 +149,13 @@ class Compax3_servo():
             success = self.query_serial_str()
         except:
             print("Communication error")
-            if self.ser is not None: self.ser.close()
+            if self.ser is not None:
+                self.ser.close()
             self.is_alive = False
             return False
 
         if success:
-            print("serial %s: " % self.serial_str, end='')
+            print("serial %s: " % self.serial_str, end="")
             if match_serial_str is None:
                 # Found any Compax3 servo
                 print("Success!")
@@ -160,7 +170,8 @@ class Compax3_servo():
                 return True
 
         print("Wrong or no device")
-        if self.ser is not None: self.ser.close()
+        if self.ser is not None:
+            self.ser.close()
         self.is_alive = False
         return False
 
@@ -181,12 +192,18 @@ class Compax3_servo():
 
         Returns: True if successful, False otherwise.
         """
-        if match_serial_str == '': match_serial_str = None
+        if match_serial_str == "":
+            match_serial_str = None
         if match_serial_str is None:
             print("Scanning ports for any Compax3 servo ")
         else:
-            print(("Scanning ports for a Compax3 servo with\n"
-                   "serial number '%s'") % match_serial_str)
+            print(
+                (
+                    "Scanning ports for a Compax3 servo with\n"
+                    "serial number '%s'"
+                )
+                % match_serial_str
+            )
 
         # Ports is a list of tuples
         ports = list(serial.tools.list_ports.comports())
@@ -242,7 +259,7 @@ class Compax3_servo():
 
         Returns: True if successful, False otherwise.
         """
-        success  = self.query_error()
+        success = self.query_error()
         success &= self.query_position()
         success &= self.query_status_word_1()
 
@@ -272,8 +289,10 @@ class Compax3_servo():
             try:
                 # Send command string to the device as bytes
                 self.ser.write((msg_str + TERM_CHAR).encode())
-            except (serial.SerialTimeoutException,
-                    serial.SerialException) as err:
+            except (
+                serial.SerialTimeoutException,
+                serial.SerialException,
+            ) as err:
                 # Print error and struggle on
                 pft(err, 3)
             except Exception as err:
@@ -282,18 +301,20 @@ class Compax3_servo():
             else:
                 try:
                     ans_bytes = self.ser.read_until(TERM_CHAR.encode())
-                except (serial.SerialTimeoutException,
-                        serial.SerialException) as err:
+                except (
+                    serial.SerialTimeoutException,
+                    serial.SerialException,
+                ) as err:
                     pft(err, 3)
                 except Exception as err:
                     pft(err, 3)
                     sys.exit(0)
                 else:
-                    ans_str = ans_bytes.decode('utf8').strip()
-                    if ans_str[0] == '>':
+                    ans_str = ans_bytes.decode("utf8").strip()
+                    if ans_str[0] == ">":
                         # Successfull operation without meaningfull reply
                         success = True
-                    elif ans_str[0] == '!':
+                    elif ans_str[0] == "!":
                         # Error reply
                         print("COMPAX3 COMMUNICATION ERROR: " + ans_str)
                     else:
@@ -316,7 +337,7 @@ class Compax3_servo():
         # an error message to the serial number request, which then could be
         # mistaken for /the/ serial number.
         [success, ans_str] = self.query("_?")
-        if (success and ans_str.startswith("Compax3")):
+        if success and ans_str.startswith("Compax3"):
             # Now we can query the serial number
             [success, ans_str] = self.query("o1.4")
             if success:
@@ -351,21 +372,26 @@ class Compax3_servo():
         [success, ans_str] = self.query("o550.1")
         if success:
             # Translate error codes to more meaningful messages
-            if (ans_str == "1"):
+            if ans_str == "1":
                 self.state.error_msg = ""
-            elif (ans_str == "17168"):
-                self.state.error_msg = ("%s: Motor temperature" % ans_str)
-            elif (ans_str == "29472"):
-                self.state.error_msg = ("%s: Following error" % ans_str)
-            elif (ans_str == "29475"):
-                self.state.error_msg = ("%s: Target or actual position "
-                                        "exceeds positive end limit" % ans_str)
-            elif (ans_str == "29476"):
-                self.state.error_msg = ("%s: Target or actual position "
-                                        "exceeds negative end limit" % ans_str)
-            elif (ans_str == "29479"):
-                self.state.error_msg = ("%s: Change of direction during "
-                                        "movement" % ans_str)
+            elif ans_str == "17168":
+                self.state.error_msg = "%s: Motor temperature" % ans_str
+            elif ans_str == "29472":
+                self.state.error_msg = "%s: Following error" % ans_str
+            elif ans_str == "29475":
+                self.state.error_msg = (
+                    "%s: Target or actual position "
+                    "exceeds positive end limit" % ans_str
+                )
+            elif ans_str == "29476":
+                self.state.error_msg = (
+                    "%s: Target or actual position "
+                    "exceeds negative end limit" % ans_str
+                )
+            elif ans_str == "29479":
+                self.state.error_msg = (
+                    "%s: Change of direction during " "movement" % ans_str
+                )
             else:
                 self.state.error_msg = ans_str
         else:
@@ -383,6 +409,7 @@ class Compax3_servo():
         [success, ans_str] = self.query("o1000.3")
 
         if ans_str is None:
+            # fmt: off
             self.status_word_1.I0 = np.nan
             self.status_word_1.I1 = np.nan
             self.status_word_1.I2 = np.nan
@@ -399,6 +426,7 @@ class Compax3_servo():
             self.status_word_1.PSB0 = np.nan
             self.status_word_1.PSB1 = np.nan
             self.status_word_1.PSB2 = np.nan
+            # fmt: on
         else:
             dec_x = int(ans_str)
 
@@ -406,6 +434,7 @@ class Compax3_servo():
             # garantuee 16 bits and reverse
             str_bits = ((bin(dec_x)[2:]).zfill(16))[::-1]
 
+            # fmt: off
             self.status_word_1.I0 = bool(int(str_bits[0]))
             self.status_word_1.I1 = bool(int(str_bits[1]))
             self.status_word_1.I2 = bool(int(str_bits[2]))
@@ -422,55 +451,65 @@ class Compax3_servo():
             self.status_word_1.PSB0 = bool(int(str_bits[13]))
             self.status_word_1.PSB1 = bool(int(str_bits[14]))
             self.status_word_1.PSB2 = bool(int(str_bits[15]))
+            # fmt: on
 
         return success
 
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
 
-    def store_motion_profile(self,
-                             target_position=0,
-                             velocity=10,
-                             mode=1,
-                             accel=100,
-                             decel=100,
-                             jerk=1e6,
-                             profile_number=2):
+    def store_motion_profile(
+        self,
+        target_position=0,
+        velocity=10,
+        mode=1,
+        accel=100,
+        decel=100,
+        jerk=1e6,
+        profile_number=2,
+    ):
         """
         Note:
             Profile_number 0 is reserved for homing.
             Movement mode is fixed to absolute, not relative.
         """
-        mode = 1 # Overrule, set movement mode to absolute position
+        mode = 1  # Overrule, set movement mode to absolute position
 
         print("  Profile number: %d" % profile_number)
-        print("    pos   = %.2f"   % target_position)
-        print("    vel   = %.2f"   % velocity)
+        print("    pos   = %.2f" % target_position)
+        print("    vel   = %.2f" % velocity)
         print("    mode  = %d (fixed to absolute)" % mode)
-        print("    accel = %.2f"   % accel)
-        print("    decel = %.2f"   % decel)
+        print("    accel = %.2f" % accel)
+        print("    decel = %.2f" % decel)
         print("    jerk  = %.2f\n" % jerk)
 
         [success, _ans_str] = self.query(
-            "o1901.%d=%.2f" % (profile_number, target_position))
+            "o1901.%d=%.2f" % (profile_number, target_position)
+        )
         if success:
             [success, _ans_str] = self.query(
-                "o1902.%d=%.2f" % (profile_number, velocity))
+                "o1902.%d=%.2f" % (profile_number, velocity)
+            )
         if success:
             [success, _ans_str] = self.query(
-                "o1905.%d=%d"   % (profile_number, mode))
+                "o1905.%d=%d" % (profile_number, mode)
+            )
         if success:
             [success, _ans_str] = self.query(
-                "o1906.%d=%.2f" % (profile_number, accel))
+                "o1906.%d=%.2f" % (profile_number, accel)
+            )
         if success:
             [success, _ans_str] = self.query(
-                "o1907.%d=%.2f" % (profile_number, decel))
+                "o1907.%d=%.2f" % (profile_number, decel)
+            )
         if success:
             [success, _ans_str] = self.query(
-                "o1908.%d=%.2f" % (profile_number, jerk))
+                "o1908.%d=%.2f" % (profile_number, jerk)
+            )
         if success:
             [success, _ans_str] = self.query(
-                "o1904.%d=$32"  % (profile_number))  # Store profile
+                "o1904.%d=$32" % (profile_number)
+            )  # Store profile
 
         return success
 
@@ -498,7 +537,8 @@ class Compax3_servo():
         """
         # Send new target position
         [success, _ans_str] = self.query(
-            "o1901.%d=%.2f" % (profile_number, target_position))
+            "o1901.%d=%.2f" % (profile_number, target_position)
+        )
 
         if success:
             self.activate_motion_profile(profile_number=2)
@@ -575,13 +615,13 @@ class Compax3_servo():
             print("  %-6s: I5" % self.status_word_1.I5)
             print("  %-6s: I6" % self.status_word_1.I6)
             print("  %-6s: I7" % self.status_word_1.I7)
-            print("  %-6s: no_error"    % self.status_word_1.no_error)
+            print("  %-6s: no_error" % self.status_word_1.no_error)
             print("  %-6s: pos_reached" % self.status_word_1.pos_reached)
-            print("  %-6s: powerless"   % self.status_word_1.powerless)
-            print("  %-6s: powered_stat"
-                  % self.status_word_1.powered_stationary)
-            print("  %-6s: zero_pos_known"
-                  % self.status_word_1.zero_pos_known)
+            print("  %-6s: powerless" % self.status_word_1.powerless)
+            print(
+                "  %-6s: powered_stat" % self.status_word_1.powered_stationary
+            )
+            print("  %-6s: zero_pos_known" % self.status_word_1.zero_pos_known)
             print("  %-6s: PSB0" % self.status_word_1.PSB1)
             print("  %-6s: PSB1" % self.status_word_1.PSB1)
             print("  %-6s: PSB2" % self.status_word_1.PSB2)
@@ -605,12 +645,14 @@ class Compax3_servo():
                 print("  Position: unreached")
         print("")
 
+
 # -----------------------------------------------------------------------------
 #   read_port_config_file
 # -----------------------------------------------------------------------------
 
+
 def read_port_config_file(filepath):
-    """Try to open the config textfile containing   the port to open. Do not panic
+    """Try to open the config textfile containing the port to open. Do not panic
     if the file does not exist or cannot be read.
 
     Args:
@@ -627,13 +669,15 @@ def read_port_config_file(filepath):
                     port_str = f.readline().strip()
                 return port_str
             except:
-                pass    # Do not panic and remain silent
+                pass  # Do not panic and remain silent
 
     return None
+
 
 # -----------------------------------------------------------------------------
 #   write_port_config_file
 # -----------------------------------------------------------------------------
+
 
 def write_port_config_file(filepath, port_str):
     """Try to write the port name string to the config textfile. Do not panic if
@@ -651,50 +695,51 @@ def write_port_config_file(filepath, port_str):
             try:
                 filepath.parent.mkdir()
             except:
-                pass    # Do not panic and remain silent
+                pass  # Do not panic and remain silent
 
         try:
             # Write the config file
             filepath.write_text(port_str)
         except:
-            pass        # Do not panic and remain silent
+            pass  # Do not panic and remain silent
         else:
             return True
 
     return False
 
+
 # ------------------------------------------------------------------------------
 #   Main: Will show a demo when run from the terminal
 # ------------------------------------------------------------------------------
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import time
 
     # Specific connection settings of each traverse axis of our setup
-    class Trav_connection_params():
+    class Trav_connection_params:
         # Serial number of the Compax3 servo controller to connect to.
         # Set to '' or None to connect to any Compax3.
         serial = None
         # Display name
-        name   = "TRAV"
+        name = "TRAV"
         # Path to the config textfile containing the (last used) RS232 port
         path_config = Path("config/port_Compax3_servo.txt")
 
     # Horizontal axis
     trav_conn_horz = Trav_connection_params()
     trav_conn_horz.serial = "4409980001"
-    trav_conn_horz.name   = "TRAV HORZ"
+    trav_conn_horz.name = "TRAV HORZ"
     trav_conn_horz.path_config = Path("config/port_Compax3_servo_horz.txt")
 
     # Vertical axis
     trav_conn_vert = Trav_connection_params()
     trav_conn_vert.serial = "4319370001"
-    trav_conn_vert.name   = "TRAV VERT"
+    trav_conn_vert.name = "TRAV VERT"
     trav_conn_vert.path_config = Path("config/port_Compax3_servo_vert.txt")
 
     # Connect to this specific traverse axis
-    #trav_conn = Trav_connection_params()  # Any
-    #trav_conn = trav_conn_horz
+    # trav_conn = Trav_connection_params()  # Any
+    # trav_conn = trav_conn_horz
     trav_conn = trav_conn_vert
 
     # --------------------------------------------------------------------------
@@ -704,7 +749,7 @@ if __name__ == '__main__':
     trav = Compax3_servo(name=trav_conn.name)
 
     if trav.auto_connect(trav_conn.path_config, trav_conn.serial):
-        trav.begin()     # Retrieve necessary parameters
+        trav.begin()  # Retrieve necessary parameters
     else:
         time.sleep(1)
         sys.exit(0)
@@ -723,6 +768,7 @@ if __name__ == '__main__':
     trav.report_status_word_1(compact=True)
 
     # Update set #2
+    # fmt: off
     trav.query("o1901.2=-180.0")     # target position
     trav.query("o1902.2=100.0")      # velocity
     trav.query("o1905.2=1")          # mode: 1 (MoveAbs), 2 (MoveRel)
@@ -749,6 +795,7 @@ if __name__ == '__main__':
     trav.query("o1100.3=$400b")      # jog-
     time.sleep(2);
     """
+    # fmt: on
 
     print("MOVING\n")
 
@@ -759,8 +806,8 @@ if __name__ == '__main__':
         trav.report_status_word_1(compact=True)
         time.sleep(0.2)
 
-    trav.query("o1100.3=0")          # disable axis
-    #trav.query("o1000.4")            # last executed set #
+    trav.query("o1100.3=0")  # disable axis
+    # trav.query("o1000.4")            # last executed set #
 
     print("DEACTIVATE\n")
     time.sleep(1)
@@ -774,6 +821,6 @@ if __name__ == '__main__':
     trav.report_status_word_1(compact=True)
 
     # Close
-    print('')
+    print("")
     trav.close()
     sys.exit(0)

@@ -254,7 +254,7 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
             setpoint = float(self.qled_send_setpoint.text())
         except (TypeError, ValueError):
             setpoint = 0.0
-        except:  # pylint: disable=broad-except, try-except-raise
+        except:  # pylint: disable=try-except-raise
             raise
 
         setpoint = max(setpoint, 0)

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-RS232 function library for Bronkhorst mass flow controllers (MFC) using the
+"""RS232 function library for Bronkhorst mass flow controllers (MFC) using the
 FLOW-BUS protocol.
 
 Only the ASCII version is supported, not the enhanced binary version. This
@@ -13,38 +12,41 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "02-07-2020"  # 0.0.1 was stamped 25-07-2018
-__version__ = "0.0.3"  # 0.0.1 corresponds to prototype 1.0.0
+__date__ = "06-07-2020"  # 0.0.1 was stamped 25-07-2018
+__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
+# pylint: disable=bare-except, try-except-raise
 
 import sys
-import serial
-import serial.tools.list_ports
 import struct
 from pathlib import Path
+
+import serial
+import serial.tools.list_ports
 
 from dvg_debug_functions import print_fancy_traceback as pft
 
 # Serial settings
-RS232_BAUDRATE = 38400      # Baudrate according to the manual
-RS232_TIMEOUT  = 0.1        # [sec]
+RS232_BAUDRATE = 38400  # Baudrate according to the manual
+RS232_TIMEOUT = 0.1  # [sec]
 
-class Bronkhorst_MFC():
-    class State():
+
+class Bronkhorst_MFC:
+    class State:
         # Container for the process and measurement variables
-        setpoint  = None        # Setpoint read out of the MFC    [ln/min]
-        flow_rate = None        # Flow rate measured by the MFC   [ln/min]
+        setpoint = None  # Setpoint read out of the MFC   [ln/min]
+        flow_rate = None  # Flow rate measured by the MFC [ln/min]
 
     # --------------------------------------------------------------------------
     #   __init__
     # --------------------------------------------------------------------------
 
-    def __init__(self, name='MFC'):
-        self.ser = None                 # serial.Serial device instance
+    def __init__(self, name="MFC"):
+        self.ser = None  # serial.Serial device instance
         self.name = name
-        self.serial_str = None          # Serial number of the MFC
-        self.model_str  = None          # Model of the MFC
-        self.fluid_name = None          # Fluid for which the MFC is calibrated
-        self.max_flow_rate = None       # Max. capacity [ln/min]
+        self.serial_str = None  # Serial number of the MFC
+        self.model_str = None  # Model of the MFC
+        self.fluid_name = None  # Fluid for which the MFC is calibrated
+        self.max_flow_rate = None  # Max. capacity [ln/min]
 
         # Is the connection to the device alive?
         self.is_alive = False
@@ -57,18 +59,21 @@ class Bronkhorst_MFC():
     # --------------------------------------------------------------------------
 
     def close(self):
-        if not self.is_alive:
-            pass    # Remain silent
-        else:
-            self.ser.close()
-            self.is_alive = False
+        if self.is_alive:
+            try:
+                self.ser.close()
+            except:
+                pass
+
+        self.is_alive = False
 
     # --------------------------------------------------------------------------
     #   connect_at_port
     # --------------------------------------------------------------------------
 
-    def connect_at_port(self, port_str, match_serial_str=None,
-                        print_trying_message=True):
+    def connect_at_port(
+        self, port_str, match_serial_str=None, print_trying_message=True
+    ):
         """Open the port at address 'port_str' and try to establish a
         connection. A query for the Bronkhorst serial number is send over the
         port. If it gives the proper response (and optionally has a matching
@@ -86,21 +91,25 @@ class Bronkhorst_MFC():
         """
         self.is_alive = False
 
-        if match_serial_str == '': match_serial_str = None
+        if match_serial_str == "":
+            match_serial_str = None
         if print_trying_message:
             if match_serial_str is None:
                 print("Connect to: Bronkhorst MFC")
             else:
-                print("Connect to: Bronkhorst MFC, serial %s" %
-                      match_serial_str)
+                print(
+                    "Connect to: Bronkhorst MFC, serial %s" % match_serial_str
+                )
 
-        print("  @ %-5s: " % port_str, end='')
+        print("  @ %-5s: " % port_str, end="")
         try:
             # Open the serial port
-            self.ser = serial.Serial(port=port_str,
-                                     baudrate=RS232_BAUDRATE,
-                                     timeout=RS232_TIMEOUT,
-                                     write_timeout=RS232_TIMEOUT)
+            self.ser = serial.Serial(
+                port=port_str,
+                baudrate=RS232_BAUDRATE,
+                timeout=RS232_TIMEOUT,
+                write_timeout=RS232_TIMEOUT,
+            )
         except serial.SerialException:
             print("Could not open port")
             return False
@@ -117,12 +126,13 @@ class Bronkhorst_MFC():
             success = self.query_serial_str()
         except:
             print("Communication error")
-            if self.ser is not None: self.ser.close()
+            if self.ser is not None:
+                self.ser.close()
             self.is_alive = False
             return False
 
         if success:
-            print("serial %s: " % self.serial_str, end='')
+            print("serial %s: " % self.serial_str, end="")
             if match_serial_str is None:
                 # Found any Bronkhorst MFC device
                 print("Success!\n")
@@ -135,7 +145,8 @@ class Bronkhorst_MFC():
                 return True
 
         print("Wrong or no device")
-        if self.ser is not None: self.ser.close()
+        if self.ser is not None:
+            self.ser.close()
         self.is_alive = False
         return False
 
@@ -156,12 +167,18 @@ class Bronkhorst_MFC():
 
         Returns: True if successful, False otherwise.
         """
-        if match_serial_str == '': match_serial_str = None
+        if match_serial_str == "":
+            match_serial_str = None
         if match_serial_str is None:
             print("Scanning ports for any Bronkhorst MFC")
         else:
-            print(("Scanning ports for a Bronkhorst MFC with\n"
-                   "serial number '%s'") % match_serial_str)
+            print(
+                (
+                    "Scanning ports for a Bronkhorst MFC with\n"
+                    "serial number '%s'"
+                )
+                % match_serial_str
+            )
 
         # Ports is a list of tuples
         ports = list(serial.tools.list_ports.comports())
@@ -252,9 +269,11 @@ class Bronkhorst_MFC():
         else:
             try:
                 # Send command string to the device as bytes
-                self.ser.write(msg_str.replace(' ', '').encode())
-            except (serial.SerialTimeoutException,
-                    serial.SerialException) as err:
+                self.ser.write(msg_str.replace(" ", "").encode())
+            except (
+                serial.SerialTimeoutException,
+                serial.SerialException,
+            ) as err:
                 # Print error and struggle on
                 pft(err, 3)
             except:
@@ -264,8 +283,10 @@ class Bronkhorst_MFC():
                     # Read all bytes in the line that is terminated with a
                     # newline character or until time-out has occured
                     ans_bytes = self.ser.readline()
-                except (serial.SerialTimeoutException,
-                        serial.SerialException) as err:
+                except (
+                    serial.SerialTimeoutException,
+                    serial.SerialException,
+                ) as err:
                     pft(err, 3)
                 except:
                     raise
@@ -423,19 +444,23 @@ class Bronkhorst_MFC():
         else:
             return False
 
+
 # ------------------------------------------------------------------------------
 #   hex_to_32bit_IEEE754_float
 # ------------------------------------------------------------------------------
+
 
 def hex_to_32bit_IEEE754_float(hex_str):
     """Transform a string containing a hexidecimal representation of a 32-bits
     IEEE754-formatted float value to a float
     """
-    return (struct.unpack('f', struct.pack('i', int(hex_str, 16))))[0]
+    return (struct.unpack("f", struct.pack("i", int(hex_str, 16))))[0]
+
 
 # -----------------------------------------------------------------------------
 #   read_port_config_file
 # -----------------------------------------------------------------------------
+
 
 def read_port_config_file(filepath):
     """Try to open the config textfile containing the port to open. Do not panic
@@ -455,13 +480,15 @@ def read_port_config_file(filepath):
                     port_str = f.readline().strip()
                 return port_str
             except:
-                pass    # Do not panic and remain silent
+                pass  # Do not panic and remain silent
 
     return None
+
 
 # -----------------------------------------------------------------------------
 #   write_port_config_file
 # -----------------------------------------------------------------------------
+
 
 def write_port_config_file(filepath, port_str):
     """Try to write the port name string to the config textfile. Do not panic if
@@ -479,17 +506,18 @@ def write_port_config_file(filepath, port_str):
             try:
                 filepath.parent.mkdir()
             except:
-                pass    # Do not panic and remain silent
+                pass  # Do not panic and remain silent
 
         try:
             # Write the config file
             filepath.write_text(port_str)
         except:
-            pass        # Do not panic and remain silent
+            pass  # Do not panic and remain silent
         else:
             return True
 
     return False
+
 
 # ------------------------------------------------------------------------------
 #   Main: Will show a demo when run from the terminal
@@ -501,7 +529,7 @@ if __name__ == "__main__":
 
     # Serial number of the Bronkhorst MFC to connect to.
     # Set to '' or None to connect to any Bronkhorst MFC.
-    #SERIAL_MFC = "M16216843A"
+    # SERIAL_MFC = "M16216843A"
     SERIAL_MFC = None
 
     # Path to the config textfile containing the (last used) RS232 port
@@ -511,7 +539,7 @@ if __name__ == "__main__":
     mfc = Bronkhorst_MFC()
 
     if mfc.auto_connect(PATH_CONFIG, SERIAL_MFC):
-        mfc.begin()     # Retrieve necessary parameters
+        mfc.begin()  # Retrieve necessary parameters
         print("  Serial  : %s" % mfc.serial_str)
         print("  Model   : %s" % mfc.model_str)
         print("  Fluid   : %s" % mfc.fluid_name)
@@ -522,6 +550,7 @@ if __name__ == "__main__":
 
     if os.name == "nt":
         import msvcrt
+
         running_Windows = True
         print("\nPress Q to quit.")
         print("Press S to enter new setpoint.")
@@ -549,21 +578,21 @@ if __name__ == "__main__":
 
         # Measure and report the flow rate
         mfc.query_flow_rate()
-        print("\rMeas. flow rate: %6.2f ln/min" % mfc.state.flow_rate, end='')
+        print("\rMeas. flow rate: %6.2f ln/min" % mfc.state.flow_rate, end="")
         sys.stdout.flush()
 
         # Process keyboard input
         if running_Windows:
             if msvcrt.kbhit():
                 key = msvcrt.getch()
-                if key == b'q':
+                if key == b"q":
                     print("\nAre you sure you want to quit [y/n]?")
-                    if msvcrt.getch() == b'y':
+                    if msvcrt.getch() == b"y":
                         print("Quitting.")
                         done = True
                     else:
                         do_send_setpoint = True  # Esthestics
-                elif key == b's':
+                elif key == b"s":
                     send_setpoint = input("\nEnter new setpoint [ln/min]: ")
                     do_send_setpoint = True
 

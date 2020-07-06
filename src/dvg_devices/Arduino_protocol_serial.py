@@ -48,13 +48,15 @@ Classes:
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "02-07-2020"  # 0.0.1 was stamped 15-08-2019
-__version__ = "0.0.3"  # 0.0.1 corresponds to prototype 1.0.2
+__date__ = "06-07-2020"  # 0.0.1 was stamped 15-08-2019
+__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.2
+# pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
+from pathlib import Path
+
 import serial
 import serial.tools.list_ports
-from pathlib import Path
 
 from dvg_debug_functions import print_fancy_traceback as pft
 

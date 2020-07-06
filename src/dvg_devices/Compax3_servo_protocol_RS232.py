@@ -17,7 +17,7 @@ __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "05-07-2020"  # 0.0.1 was stamped 01-08-2018
 __version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
-# pylint: disable=bare-except, disable=broad-except, try-except-raise
+# pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
 from pathlib import Path
@@ -807,7 +807,7 @@ if __name__ == "__main__":
         time.sleep(0.2)
 
     trav.query("o1100.3=0")  # disable axis
-    # trav.query("o1000.4")            # last executed set #
+    # trav.query("o1000.4")   # last executed set #
 
     print("DEACTIVATE\n")
     time.sleep(1)

@@ -1,0 +1,1 @@
+conda create -n py36 python=3.6 pyqt=5 matplotlib ipython

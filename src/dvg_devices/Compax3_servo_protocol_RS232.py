@@ -86,11 +86,15 @@ class Compax3_servo:
     # --------------------------------------------------------------------------
 
     def close(self):
-        if not self.is_alive:
-            pass  # Remain silent
-        else:
-            self.ser.close()
-            self.is_alive = False
+        """Close the serial port, disregarding any exceptions
+        """
+        if self.is_alive:
+            try:
+                self.ser.close()
+            except:
+                pass
+
+        self.is_alive = False
 
     # --------------------------------------------------------------------------
     #   connect_at_port

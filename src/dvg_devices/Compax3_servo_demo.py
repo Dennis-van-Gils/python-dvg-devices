@@ -125,10 +125,7 @@ def about_to_quit():
         trav_qdev.quit()
 
     for trav in travs:
-        try:
-            trav.close()
-        except:
-            pass
+        trav.close()
 
 
 # ------------------------------------------------------------------------------

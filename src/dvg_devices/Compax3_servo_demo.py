@@ -15,7 +15,6 @@ from pathlib import Path
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 
-from dvg_debug_functions import ANSI
 from dvg_utils.dvg_pyqt_controls import SS_TEXTBOX_READ_ONLY, SS_GROUP
 
 from dvg_devices.Compax3_servo_protocol_RS232 import Compax3_servo
@@ -217,9 +216,7 @@ if __name__ == "__main__":
 
     # Create PyQt GUI interfaces and communication threads for the device
     trav_horz_qdev = Compax3_servo_qdev(trav_horz, UPDATE_INTERVAL_MS)
-
     trav_vert_qdev = Compax3_servo_qdev(trav_vert, UPDATE_INTERVAL_MS)
-
     travs_qdev = [trav_horz_qdev, trav_vert_qdev]
 
     # Create Compax3 single step navigator
@@ -230,12 +227,6 @@ if __name__ == "__main__":
     trav_step_nav.step_down.connect(act_upon_signal_step_down)
     trav_step_nav.step_left.connect(act_upon_signal_step_left)
     trav_step_nav.step_right.connect(act_upon_signal_step_right)
-
-    # For DEBUG info
-    trav_horz_qdev.worker_DAQ.debug_color = ANSI.YELLOW
-    trav_horz_qdev.worker_jobs.debug_color = ANSI.CYAN
-    trav_vert_qdev.worker_DAQ.debug_color = ANSI.YELLOW
-    trav_vert_qdev.worker_jobs.debug_color = ANSI.CYAN
 
     # Create window
     window = MainWindow()

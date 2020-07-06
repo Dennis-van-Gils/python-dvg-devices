@@ -17,7 +17,7 @@ __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "06-07-2020"  # 0.0.1 was stamped 01-08-2018
 __version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
-# pylint: disable=bare-except, broad-except, try-except-raise
+# pylint: disable=bare-except, broad-except, try-except-raise, pointless-string-statement
 
 import sys
 from pathlib import Path

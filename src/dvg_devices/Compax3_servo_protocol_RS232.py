@@ -15,16 +15,17 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "05-07-2020"  # 0.0.1 was stamped 01-08-2018
+__date__ = "06-07-2020"  # 0.0.1 was stamped 01-08-2018
 __version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
 # pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
 from pathlib import Path
+
 import serial
 import serial.tools.list_ports
-
 import numpy as np
+
 from dvg_debug_functions import print_fancy_traceback as pft
 
 # Serial settings

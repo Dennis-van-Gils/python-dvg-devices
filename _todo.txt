@@ -1,0 +1,22 @@
+Change::
+    
+    in module `demo`
+        def about_to_quit():
+            try:
+                device.close
+            except:
+                pass
+                
+    and move try except to rs232 module as such::
+    
+    def close(self):
+        """Close the serial port, disregarding any exceptions
+        """
+        if self.is_alive:
+            try:
+                self.ser.close()
+            except:
+                pass
+
+        self.is_alive = False
+    

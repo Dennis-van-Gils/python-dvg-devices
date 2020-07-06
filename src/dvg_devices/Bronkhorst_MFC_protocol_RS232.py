@@ -59,6 +59,8 @@ class Bronkhorst_MFC:
     # --------------------------------------------------------------------------
 
     def close(self):
+        """Close the serial port, disregarding any exceptions
+        """
         if self.is_alive:
             try:
                 self.ser.close()

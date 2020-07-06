@@ -121,26 +121,29 @@ class Compax3_step_navigator(QtWid.QWidget):
                     self.pted_focus_trap.setFocus()
                     event.ignore()
                     return True
-                elif event.key() == QtCore.Qt.Key_Down:
+
+                if event.key() == QtCore.Qt.Key_Down:
                     # print("down")
                     self.process_step_down()
                     self.pted_focus_trap.setFocus()
                     event.ignore()
                     return True
-                elif event.key() == QtCore.Qt.Key_Left:
+
+                if event.key() == QtCore.Qt.Key_Left:
                     # print("left")
                     self.process_step_left()
                     self.pted_focus_trap.setFocus()
                     event.ignore()
                     return True
-                elif event.key() == QtCore.Qt.Key_Right:
+
+                if event.key() == QtCore.Qt.Key_Right:
                     # print("right")
                     self.process_step_right()
                     self.pted_focus_trap.setFocus()
                     event.ignore()
                     return True
 
-        return super(QtWid.QWidget, self).eventFilter(obj, event)
+        return super().eventFilter(obj, event)
 
     @QtCore.pyqtSlot()
     def process_pbtn_step_activate(self):
@@ -156,9 +159,9 @@ class Compax3_step_navigator(QtWid.QWidget):
 
             self.pted_focus_trap.setFocus()
 
-            if not (self.trav_horz is None):
+            if self.trav_horz is not None:
                 self.horz_pos = float("%.2f" % self.trav_horz.state.cur_pos)
-            if not (self.trav_vert is None):
+            if self.trav_vert is not None:
                 self.vert_pos = float("%.2f" % self.trav_vert.state.cur_pos)
         else:
             self.pbtn_step_activate.setText("Disabled")

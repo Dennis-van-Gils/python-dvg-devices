@@ -14,8 +14,9 @@ module. It will only read out the software state. Pure GUI.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-07-2020"  # 0.0.1 was stamped 14-09-2018
-__version__ = "0.0.4"  # 0.0.1 corresponds to prototype 1.0.0
+__date__ = "06-07-2020"  # 0.0.1 was stamped 14-09-2018
+__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
+# pylint: disable=try-except-raise
 
 import sys
 import numpy as np
@@ -28,16 +29,21 @@ from dvg_utils.dvg_pyqt_controls import create_Toggle_button, SS_GROUP
 
 from dvg_devices.Compax3_servo_protocol_RS232 import Compax3_servo
 
+
 class Compax3_step_navigator(QtWid.QWidget):
+    # fmt: off
     step_up    = QtCore.pyqtSignal(float)
     step_down  = QtCore.pyqtSignal(float)
     step_left  = QtCore.pyqtSignal(float)
     step_right = QtCore.pyqtSignal(float)
+    # fmt: on
 
-    def __init__(self,
-                 trav_horz: Compax3_servo=None,
-                 trav_vert: Compax3_servo=None,
-                 **kwargs):
+    def __init__(
+        self,
+        trav_horz: Compax3_servo = None,
+        trav_vert: Compax3_servo = None,
+        **kwargs
+    ):
         super().__init__(**kwargs)
 
         if not (isinstance(trav_horz, Compax3_servo) or trav_horz is None):
@@ -50,9 +56,9 @@ class Compax3_step_navigator(QtWid.QWidget):
         self.listening_to_arrow_keys = False
         self.trav_horz = trav_horz
         self.trav_vert = trav_vert
-        self.horz_pos  = np.nan     # [mm]
-        self.vert_pos  = np.nan     # [mm]
-        self.step_size = np.nan     # [mm]
+        self.horz_pos = np.nan  # [mm]
+        self.vert_pos = np.nan  # [mm]
+        self.step_size = np.nan  # [mm]
 
         self.create_GUI()
         self.connect_signals_to_slots()
@@ -60,32 +66,34 @@ class Compax3_step_navigator(QtWid.QWidget):
 
     def create_GUI(self):
         self.pbtn_step_activate = create_Toggle_button("Disabled")
-        self.qled_step_size = QtWid.QLineEdit("1.0",alignment=
-                                              QtCore.Qt.AlignRight)
+        self.qled_step_size = QtWid.QLineEdit(
+            "1.0", alignment=QtCore.Qt.AlignRight
+        )
         self.qled_step_size.setFixedWidth(70)
 
         grid_sub = QtWid.QGridLayout()
-        grid_sub.addWidget(self.pbtn_step_activate  , 0, 0, 1, 3)
+        grid_sub.addWidget(self.pbtn_step_activate, 0, 0, 1, 3)
         grid_sub.addWidget(QtWid.QLabel("Step size"), 1, 0)
-        grid_sub.addWidget(self.qled_step_size      , 1, 1)
-        grid_sub.addWidget(QtWid.QLabel("mm")       , 1, 2)
+        grid_sub.addWidget(self.qled_step_size, 1, 1)
+        grid_sub.addWidget(QtWid.QLabel("mm"), 1, 2)
 
         font_1 = QtGui.QFont("", 20)
         font_2 = QtGui.QFont("", 30)
-        p1 = {'font': font_1, 'enabled': False}
-        p2 = {'font': font_2, 'enabled': False}
+        p1 = {"font": font_1, "enabled": False}
+        p2 = {"font": font_2, "enabled": False}
         self.pbtn_step_up = QtWid.QPushButton(chr(0x25B2), **p1)
         self.pbtn_step_up.setFixedSize(50, 50)
         self.pbtn_step_down = QtWid.QPushButton(chr(0x25BC), **p1)
         self.pbtn_step_down.setFixedSize(50, 50)
-        self.pbtn_step_left = QtWid.QPushButton(chr(0x25c0), **p2)
+        self.pbtn_step_left = QtWid.QPushButton(chr(0x25C0), **p2)
         self.pbtn_step_left.setFixedSize(50, 50)
         self.pbtn_step_right = QtWid.QPushButton(chr(0x25B6), **p2)
         self.pbtn_step_right.setFixedSize(50, 50)
 
-        self.pted_focus_trap = QtWid.QPlainTextEdit('', enabled=False)
+        self.pted_focus_trap = QtWid.QPlainTextEdit("", enabled=False)
         self.pted_focus_trap.setFixedSize(0, 0)
 
+        # fmt: off
         grid = QtWid.QGridLayout()
         grid.addLayout(grid_sub               , 0, 0, 1, 4)
         grid.addItem(QtWid.QSpacerItem(1, 12) , 1, 0)
@@ -94,6 +102,7 @@ class Compax3_step_navigator(QtWid.QWidget):
         grid.addWidget(self.pbtn_step_right   , 3, 2, QtCore.Qt.AlignHCenter)
         grid.addWidget(self.pbtn_step_down    , 4, 1, QtCore.Qt.AlignHCenter)
         grid.addWidget(self.pted_focus_trap   , 5, 1, QtCore.Qt.AlignHCenter)
+        # fmt: on
 
         self.grpb = QtWid.QGroupBox("Move single step")
         self.grpb.eventFilter = self.eventFilter
@@ -103,28 +112,29 @@ class Compax3_step_navigator(QtWid.QWidget):
 
     def eventFilter(self, obj, event):
         if self.listening_to_arrow_keys:
-            if ((event.type() == QtCore.QEvent.KeyRelease) and
-                not event.isAutoRepeat()):
+            if (
+                event.type() == QtCore.QEvent.KeyRelease
+            ) and not event.isAutoRepeat():
                 if event.key() == QtCore.Qt.Key_Up:
-                    #print("up")
+                    # print("up")
                     self.process_step_up()
                     self.pted_focus_trap.setFocus()
                     event.ignore()
                     return True
                 elif event.key() == QtCore.Qt.Key_Down:
-                    #print("down")
+                    # print("down")
                     self.process_step_down()
                     self.pted_focus_trap.setFocus()
                     event.ignore()
                     return True
                 elif event.key() == QtCore.Qt.Key_Left:
-                    #print("left")
+                    # print("left")
                     self.process_step_left()
                     self.pted_focus_trap.setFocus()
                     event.ignore()
                     return True
                 elif event.key() == QtCore.Qt.Key_Right:
-                    #print("right")
+                    # print("right")
                     self.process_step_right()
                     self.pted_focus_trap.setFocus()
                     event.ignore()
@@ -173,10 +183,10 @@ class Compax3_step_navigator(QtWid.QWidget):
         self.step_size = val
 
     def connect_signals_to_slots(self):
-        self.pbtn_step_activate.clicked.connect(
-                self.process_pbtn_step_activate)
+        self.pbtn_step_activate.clicked.connect(self.process_pbtn_step_activate)
         self.qled_step_size.editingFinished.connect(
-                self.process_editingFinished_qled_step_size)
+            self.process_editingFinished_qled_step_size
+        )
         self.pbtn_step_up.clicked.connect(self.process_step_up)
         self.pbtn_step_down.clicked.connect(self.process_step_down)
         self.pbtn_step_left.clicked.connect(self.process_step_left)

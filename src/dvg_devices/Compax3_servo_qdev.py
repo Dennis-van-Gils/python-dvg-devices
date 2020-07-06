@@ -6,19 +6,23 @@ acquisition for a Compax3 traverse controller.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-07-2020"  # 0.0.1 was stamped 14-09-2018
-__version__ = "0.0.4"  # 0.0.1 corresponds to prototype 1.0.0
+__date__ = "06-07-2020"  # 0.0.1 was stamped 14-09-2018
+__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
+# pylint: disable=try-except-raise
 
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 
-from dvg_utils.dvg_pyqt_controls import (SS_GROUP,
-                               SS_TEXTBOX_ERRORS,
-                               create_error_LED,
-                               create_tiny_LED)
+from dvg_utils.dvg_pyqt_controls import (
+    SS_GROUP,
+    SS_TEXTBOX_ERRORS,
+    create_error_LED,
+    create_tiny_LED,
+)
 
 from dvg_qdeviceio import QDeviceIO, DAQ_trigger
 from dvg_devices.Compax3_servo_protocol_RS232 import Compax3_servo
+
 
 class Compax3_servo_qdev(QDeviceIO):
     """Manages multithreaded communication and periodical data acquisition for
@@ -65,14 +69,17 @@ class Compax3_servo_qdev(QDeviceIO):
         (*) signal_DAQ_updated()
         (*) signal_connection_lost()
     """
-    def __init__(self,
-                 dev: Compax3_servo,
-                 DAQ_interval_ms=250,
-                 critical_not_alive_count=1,
-                 DAQ_timer_type=QtCore.Qt.CoarseTimer,
-                 calc_DAQ_rate_every_N_iter=4,
-                 debug=False,
-                 **kwargs,):
+
+    def __init__(
+        self,
+        dev: Compax3_servo,
+        DAQ_interval_ms=250,
+        critical_not_alive_count=1,
+        DAQ_timer_type=QtCore.Qt.CoarseTimer,
+        calc_DAQ_rate_every_N_iter=4,
+        debug=False,
+        **kwargs,
+    ):
         super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
 
         self.create_worker_DAQ(
@@ -105,7 +112,7 @@ class Compax3_servo_qdev(QDeviceIO):
         success = self.dev.query_position()
         success &= self.dev.query_status_word_1()
 
-        if not(self.dev.status_word_1.no_error):
+        if not self.dev.status_word_1.no_error:
             self.dev.query_error()
 
         return success
@@ -119,15 +126,16 @@ class Compax3_servo_qdev(QDeviceIO):
         default_font_width = 8
 
         # Sub-groupbox: Status word 1 bits
-        self.sw1_powerless          = create_tiny_LED()
+        self.sw1_powerless = create_tiny_LED()
         self.sw1_powered_stationary = create_tiny_LED()
-        self.sw1_zero_pos_known     = create_tiny_LED()
-        self.sw1_pos_reached        = create_tiny_LED()
+        self.sw1_zero_pos_known = create_tiny_LED()
+        self.sw1_pos_reached = create_tiny_LED()
 
         i = 0
-        p = {'alignment': QtCore.Qt.AlignRight}
+        p = {"alignment": QtCore.Qt.AlignRight}
         grid = QtWid.QGridLayout()
         grid.setVerticalSpacing(4)
+        # fmt: off
         grid.addWidget(QtWid.QLabel("powerless", **p)         , i, 0)
         grid.addWidget(self.sw1_powerless                     , i, 1); i+=1
         grid.addWidget(QtWid.QLabel("powered stationary", **p), i, 0)
@@ -136,40 +144,46 @@ class Compax3_servo_qdev(QDeviceIO):
         grid.addWidget(self.sw1_zero_pos_known                , i, 1); i+=1
         grid.addWidget(QtWid.QLabel("position reached", **p)  , i, 0)
         grid.addWidget(self.sw1_pos_reached                   , i, 1); i+=1
-        #grid.setColumnStretch(0, 0)
-        #grid.setColumnStretch(1, 0)
+        # fmt: on
+        # grid.setColumnStretch(0, 0)
+        # grid.setColumnStretch(1, 0)
 
         self.qgrp_sw1 = QtWid.QGroupBox("Status word 1")
         self.qgrp_sw1.setLayout(grid)
 
         # Main groupbox
         font_lbl_status = QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Bold)
-        self.lbl_status = QtWid.QLabel("OFFLINE", font=font_lbl_status,
-                                       alignment=QtCore.Qt.AlignCenter)
+        self.lbl_status = QtWid.QLabel(
+            "OFFLINE", font=font_lbl_status, alignment=QtCore.Qt.AlignCenter
+        )
         self.lbl_status.setFixedHeight(
-                3 * QtGui.QFontMetrics(font_lbl_status).height())
+            3 * QtGui.QFontMetrics(font_lbl_status).height()
+        )
 
         self.sw1_error_tripped = create_error_LED(text="No error")
-        self.error_msg = QtWid.QPlainTextEdit('', lineWrapMode=True)
+        self.error_msg = QtWid.QPlainTextEdit("", lineWrapMode=True)
         self.error_msg.setStyleSheet(SS_TEXTBOX_ERRORS)
         self.error_msg.setMinimumWidth(22 * default_font_width)
         self.error_msg.setFixedHeight(4 * default_font_height)
         self.pbtn_ackn_error = QtWid.QPushButton("Acknowledge error")
-        self.qled_cur_pos = QtWid.QLineEdit("nan", readOnly = True,
-                                            alignment=QtCore.Qt.AlignRight)
-        self.qled_new_pos = QtWid.QLineEdit("nan", readOnly = False,
-                                            alignment=QtCore.Qt.AlignRight)
+        self.qled_cur_pos = QtWid.QLineEdit(
+            "nan", readOnly=True, alignment=QtCore.Qt.AlignRight
+        )
+        self.qled_new_pos = QtWid.QLineEdit(
+            "nan", readOnly=False, alignment=QtCore.Qt.AlignRight
+        )
         self.pbtn_move_to_new_pos = QtWid.QPushButton("Move to new position")
         self.pbtn_move_to_new_pos.setFixedHeight(3 * default_font_height)
-        self.pbtn_jog_plus  = QtWid.QPushButton("Jog +")
+        self.pbtn_jog_plus = QtWid.QPushButton("Jog +")
         self.pbtn_jog_minus = QtWid.QPushButton("Jog -")
         self.pbtn_stop = QtWid.QPushButton("\nSTOP &&\nREMOVE POWER\n")
         self.lbl_update_counter = QtWid.QLabel("0")
 
         i = 0
-        p = {'alignment': QtCore.Qt.AlignRight}
+        p = {"alignment": QtCore.Qt.AlignRight}
         grid = QtWid.QGridLayout()
         grid.setVerticalSpacing(4)
+        # fmt: off
         grid.addWidget(self.lbl_status             , i, 0, 1, 3); i+=1
         grid.addItem(QtWid.QSpacerItem(1, 12)      , i, 0)      ; i+=1
         grid.addWidget(self.sw1_error_tripped      , i, 0, 1, 3); i+=1
@@ -193,14 +207,15 @@ class Compax3_servo_qdev(QDeviceIO):
         grid.addWidget(self.pbtn_jog_minus         , i, 0, 1, 3); i+=1
         grid.addWidget(self.pbtn_stop              , i, 0, 1, 3); i+=1
         grid.addWidget(self.lbl_update_counter     , i, 0, 1, 3); i+=1
-        #grid.setColumnStretch(0, 0)
-        #grid.setColumnStretch(1, 0)
-        #grid.setColumnStretch(2, 0)
+        # fmt: on
+        # grid.setColumnStretch(0, 0)
+        # grid.setColumnStretch(1, 0)
+        # grid.setColumnStretch(2, 0)
 
         self.qgrp = QtWid.QGroupBox("%s" % self.dev.name)
         self.qgrp.setStyleSheet(SS_GROUP)
         self.qgrp.setLayout(grid)
-        self.qgrp.setMaximumWidth(200)   # Work=around, hard limit width
+        self.qgrp.setMaximumWidth(200)  # Work=around, hard limit width
 
     # --------------------------------------------------------------------------
     #   update_GUI
@@ -227,7 +242,8 @@ class Compax3_servo_qdev(QDeviceIO):
                     self.lbl_status.setText("POWERED")
 
             self.sw1_error_tripped.setChecked(
-                    not(self.dev.status_word_1.no_error))
+                not (self.dev.status_word_1.no_error)
+            )
             if self.dev.status_word_1.no_error:
                 self.sw1_error_tripped.setText("No error")
                 self.error_msg.setPlainText("")
@@ -240,9 +256,11 @@ class Compax3_servo_qdev(QDeviceIO):
                 self.error_msg.setStyleSheet(SS_TEXTBOX_ERRORS)
             self.sw1_powerless.setChecked(self.dev.status_word_1.powerless)
             self.sw1_powered_stationary.setChecked(
-                    self.dev.status_word_1.powered_stationary)
+                self.dev.status_word_1.powered_stationary
+            )
             self.sw1_zero_pos_known.setChecked(
-                    self.dev.status_word_1.zero_pos_known)
+                self.dev.status_word_1.zero_pos_known
+            )
             self.sw1_pos_reached.setChecked(self.dev.status_word_1.pos_reached)
             self.qled_cur_pos.setText("%.2f" % self.dev.state.cur_pos)
 
@@ -275,12 +293,11 @@ class Compax3_servo_qdev(QDeviceIO):
             new_pos = float(self.qled_new_pos.text())
         except:
             raise
-        self.send(self.dev.move_to_target_position,
-                                            (new_pos, 2))
+        self.send(self.dev.move_to_target_position, (new_pos, 2))
 
     @QtCore.pyqtSlot()
     def process_pbtn_jog_plus_pressed(self):
-        if not(self.jog_plus_is_active):
+        if not self.jog_plus_is_active:
             self.jog_plus_is_active = True
             self.send(self.dev.jog_plus)
 
@@ -291,7 +308,7 @@ class Compax3_servo_qdev(QDeviceIO):
 
     @QtCore.pyqtSlot()
     def process_pbtn_jog_minus_pressed(self):
-        if not(self.jog_minus_is_active):
+        if not self.jog_minus_is_active:
             self.jog_minus_is_active = True
             self.send(self.dev.jog_minus)
 
@@ -309,17 +326,21 @@ class Compax3_servo_qdev(QDeviceIO):
     # --------------------------------------------------------------------------
 
     def connect_signals_to_slots(self):
-        #self.send_setpoint.editingFinished.connect(
+        # self.send_setpoint.editingFinished.connect(
         #        self.send_setpoint_from_textbox)
 
         self.pbtn_ackn_error.clicked.connect(self.process_pbtn_ackn_error)
         self.qled_new_pos.editingFinished.connect(
-                self.process_editingFinished_qled_new_pos)
+            self.process_editingFinished_qled_new_pos
+        )
         self.pbtn_move_to_new_pos.clicked.connect(
-                self.process_pbtn_move_to_new_pos)
-        #self.pbtn_debug.clicked.connect(self.process_pbtn_debug)
+            self.process_pbtn_move_to_new_pos
+        )
+        # self.pbtn_debug.clicked.connect(self.process_pbtn_debug)
         self.pbtn_jog_plus.pressed.connect(self.process_pbtn_jog_plus_pressed)
         self.pbtn_jog_plus.released.connect(self.process_pbtn_jog_plus_released)
         self.pbtn_jog_minus.pressed.connect(self.process_pbtn_jog_minus_pressed)
-        self.pbtn_jog_minus.released.connect(self.process_pbtn_jog_minus_released)
+        self.pbtn_jog_minus.released.connect(
+            self.process_pbtn_jog_minus_released
+        )
         self.pbtn_stop.clicked.connect(self.process_pbtn_stop)

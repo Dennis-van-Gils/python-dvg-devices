@@ -64,7 +64,7 @@ class Compax3_servo_qdev(QDeviceIO):
 
         self.create_worker_DAQ(
             DAQ_trigger=DAQ_TRIGGER.INTERNAL_TIMER,
-            DAQ_function=self.DAQ_function,
+            DAQ_function=self._DAQ_function,
             DAQ_interval_ms=DAQ_interval_ms,
             DAQ_timer_type=DAQ_timer_type,
             critical_not_alive_count=critical_not_alive_count,
@@ -74,21 +74,22 @@ class Compax3_servo_qdev(QDeviceIO):
 
         self.create_worker_jobs(debug=debug)
 
-        self.create_GUI()
-        self.signal_DAQ_updated.connect(self.update_GUI)
-        self.connect_signals_to_slots()
+        self._create_GUI()
+        self._connect_signals_to_slots()
+        self.signal_DAQ_updated.connect(self._update_GUI)
+
         if not self.dev.is_alive:
-            self.update_GUI()  # Correctly reflect an offline device
+            self._update_GUI()  # Correctly reflect an offline device
 
         # Flags for Jog+/Jog- pushbutton control
-        self.jog_plus_is_active = False
-        self.jog_minus_is_active = False
+        self._jog_plus_is_active = False
+        self._jog_minus_is_active = False
 
     # --------------------------------------------------------------------------
-    #   DAQ_function
+    #   _DAQ_function
     # --------------------------------------------------------------------------
 
-    def DAQ_function(self):
+    def _DAQ_function(self):
         success = self.dev.query_position()
         success &= self.dev.query_status_word_1()
 
@@ -98,10 +99,10 @@ class Compax3_servo_qdev(QDeviceIO):
         return success
 
     # --------------------------------------------------------------------------
-    #   create_GUI
+    #   _create_GUI
     # --------------------------------------------------------------------------
 
-    def create_GUI(self):
+    def _create_GUI(self):
         default_font_height = 17
         default_font_width = 8
 
@@ -198,11 +199,11 @@ class Compax3_servo_qdev(QDeviceIO):
         self.qgrp.setMaximumWidth(200)  # Work=around, hard limit width
 
     # --------------------------------------------------------------------------
-    #   update_GUI
+    #   _update_GUI
     # --------------------------------------------------------------------------
 
     @QtCore.pyqtSlot()
-    def update_GUI(self):
+    def _update_GUI(self):
         """NOTE: 'self.dev.mutex' is not being locked, because we are only
         reading 'state' for displaying purposes. We can do this because 'state'
         members are written and read atomicly.
@@ -253,11 +254,11 @@ class Compax3_servo_qdev(QDeviceIO):
     # --------------------------------------------------------------------------
 
     @QtCore.pyqtSlot()
-    def process_pbtn_ackn_error(self):
+    def _process_pbtn_ackn_error(self):
         self.send(self.dev.acknowledge_error)
 
     @QtCore.pyqtSlot()
-    def process_editingFinished_qled_new_pos(self):
+    def _process_editingFinished_qled_new_pos(self):
         try:
             new_pos = float(self.qled_new_pos.text())
         except (TypeError, ValueError):
@@ -267,7 +268,7 @@ class Compax3_servo_qdev(QDeviceIO):
         self.qled_new_pos.setText("%.2f" % new_pos)
 
     @QtCore.pyqtSlot()
-    def process_pbtn_move_to_new_pos(self):
+    def _process_pbtn_move_to_new_pos(self):
         # Double check if the value in the QLineEdit is actually numeric
         try:
             new_pos = float(self.qled_new_pos.text())
@@ -276,51 +277,55 @@ class Compax3_servo_qdev(QDeviceIO):
         self.send(self.dev.move_to_target_position, (new_pos, 2))
 
     @QtCore.pyqtSlot()
-    def process_pbtn_jog_plus_pressed(self):
-        if not self.jog_plus_is_active:
-            self.jog_plus_is_active = True
+    def _process_pbtn_jog_plus_pressed(self):
+        if not self._jog_plus_is_active:
+            self._jog_plus_is_active = True
             self.send(self.dev.jog_plus)
 
     @QtCore.pyqtSlot()
-    def process_pbtn_jog_plus_released(self):
-        self.jog_plus_is_active = False
+    def _process_pbtn_jog_plus_released(self):
+        self._jog_plus_is_active = False
         self.send(self.dev.stop_motion_but_keep_power)
 
     @QtCore.pyqtSlot()
-    def process_pbtn_jog_minus_pressed(self):
-        if not self.jog_minus_is_active:
-            self.jog_minus_is_active = True
+    def _process_pbtn_jog_minus_pressed(self):
+        if not self._jog_minus_is_active:
+            self._jog_minus_is_active = True
             self.send(self.dev.jog_minus)
 
     @QtCore.pyqtSlot()
-    def process_pbtn_jog_minus_released(self):
-        self.jog_minus_is_active = False
+    def _process_pbtn_jog_minus_released(self):
+        self._jog_minus_is_active = False
         self.send(self.dev.stop_motion_but_keep_power)
 
     @QtCore.pyqtSlot()
-    def process_pbtn_stop(self):
+    def _process_pbtn_stop(self):
         self.send(self.dev.stop_motion_and_remove_power)
 
     # --------------------------------------------------------------------------
-    #   connect_signals_to_slots
+    #   _connect_signals_to_slots
     # --------------------------------------------------------------------------
 
-    def connect_signals_to_slots(self):
+    def _connect_signals_to_slots(self):
         # self.send_setpoint.editingFinished.connect(
         #        self.send_setpoint_from_textbox)
 
-        self.pbtn_ackn_error.clicked.connect(self.process_pbtn_ackn_error)
+        self.pbtn_ackn_error.clicked.connect(self._process_pbtn_ackn_error)
         self.qled_new_pos.editingFinished.connect(
-            self.process_editingFinished_qled_new_pos
+            self._process_editingFinished_qled_new_pos
         )
         self.pbtn_move_to_new_pos.clicked.connect(
-            self.process_pbtn_move_to_new_pos
+            self._process_pbtn_move_to_new_pos
         )
-        # self.pbtn_debug.clicked.connect(self.process_pbtn_debug)
-        self.pbtn_jog_plus.pressed.connect(self.process_pbtn_jog_plus_pressed)
-        self.pbtn_jog_plus.released.connect(self.process_pbtn_jog_plus_released)
-        self.pbtn_jog_minus.pressed.connect(self.process_pbtn_jog_minus_pressed)
+        # self.pbtn_debug.clicked.connect(self._process_pbtn_debug)
+        self.pbtn_jog_plus.pressed.connect(self._process_pbtn_jog_plus_pressed)
+        self.pbtn_jog_plus.released.connect(
+            self._process_pbtn_jog_plus_released
+        )
+        self.pbtn_jog_minus.pressed.connect(
+            self._process_pbtn_jog_minus_pressed
+        )
         self.pbtn_jog_minus.released.connect(
-            self.process_pbtn_jog_minus_released
+            self._process_pbtn_jog_minus_released
         )
-        self.pbtn_stop.clicked.connect(self.process_pbtn_stop)
+        self.pbtn_stop.clicked.connect(self._process_pbtn_stop)

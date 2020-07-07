@@ -254,11 +254,11 @@ class Compax3_servo_qdev(QDeviceIO):
     # --------------------------------------------------------------------------
 
     @QtCore.pyqtSlot()
-    def _process_pbtn_ackn_error(self):
+    def process_pbtn_ackn_error(self):
         self.send(self.dev.acknowledge_error)
 
     @QtCore.pyqtSlot()
-    def _process_editingFinished_qled_new_pos(self):
+    def process_editingFinished_qled_new_pos(self):
         try:
             new_pos = float(self.qled_new_pos.text())
         except (TypeError, ValueError):
@@ -268,7 +268,7 @@ class Compax3_servo_qdev(QDeviceIO):
         self.qled_new_pos.setText("%.2f" % new_pos)
 
     @QtCore.pyqtSlot()
-    def _process_pbtn_move_to_new_pos(self):
+    def process_pbtn_move_to_new_pos(self):
         # Double check if the value in the QLineEdit is actually numeric
         try:
             new_pos = float(self.qled_new_pos.text())
@@ -277,29 +277,29 @@ class Compax3_servo_qdev(QDeviceIO):
         self.send(self.dev.move_to_target_position, (new_pos, 2))
 
     @QtCore.pyqtSlot()
-    def _process_pbtn_jog_plus_pressed(self):
+    def process_pbtn_jog_plus_pressed(self):
         if not self._jog_plus_is_active:
             self._jog_plus_is_active = True
             self.send(self.dev.jog_plus)
 
     @QtCore.pyqtSlot()
-    def _process_pbtn_jog_plus_released(self):
+    def process_pbtn_jog_plus_released(self):
         self._jog_plus_is_active = False
         self.send(self.dev.stop_motion_but_keep_power)
 
     @QtCore.pyqtSlot()
-    def _process_pbtn_jog_minus_pressed(self):
+    def process_pbtn_jog_minus_pressed(self):
         if not self._jog_minus_is_active:
             self._jog_minus_is_active = True
             self.send(self.dev.jog_minus)
 
     @QtCore.pyqtSlot()
-    def _process_pbtn_jog_minus_released(self):
+    def process_pbtn_jog_minus_released(self):
         self._jog_minus_is_active = False
         self.send(self.dev.stop_motion_but_keep_power)
 
     @QtCore.pyqtSlot()
-    def _process_pbtn_stop(self):
+    def process_pbtn_stop(self):
         self.send(self.dev.stop_motion_and_remove_power)
 
     # --------------------------------------------------------------------------
@@ -310,22 +310,18 @@ class Compax3_servo_qdev(QDeviceIO):
         # self.send_setpoint.editingFinished.connect(
         #        self.send_setpoint_from_textbox)
 
-        self.pbtn_ackn_error.clicked.connect(self._process_pbtn_ackn_error)
+        self.pbtn_ackn_error.clicked.connect(self.process_pbtn_ackn_error)
         self.qled_new_pos.editingFinished.connect(
-            self._process_editingFinished_qled_new_pos
+            self.process_editingFinished_qled_new_pos
         )
         self.pbtn_move_to_new_pos.clicked.connect(
-            self._process_pbtn_move_to_new_pos
+            self.process_pbtn_move_to_new_pos
         )
-        # self.pbtn_debug.clicked.connect(self._process_pbtn_debug)
-        self.pbtn_jog_plus.pressed.connect(self._process_pbtn_jog_plus_pressed)
-        self.pbtn_jog_plus.released.connect(
-            self._process_pbtn_jog_plus_released
-        )
-        self.pbtn_jog_minus.pressed.connect(
-            self._process_pbtn_jog_minus_pressed
-        )
+        # self.pbtn_debug.clicked.connect(self.process_pbtn_debug)
+        self.pbtn_jog_plus.pressed.connect(self.process_pbtn_jog_plus_pressed)
+        self.pbtn_jog_plus.released.connect(self.process_pbtn_jog_plus_released)
+        self.pbtn_jog_minus.pressed.connect(self.process_pbtn_jog_minus_pressed)
         self.pbtn_jog_minus.released.connect(
-            self._process_pbtn_jog_minus_released
+            self.process_pbtn_jog_minus_released
         )
-        self.pbtn_stop.clicked.connect(self._process_pbtn_stop)
+        self.pbtn_stop.clicked.connect(self.process_pbtn_stop)

@@ -5,8 +5,9 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "02-07-2020"  # 0.0.1 was stamped 15-09-2018
-__version__ = "0.0.3"  # 0.0.1 corresponds to prototype 1.0.0
+__date__ = "07-07-2020"  # 0.0.1 was stamped 15-09-2018
+__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
+# pylint: disable=try-except-raise
 
 import socket
 import numpy as np
@@ -21,6 +22,7 @@ B = -5.775e-7
 C = -4.183e-12  # when below 0 'C, C = 0 when above 0 'C
 
 # Acceptable temperature range
+# fmt: off
 T_MIN = -200    # ['C]
 T_MAX = 800     # ['C]
 
@@ -28,18 +30,20 @@ T_MAX = 800     # ['C]
 # probe is present
 R_MIN = 18      # [Ohm]
 R_MAX = 3760    # [Ohm]
+# fmt: on
 
 # Timeout on the socket communication
 # Keep the timeout shorter than the scan rate of ~ 720 ms otherwise the method
 # 'scan_4_wire_temperature' will break.
-SOCKET_TIMEOUT = 0.5 # 0.5 [s]
+SOCKET_TIMEOUT = 0.5  # 0.5 [s]
 
 DEBUG = False
 
-class Picotech_PT104():
-    class Eeprom():
-        # Container for the PT-104 specific values retreived from it's
-        # memory
+
+class Picotech_PT104:
+    class Eeprom:
+        # Container for the PT-104 specific values retreived from it's memory
+        # fmt: off
         serial     = None
         calib_date = None
         ch1_calib  = None
@@ -48,8 +52,9 @@ class Picotech_PT104():
         ch4_calib  = None
         MAC        = None
         checksum   = None
+        # fmt: on
 
-    class State():
+    class State:
         # Container for the process and measurement variables
         # Resistance readings of channels 1 to 4 [Ohm]
         ch1_R = np.nan
@@ -69,9 +74,9 @@ class Picotech_PT104():
     def __init__(self, name="PT104"):
         self.name = name
         self._ip_address = None
-        self._port       = None
-        self._sock       = None
-        self._eeprom     = self.Eeprom()
+        self._port = None
+        self._sock = None
+        self._eeprom = self.Eeprom()
 
         # List corresponding to channels 1 to 4, where
         #    0: channel off
@@ -114,14 +119,14 @@ class Picotech_PT104():
         Returns: True if successful, False otherwise.
         """
         self._ip_address = ip_address
-        self._port       = port
+        self._port = port
 
         print("Connect to: PicoTech PT-104")
-        print("  @ ip=%s:%i : " % (ip_address, port), end='')
+        print("  @ ip=%s:%i : " % (ip_address, port), end="")
 
         # Open UDP socket
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._sock.settimeout(SOCKET_TIMEOUT)     # timeout on commands
+        self._sock.settimeout(SOCKET_TIMEOUT)  # timeout on commands
 
         # Try to acquire a lock to the PT-104
         success = self.lock()
@@ -178,7 +183,7 @@ class Picotech_PT104():
             ans_bytes = self._sock.recv(4096)
             success = True
         except socket.timeout:
-            #print("ERROR: socket.recv() timed out in query()")
+            # print("ERROR: socket.recv() timed out in query()")
             pass  # Stay silent and continue
         except:
             raise
@@ -208,7 +213,7 @@ class Picotech_PT104():
         for _i in range(3):
             [success, ans_bytes] = self.UDP_recv()
             if success:
-                if ans_bytes[:len(check_ans_bytes)] == check_ans_bytes:
+                if ans_bytes[: len(check_ans_bytes)] == check_ans_bytes:
                     return (True, ans_bytes)
                 else:
                     print("Failed %s: received %s" % (msg_bytes, ans_bytes))
@@ -221,41 +226,42 @@ class Picotech_PT104():
     # --------------------------------------------------------------------------
 
     def lock(self):
-        success, _ans = self.UDP_query_and_check(b"lock\r",
-                                                b"Lock Success")
+        success, _ans = self.UDP_query_and_check(b"lock\r", b"Lock Success")
         return success
 
     def set_mains_rejection_50Hz(self):
-        success, _ans = self.UDP_query_and_check(bytes([0x30, 0x00]),
-                                                b"Mains Changed")
+        success, _ans = self.UDP_query_and_check(
+            bytes([0x30, 0x00]), b"Mains Changed"
+        )
         return success
 
     def set_mains_rejection_60Hz(self):
-        success, _ans = self.UDP_query_and_check(bytes([0x30, 0x01]),
-                                                b"Mains Changed")
+        success, _ans = self.UDP_query_and_check(
+            bytes([0x30, 0x01]), b"Mains Changed"
+        )
         return success
 
     def keep_alive(self):
-        success, _ans = self.UDP_query_and_check(bytes([0x34]),
-                                                b"Alive")
-        if not success: print("PT104 is not alive anymore.")
+        success, _ans = self.UDP_query_and_check(bytes([0x34]), b"Alive")
+        if not success:
+            print("PT104 is not alive anymore.")
         return success
 
     def read_EEPROM(self):
-        success, ans = self.UDP_query_and_check(bytes([0x32]),
-                                                b"Eeprom")
+        success, ans = self.UDP_query_and_check(bytes([0x32]), b"Eeprom")
 
         if success:
             # Parse
+            # fmt: off
             ans        = ans[7:]   # Discard the first 7 bytes reading 'Eeprom='
             serial     = ans[19:29].decode("UTF8")
             calib_date = ans[29:37].decode("UTF8")
-            ch1_calib  = int.from_bytes(ans[37:41], byteorder='little')
-            ch2_calib  = int.from_bytes(ans[41:45], byteorder='little')
-            ch3_calib  = int.from_bytes(ans[45:49], byteorder='little')
-            ch4_calib  = int.from_bytes(ans[49:53], byteorder='little')
-            MAC        = ':'.join("%02x" % b for b in ans[53:59])
-            checksum   = ' '.join("0x%02x" % b for b in ans[126:128])
+            ch1_calib  = int.from_bytes(ans[37:41], byteorder="little")
+            ch2_calib  = int.from_bytes(ans[41:45], byteorder="little")
+            ch3_calib  = int.from_bytes(ans[45:49], byteorder="little")
+            ch4_calib  = int.from_bytes(ans[49:53], byteorder="little")
+            MAC        = ":".join("%02x" % b for b in ans[53:59])
+            checksum   = " ".join("0x%02x" % b for b in ans[126:128])
 
             self._eeprom.serial     = serial
             self._eeprom.calib_date = calib_date
@@ -265,13 +271,13 @@ class Picotech_PT104():
             self._eeprom.ch4_calib  = ch4_calib
             self._eeprom.MAC        = MAC
             self._eeprom.checksum   = checksum
+            # fmt: on
 
             return True
         else:
             return False
 
-    def start_conversion(self, ENA_channels = [1, 0, 0, 0],
-                               gain_channels = [1, 0, 0, 0]):
+    def start_conversion(self, ENA_channels=None, gain_channels=None):
         """
         Starts the continuous acquisition of measurements over channels 1 to 4
         ENA_channel is a list corresponding to channels 1 to 4, where
@@ -281,21 +287,26 @@ class Picotech_PT104():
             0: 1x gain
             1: 21x gain (for 375 Ohm range)
         """
-        self._ENA_channels  = ENA_channels
-        self._gain_channels = gain_channels
+        self._ENA_channels = (
+            [1, 0, 0, 0] if ENA_channels is None else ENA_channels
+        )
+        self._gain_channels = (
+            [1, 0, 0, 0] if gain_channels is None else gain_channels
+        )
 
         data_byte = 0
-        data_byte += ENA_channels[0]
-        data_byte += ENA_channels[1]  * 2
-        data_byte += ENA_channels[2]  * 4
-        data_byte += ENA_channels[3]  * 8
+        data_byte += self._ENA_channels[0]
+        data_byte += self._ENA_channels[1] * 2
+        data_byte += self._ENA_channels[2] * 4
+        data_byte += self._ENA_channels[3] * 8
         data_byte += gain_channels[0] * 16
         data_byte += gain_channels[1] * 32
         data_byte += gain_channels[2] * 64
         data_byte += gain_channels[3] * 128
 
-        success, _ans = self.UDP_query_and_check(bytes([0x31, data_byte]),
-                                                b"Converting")
+        success, _ans = self.UDP_query_and_check(
+            bytes([0x31, data_byte]), b"Converting"
+        )
         return success
 
     # --------------------------------------------------------------------------
@@ -333,28 +344,32 @@ class Picotech_PT104():
 
         (success, ans) = self.UDP_recv()
         while success:
-            if (ans[0] == 0 or ans[0] == 4 or ans[0] == 8 or ans[0] == 12):
+            if ans[0] == 0 or ans[0] == 4 or ans[0] == 8 or ans[0] == 12:
                 # Packet containing temperature reading
 
-                ch = ans[0]/4 + 1    # Determine the channel number being reported
-                a_0 = int.from_bytes(ans[1:5]  , byteorder='big')
-                a_1 = int.from_bytes(ans[6:10] , byteorder='big')
-                a_2 = int.from_bytes(ans[11:15], byteorder='big')
-                a_3 = int.from_bytes(ans[16:20], byteorder='big')
+                ch = (
+                    ans[0] / 4 + 1
+                )  # Determine the channel number being reported
+                a_0 = int.from_bytes(ans[1:5], byteorder="big")
+                a_1 = int.from_bytes(ans[6:10], byteorder="big")
+                a_2 = int.from_bytes(ans[11:15], byteorder="big")
+                a_3 = int.from_bytes(ans[16:20], byteorder="big")
 
                 if DEBUG:
                     print("CH %i" % ch)
 
-                if   (ch==1): calib = self._eeprom.ch1_calib; R_0 = self.ch1_R_0
-                elif (ch==2): calib = self._eeprom.ch2_calib; R_0 = self.ch2_R_0
-                elif (ch==3): calib = self._eeprom.ch3_calib; R_0 = self.ch3_R_0
-                elif (ch==4): calib = self._eeprom.ch4_calib; R_0 = self.ch4_R_0
+                # fmt: off
+                if   ch==1: calib = self._eeprom.ch1_calib; R_0 = self.ch1_R_0
+                elif ch==2: calib = self._eeprom.ch2_calib; R_0 = self.ch2_R_0
+                elif ch==3: calib = self._eeprom.ch3_calib; R_0 = self.ch3_R_0
+                elif ch==4: calib = self._eeprom.ch4_calib; R_0 = self.ch4_R_0
+                # fmt: on
 
                 # Transform readings to resistance [Ohm]
                 if (a_1 - a_0) == 0:
                     R_T = np.nan
                 else:
-                    R_T = ((calib * (a_3 - a_2)) / (a_1 - a_0) / 1e6)
+                    R_T = (calib * (a_3 - a_2)) / (a_1 - a_0) / 1e6
 
                 if np.isnan(R_T):
                     # No probe is present on the channel
@@ -367,12 +382,14 @@ class Picotech_PT104():
                     T = ITS90_Ohm_to_degC(R_0, R_T)
 
                     # Significant numbers + 1
-                    T = np.round(T*1e4)/1e4
+                    T = np.round(T * 1e4) / 1e4
 
-                if   (ch == 1): self.state.ch1_R = R_T; self.state.ch1_T = T
-                elif (ch == 2): self.state.ch2_R = R_T; self.state.ch2_T = T
-                elif (ch == 3): self.state.ch3_R = R_T; self.state.ch3_T = T
-                elif (ch == 4): self.state.ch4_R = R_T; self.state.ch4_T = T
+                # fmt: off
+                if   ch == 1: self.state.ch1_R = R_T; self.state.ch1_T = T
+                elif ch == 2: self.state.ch2_R = R_T; self.state.ch2_T = T
+                elif ch == 3: self.state.ch3_R = R_T; self.state.ch3_T = T
+                elif ch == 4: self.state.ch4_R = R_T; self.state.ch4_T = T
+                # fmt: on
 
             elif ans[:5] == b"Alive":
                 # Packet containing alive response. Stay silent.
@@ -389,9 +406,11 @@ class Picotech_PT104():
         # No more packets
         return True
 
+
 # ------------------------------------------------------------------------------
 #   ITS90 transform functions
 # ------------------------------------------------------------------------------
+
 
 def ITS90_degC_to_Ohm(R_0, T):
     # ITS-90 resistance-temperature relation
@@ -402,7 +421,8 @@ def ITS90_degC_to_Ohm(R_0, T):
     # A = 3.9083e-3
     # B = -5.775e-7
     # C = -4.183e-12  # when below 0 'C, C = 0 when above 0 'C
-    return R_0 * (1 + A*T + B*T**2 + C*(T - 100)*T**3)
+    return R_0 * (1 + A * T + B * T ** 2 + C * (T - 100) * T ** 3)
+
 
 def ITS90_Ohm_to_degC(R_0, R_T):
     # ITS-90 resistance-temperature relation
@@ -414,52 +434,56 @@ def ITS90_Ohm_to_degC(R_0, R_T):
     # B = -5.775e-7
     # C = -4.183e-12  # when below 0 'C, C = 0 when above 0 'C
 
-    if (R_T >= R_0):
+    if R_T >= R_0:
         # We are in the range T >= 0'C
         # Hence, simply solve quadratic equation because C = 0
-        sqrt_arg = A**2 - 4*B*(1 - R_T/R_0)
+        sqrt_arg = A ** 2 - 4 * B * (1 - R_T / R_0)
         if sqrt_arg < 0:
             return np.nan
         else:
-            T = (-A + np.sqrt(sqrt_arg)) / (2*B)
+            T = (-A + np.sqrt(sqrt_arg)) / (2 * B)
 
     else:
         # We are in the range T < 0'C, hence we need to solve a quartic
         # equation. Difficult to solve by algebra. We do it numerically
         # up to a certain convergence error. A convergence of
         # 0.1 milli-Kelvin is more than sufficient for the PT-104 logger.
-        CONV = 1e-4         # [K]
+        CONV = 1e-4  # [K]
         # Restrict the number of iterations. We have convergence at
         # CONV = 1e-4 within 20 iterations for a PT100 sensor
         MAX_ITER = 40
 
         # Start iteration loop
+        # fmt: off
         T_lo = T_MIN        # Lower bound temperature   ['C]
         T_hi = 0            # Upper bound temperature   ['C]
         T_g  = -1.0         # Initial guess temperature ['C]
 
         i = 0               # Iteration counter
         diff = 2 * CONV     # = 2 * CONV assures at least 1 iteration
-        while (diff > CONV):
+        # fmt: on
+        while diff > CONV:
             # Calculate resistance corresponding to the guessed temperature T_g
             R_g = ITS90_degC_to_Ohm(R_0, T_g)
 
             # How far are we off the reported R_T?
             diff = R_T - R_g
 
-            if ((diff > 0) & (abs(diff) > CONV)):
+            if (diff > 0) & (abs(diff) > CONV):
                 T_lo = T_g
-            elif ((diff <= 0) & (abs(diff) > CONV)):
+            elif (diff <= 0) & (abs(diff) > CONV):
                 T_hi = T_g
                 diff = -diff
 
             # Next best guess
-            T_g = (T_hi + T_lo) / 2.
+            T_g = (T_hi + T_lo) / 2.0
 
             i += 1
             if i > MAX_ITER:
-                print("WARNING: Loop in ITS90_Ohm_to_degC() terminated after "
-                      "%d iterations" % MAX_ITER)
+                print(
+                    "WARNING: Loop in ITS90_Ohm_to_degC() terminated after "
+                    "%d iterations" % MAX_ITER
+                )
                 break
 
         # We have reached convergence
@@ -472,26 +496,26 @@ def ITS90_Ohm_to_degC(R_0, R_T):
 
     return T
 
+
 # ------------------------------------------------------------------------------
 #   Debug functions
 # ------------------------------------------------------------------------------
 
+
 def print_as_hex(byte_list):
-    list(map(lambda x: print(format(x, '02x'), end=' '), byte_list))
+    list(map(lambda x: print(format(x, "02x"), end=" "), byte_list))
     print()
+
 
 # ------------------------------------------------------------------------------
 #   Main
 # ------------------------------------------------------------------------------
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
 
     IP_ADDRESS = "10.10.100.2"
-    PORT       = 1234
-
-    ENA_channels  = [1, 1, 0, 0]
-    gain_channels = [1, 1, 0, 0]
+    PORT = 1234
 
     # Initialise PT104 instance
     pt104 = Picotech_PT104()
@@ -505,7 +529,9 @@ if __name__ == '__main__':
         sys.exit(0)
 
     # Start the conversion (DAQ)
-    if pt104.start_conversion(ENA_channels, gain_channels):
+    if pt104.start_conversion(
+        ENA_channels=[1, 1, 0, 0], gain_channels=[1, 1, 0, 0]
+    ):
         print("\nConverting")
     else:
         print("\nERROR: Failed start_conversion()")
@@ -514,4 +540,5 @@ if __name__ == '__main__':
     print("\nT1 ['C]\tT2 ['C]")
     while 1:
         pt104.scan_4_wire_temperature()
-        print("\r%.3f\t%.3f" % (pt104.state.ch1_T, pt104.state.ch2_T), end='')
+        print("\r%.3f\t%.3f" % (pt104.state.ch1_T, pt104.state.ch2_T), end="")
+

@@ -15,7 +15,7 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "06-07-2020"  # 0.0.1 was stamped 01-08-2018
+__date__ = "07-07-2020"  # 0.0.1 was stamped 01-08-2018
 __version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
 # pylint: disable=bare-except, broad-except, try-except-raise, pointless-string-statement
 
@@ -85,14 +85,17 @@ class Compax3_servo:
     #   close
     # --------------------------------------------------------------------------
 
-    def close(self):
-        """Close the serial port, disregarding any exceptions
+    def close(self, ignore_exceptions=False):
+        """Close the serial port
         """
-        if self.is_alive:
+        if self.ser is not None:
             try:
                 self.ser.close()
             except:
-                pass
+                if ignore_exceptions:
+                    pass
+                else:
+                    raise
 
         self.is_alive = False
 

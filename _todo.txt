@@ -8,19 +8,20 @@ Change::
                 pass
     
     to:
-        device.close(ignore_exceptions=True)
+        device.close()
                 
 and in RS232 protocol module:
     
     def close(self, ignore_exceptions=False):
         """Close the serial port
         """
-        if self.is_alive and self.ser is not None:
+        if self.ser is not None:
             try:
                 self.ser.close()
-                self.is_alive = False
             except:
                 if ignore_exceptions:
                     pass
                 else:
                     raise
+
+        self.is_alive = False

@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Function library for HP/Agilent/Keysight 34970A/34972A data acquisition/switch
-unit over SCPI.
+"""Function library for an HP/Agilent/Keysight 34970A/34972A data acquisition/
+switch unit over SCPI.
 
 Communication errors will be handled as non-fatal. This means it will struggle
 on with the script while reporting error messages to the command line output,
@@ -17,8 +16,9 @@ or that the previous query resulted in a communication error.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "02-07-2020"  # 0.0.1 was stamped 20-09-2018
-__version__ = "0.0.3"  # 0.0.1 corresponds to prototype 1.0.0
+__date__ = "07-07-2020"  # 0.0.1 was stamped 20-09-2018
+__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
+# pylint: disable=try-except-raise
 
 import time
 import visa
@@ -26,16 +26,17 @@ import numpy as np
 
 from dvg_debug_functions import print_fancy_traceback
 
-WRITE_TERMINATION = '\n'
-READ_TERMINATION = '\n'
+WRITE_TERMINATION = "\n"
+READ_TERMINATION = "\n"
 
 # 'No error left' reply
 STR_NO_ERROR = "+0,"
 
 # VISA settings
-VISA_TIMEOUT = 2000      # 4000 [msec]
+VISA_TIMEOUT = 2000  # 4000 [msec]
 
-class Keysight_3497xA():
+
+class Keysight_3497xA:
     """List of SCPI commands to be send to the 3497xA to set up the scan cycle.
     Will be assigned by calling 'Keysight_3497xA.begin(SCPI_setup_commands=...)'
     in e.g. the 'main' routine.
@@ -55,25 +56,26 @@ class Keysight_3497xA():
                 "rout:scan %s" % scan_list]
         mux.begin(SCPI_setup_commands)
     """
+
     SCPI_setup_commands = []  # Init as empty list, no commands
 
-    """Flag to determine if the status byte register of the device (device.stb)
-    can be used to poll for any errors in the device queue. The 2nd bit of the
-    status byte would then indicate any errors in the queue. Polling stb is way
-    faster then sending a full 'query_error'.
-    Q: How do we determine?
-    A: Based on the manufacturer reported by the *idn? query. Note that this
-    information can differ from the name printed on the front panel! This
-    library will switch error checking functionality and GUI based on the
-    manufacturer.
-    """
+    # Flag to determine if the status byte register of the device (device.stb)
+    # can be used to poll for any errors in the device queue. The 2nd bit of the
+    # status byte would then indicate any errors in the queue. Polling stb is
+    # way faster then sending a full 'query_error'.
+    # Q: How do we determine?
+    # A: Based on the manufacturer reported by the *idn? query. Note that this
+    # information can differ from the name printed on the front panel! This
+    # library will switch error checking functionality and GUI based on the
+    # manufacturer.
     can_check_error_queue_by_polling_stb = False
 
-    class State():
+    class State:
         """Container for the process and measurement variables.
         An empty list [] indicates that the parameter is not initialized or
         that the last query was unsuccessful in communication.
         """
+
         # All the channels in the scan list retreived from the 3497xA [list of
         # strings]. This can be used to e.g. populate a table view with correct
         # labels.
@@ -93,7 +95,7 @@ class Keysight_3497xA():
         # the list can be emptied (=[]) again.
         all_errors = []
 
-    class Diag():
+    class Diag:
         """Container for the diagnostic information.
         [numpy.nan] values indicate that the parameter is not initialized or
         that the last query was unsuccessful in communication.
@@ -129,14 +131,14 @@ class Keysight_3497xA():
     #   __init__
     # --------------------------------------------------------------------------
 
-    def __init__(self, visa_address=None, name='MUX'):
+    def __init__(self, visa_address=None, name="MUX"):
         """
         Args:
             visa_address (str): VISA device address
         """
         self._visa_address = visa_address
         self.name = name
-        self._idn = None            # The identity of the device ("*IDN?")
+        self._idn = None  # The identity of the device ("*IDN?")
 
         # Placeholder for the VISA device instance
         self.device = None
@@ -156,8 +158,8 @@ class Keysight_3497xA():
 
     def close(self):
         if not self.is_alive:
-            #print("ERROR: Device is already closed.")
-            pass    # Remain silent. Device is already closed.
+            # print("ERROR: Device is already closed.")
+            pass  # Remain silent. Device is already closed.
         else:
             self.device.close()
             self.is_alive = False
@@ -167,7 +169,7 @@ class Keysight_3497xA():
     # --------------------------------------------------------------------------
 
     def connect(self, rm):
-        """ Try to connect to the device over VISA at the given address. When
+        """Try to connect to the device over VISA at the given address. When
         succesful the VISA device instance will be stored in member 'device'
         and its identity is queried and stored in '_idn'.
 
@@ -179,10 +181,11 @@ class Keysight_3497xA():
         self.is_alive = False
 
         print("Connect to: Keysight 3497xA")
-        print("  @ %s : " % self._visa_address, end='')
+        print("  @ %s : " % self._visa_address, end="")
         try:
-            self.device = rm.open_resource(self._visa_address,
-                                           timeout=VISA_TIMEOUT)
+            self.device = rm.open_resource(
+                self._visa_address, timeout=VISA_TIMEOUT
+            )
             self.device.clear()
         except visa.VisaIOError:
             print("Could not open resource.\n")
@@ -196,18 +199,19 @@ class Keysight_3497xA():
 
         [success, self._idn] = self.query("*idn?")
         self.wait_for_OPC()
+
         if success:
             print("  %s\n" % self._idn)
             return True
-        else:
-            return False
+
+        return False
 
     # --------------------------------------------------------------------------
     #   begin
     # --------------------------------------------------------------------------
 
     def begin(self, SCPI_setup_commands=None):
-        """ This function should run directly after having established a
+        """This function should run directly after having established a
         connection to a 3497xA.
 
         Args:
@@ -242,13 +246,14 @@ class Keysight_3497xA():
         else:
             self.can_check_error_queue_by_polling_stb = False
 
-        success  = self.abort_reset_clear()
+        # fmt: off
+        success = self.abort_reset_clear()
         success &= self.query_diagnostics()             ; self.wait_for_OPC()
         success &= self.perform_SCPI_setup_commands()   ; self.wait_for_OPC()
         success &= self.query_all_scan_list_channels()  ; self.wait_for_OPC()
         self.query_all_errors_in_queue()                ; self.wait_for_OPC()
-
         self.report_diagnostics()
+        # fmt: on
 
         return success
 
@@ -257,7 +262,7 @@ class Keysight_3497xA():
     # --------------------------------------------------------------------------
 
     def write(self, msg_str):
-        """ Try to write a command to the device.
+        """Try to write a command to the device.
 
         Args:
             msg_str (string): Message to be sent.
@@ -287,7 +292,7 @@ class Keysight_3497xA():
     # --------------------------------------------------------------------------
 
     def query(self, msg_str):
-        """ Try to query the device.
+        """Try to query the device.
 
         Args:
             msg_str (string): Message to be sent.
@@ -322,7 +327,7 @@ class Keysight_3497xA():
     # --------------------------------------------------------------------------
 
     def query_ascii_values(self, msg_str):
-        """ Try to query the device.
+        """Try to query the device.
 
         Args:
             msg_str (string): Message to be sent.
@@ -367,13 +372,17 @@ class Keysight_3497xA():
         all_success &= success
 
         if success:
-            [self.diag.slot_1_DMM_cycles,
-             self.diag.slot_2_DMM_cycles,
-             self.diag.slot_3_DMM_cycles] = DMM_cycles
+            [
+                self.diag.slot_1_DMM_cycles,
+                self.diag.slot_2_DMM_cycles,
+                self.diag.slot_3_DMM_cycles,
+            ] = DMM_cycles
         else:
-            [self.diag.slot_1_DMM_cycles,
-             self.diag.slot_2_DMM_cycles,
-             self.diag.slot_3_DMM_cycles] = [np.nan] * 3
+            [
+                self.diag.slot_1_DMM_cycles,
+                self.diag.slot_2_DMM_cycles,
+                self.diag.slot_3_DMM_cycles,
+            ] = [np.nan] * 3
 
         # Check all 3 slots for installed modules. Create a list of all
         # available channels if a multiplexer module is installed. This list
@@ -402,8 +411,9 @@ class Keysight_3497xA():
             if slot_ctype == "none":
                 slot_label = np.nan
             else:
-                [success, slot_label] = self.query("diag:peek:slot:data? %i" %
-                                                   bank)
+                [success, slot_label] = self.query(
+                    "diag:peek:slot:data? %i" % bank
+                )
                 all_success &= success
 
                 if success:
@@ -412,7 +422,8 @@ class Keysight_3497xA():
             if N_chans > 0:
                 ch_list_SCPI = "%i:%i" % (bank + 1, bank + N_chans)
                 [success, relay_cycles] = self.query_ascii_values(
-                        "diag:rel:cycl? (@%s)" % ch_list_SCPI)
+                    "diag:rel:cycl? (@%s)" % ch_list_SCPI
+                )
                 all_success &= success
 
                 if not success:
@@ -467,10 +478,10 @@ class Keysight_3497xA():
             print("    %s" % slot_ctype)
             if slot_ctype != "none":
                 print("    Serial: %s" % slot_label)
-            if not(relay_cycles == []):
+            if not (relay_cycles == []):
                 print("    Relay cycle count")
-                for i in range(len(relay_cycles)):
-                    print("      ch %2i: %8i" % (i + 1, relay_cycles[i]))
+                for j in range(len(relay_cycles)):
+                    print("      ch %2i: %8i" % (j + 1, relay_cycles[j]))
             print("")
 
     # --------------------------------------------------------------------------
@@ -478,7 +489,7 @@ class Keysight_3497xA():
     # --------------------------------------------------------------------------
 
     def abort_reset_clear(self):
-        """ Abort measurement, reset device and clear status. Return when this
+        """Abort measurement, reset device and clear status. Return when this
         operation has completed on the device. Blocking.
 
         Returns: True if the message was sent successfully, False otherwise.
@@ -487,25 +498,25 @@ class Keysight_3497xA():
         if not self.is_alive:
             print("ERROR: Device is not connected yet or already closed.")
             return False
-        else:
-            # The reset operation can take a long time to complete. Momentarily
-            # increase the timeout to 2000 msec if necessary.
-            if self.device.timeout < 2000:
-                self.device.timeout = 2000
 
-            # Send clear and reset
-            success = self.write("abor;*rst;*cls")
+        # The reset operation can take a long time to complete. Momentarily
+        # increase the timeout to 2000 msec if necessary.
+        if self.device.timeout < 2000:
+            self.device.timeout = 2000
 
-            # Wait for the last operation to finish before timeout expires
-            self.wait_for_OPC()
+        # Send clear and reset
+        success = self.write("abor;*rst;*cls")
 
-            # Restore timeout
-            self.device.timeout = VISA_TIMEOUT
+        # Wait for the last operation to finish before timeout expires
+        self.wait_for_OPC()
 
-            return success
+        # Restore timeout
+        self.device.timeout = VISA_TIMEOUT
+
+        return success
 
     def wait_for_OPC(self):
-        """ 'Operation complete' query, used for event synchronization.
+        """'Operation complete' query, used for event synchronization.
 
         Will wait for all device operations to complete or until a timeout is
         triggered. Blocking.
@@ -515,7 +526,7 @@ class Keysight_3497xA():
         self.query("*opc?")
 
     def wait_for_OPC_indefinitely(self):
-        """ Poll OPC status bit for 'operation complete', used for event
+        """Poll OPC status bit for 'operation complete', used for event
         synchronization.
 
         Will wait indefinitely for all device operations to complete. Blocking.
@@ -538,7 +549,7 @@ class Keysight_3497xA():
         self.query("*esr?")
 
     def prepare_wait_for_OPC_indefinitely(self):
-        """ Set the ESR to signal bit 0 - OPC (operation complete). Should be
+        """Set the ESR to signal bit 0 - OPC (operation complete). Should be
         called only once after a '*rst' in case you want to make use of
         'wait_for_OPC_indefinitely()'.
 
@@ -547,7 +558,7 @@ class Keysight_3497xA():
         return self.write("*ese 1")
 
     def query_error(self, verbose=False):
-        """ Pop one error string from the error queue of the device and store it
+        """Pop one error string from the error queue of the device and store it
         in the 'State'-class member. A value of None indicates no error is left.
 
         Returns: True if the query was received successfully, False otherwise.
@@ -557,7 +568,7 @@ class Keysight_3497xA():
             if self.state.error.find(STR_NO_ERROR) == 0:
                 self.state.error = None
             else:
-                if verbose: # DEBUG INFO
+                if verbose:  # DEBUG INFO
                     print("  %s" % self.state.error)
         return success
 
@@ -592,7 +603,7 @@ class Keysight_3497xA():
                 else:
                     break
 
-        if verbose: # DEBUG INFO
+        if verbose:  # DEBUG INFO
             for error in self.state.all_errors:
                 print("  %s" % error)
 
@@ -618,7 +629,7 @@ class Keysight_3497xA():
         return success
 
     def init_scan(self):
-        """ Initialize the scan, i.e. start with the acquisition of data over
+        """Initialize the scan, i.e. start with the acquisition of data over
         all channels as programmed. Non-blocking.
 
         You can check for the scan to have completed by calling
@@ -640,7 +651,7 @@ class Keysight_3497xA():
         return self.write("init")
 
     def fetch_scan(self):
-        """ Retreive the last scanned data from the device buffer. The data
+        """Retreive the last scanned data from the device buffer. The data
         will be stored in state variable 'state.readings'.
 
         Returns: True if the query was received successfully, False otherwise.
@@ -650,7 +661,7 @@ class Keysight_3497xA():
         return success
 
     def init_scan_and_wait_for_OPC_indefinitely_and_fetch(self):
-        """ Blocking and mainly for testing purposes as there will be limited
+        """Blocking and mainly for testing purposes as there will be limited
         use for this series of instructions that could be blocking indefinitely.
         The scanned data will be stored in state variable 'state.readings'.
 
@@ -660,12 +671,12 @@ class Keysight_3497xA():
         success = self.init_scan()
         self.wait_for_OPC_indefinitely()
         success &= self.fetch_scan()
-        #print(self.state.readings[1])
+        # print(self.state.readings[1])
 
         return success
 
     def query_all_scan_list_channels(self):
-        """ Query the channels in the currently programmed scan list of the
+        """Query the channels in the currently programmed scan list of the
         3497xA. This can be used to e.g. populate a table view with correct
         labels. The scan list channel names will be stored in state variable
         'state.all_scan_list_channels'.
@@ -675,9 +686,9 @@ class Keysight_3497xA():
 
         [success, str_ans] = self.query("rout:scan?")
         if success:
-            tmp = str_ans[str_ans.find('@')+1:].strip(')')
-            if tmp != '':
-                self.state.all_scan_list_channels = tmp.split(',')
+            tmp = str_ans[str_ans.find("@") + 1 :].strip(")")
+            if tmp != "":
+                self.state.all_scan_list_channels = tmp.split(",")
         self.wait_for_OPC()
 
         return success

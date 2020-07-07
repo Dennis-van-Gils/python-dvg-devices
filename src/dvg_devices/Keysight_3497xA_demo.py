@@ -6,13 +6,11 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "02-07-2020"  # 0.0.1 was stamped 14-09-2018
-__version__ = "0.0.3"  # 0.0.1 corresponds to prototype 1.0.0
-
-
+__date__ = "07-07-2020"  # 0.0.1 was stamped 14-09-2018
+__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
+# pylint: disable=bare-except
 
 import sys
-
 import visa
 
 from PyQt5 import QtCore, QtGui
@@ -27,6 +25,7 @@ from dvg_devices.Keysight_3497xA_qdev import Keysight_3497xA_qdev
 #   MainWindow
 # ------------------------------------------------------------------------------
 
+
 class MainWindow(QtWid.QWidget):
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
@@ -35,8 +34,10 @@ class MainWindow(QtWid.QWidget):
         self.setWindowTitle("Keysight 3497xA control")
 
         # Top grid
-        self.qlbl_title = QtWid.QLabel("Keysight 3497xA control",
-            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Bold))
+        self.qlbl_title = QtWid.QLabel(
+            "Keysight 3497xA control",
+            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Bold),
+        )
         self.qpbt_exit = QtWid.QPushButton("Exit")
         self.qpbt_exit.clicked.connect(self.close)
         self.qpbt_exit.setMinimumHeight(30)
@@ -57,32 +58,39 @@ class MainWindow(QtWid.QWidget):
         vbox.addLayout(hbox1)
         vbox.addStretch(1)
 
+
 # ------------------------------------------------------------------------------
 #   about_to_quit
 # ------------------------------------------------------------------------------
+
 
 def about_to_quit():
     print("About to quit")
     app.processEvents()
     mux_qdev.quit()
-    try: mux.close()
-    except: pass
-    try: rm.close()
-    except: pass
+    try:
+        mux.close()
+    except:
+        pass
+    try:
+        rm.close()
+    except:
+        pass
+
 
 # ------------------------------------------------------------------------------
 #   Main
 # ------------------------------------------------------------------------------
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # VISA address of the Keysight 3497xA data acquisition/switch unit
     # containing a multiplexer plug-in module. Hence, we simply call this device
     # a 'mux'.
-    #MUX_VISA_ADDRESS = "USB0::0x0957::0x2007::MY49018071::INSTR"
+    # MUX_VISA_ADDRESS = "USB0::0x0957::0x2007::MY49018071::INSTR"
     MUX_VISA_ADDRESS = "GPIB0::9::INSTR"
 
     # A scan will be performed by the mux every N milliseconds
-    MUX_SCANNING_INTERVAL_MS = 1000       # [ms]
+    MUX_SCANNING_INTERVAL_MS = 1000  # [ms]
 
     # SCPI commands to be send to the 3497xA to set up the scan cycle.
     """
@@ -99,10 +107,11 @@ if __name__ == '__main__':
 
     scan_list = "(@101)"
     MUX_SCPI_COMMANDS = [
-                "rout:open %s" % scan_list,
-                "conf:res 1e5,%s" % scan_list,
-                "sens:res:nplc 1,%s" % scan_list,
-                "rout:scan %s" % scan_list]
+        "rout:open %s" % scan_list,
+        "conf:res 1e5,%s" % scan_list,
+        "sens:res:nplc 1,%s" % scan_list,
+        "rout:scan %s" % scan_list,
+    ]
 
     # --------------------------------------------------------------------------
     #   Connect to Keysight 3497xA (mux)
@@ -117,9 +126,9 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------
     #   Create application
     # --------------------------------------------------------------------------
-    QtCore.QThread.currentThread().setObjectName('MAIN')    # For DEBUG info
+    QtCore.QThread.currentThread().setObjectName("MAIN")  # For DEBUG info
 
-    app = 0    # Work-around for kernel crash when using Spyder IDE
+    app = 0  # Work-around for kernel crash when using Spyder IDE
     app = QtWid.QApplication(sys.argv)
     app.setFont(QtGui.QFont("Arial", 9))
     app.setStyleSheet(SS_TEXTBOX_READ_ONLY)

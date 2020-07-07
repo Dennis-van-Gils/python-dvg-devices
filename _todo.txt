@@ -1,27 +1,39 @@
-Change::
-    
-    in module `demo`:
-        def about_to_quit():
-            try:
-                device.close
-            except:
-                pass
-    
-    to:
-        device.close()
-                
-and in RS232 protocol module:
-    
-    def close(self, ignore_exceptions=False):
-        """Close the serial port
-        """
-        if self.ser is not None:
-            try:
-                self.ser.close()
-            except:
-                if ignore_exceptions:
-                    pass
-                else:
-                    raise
+* RS232 close() routines
 
-        self.is_alive = False
+    Change::
+        
+        in module `demo`:
+            def about_to_quit():
+                try:
+                    device.close
+                except:
+                    pass
+        
+        to:
+            device.close()
+                    
+    and in RS232 protocol module:
+        
+        def close(self, ignore_exceptions=False):
+            """Close the serial port
+            """
+            if self.ser is not None:
+                try:
+                    self.ser.close()
+                except:
+                    if ignore_exceptions:
+                        pass
+                    else:
+                        raise
+
+            self.is_alive = False
+            
+* Modify pyvisa close() routines. They should check for 'self.dev is None' too
+
+* Check for super() in Mainwindow()
+
+* Check if we can better use time.perf_counter()
+
+* Change `For i in range` to enumerate
+  To: 
+  for i, x in enumerate(list)

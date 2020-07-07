@@ -285,49 +285,46 @@ class Compax3_servo:
 
         Returns:
             success (bool): True if successful, False otherwise.
-            ans_str (str) : Reply received from the device. [None] if
-                            unsuccessful.
+            ans_str (str): Reply received from the device. None if unsuccessful.
         """
         success = False
         ans_str = None
 
         if not self.is_alive:
             pft("Device is not connected yet or already closed.", 3)
+            return [success, ans_str]
+
+        try:
+            # Send command string to the device as bytes
+            self.ser.write((msg_str + TERM_CHAR).encode())
+        except (serial.SerialTimeoutException, serial.SerialException,) as err:
+            # Print error and struggle on
+            pft(err, 3)
+        except Exception as err:
+            pft(err, 3)
+            sys.exit(0)
         else:
             try:
-                # Send command string to the device as bytes
-                self.ser.write((msg_str + TERM_CHAR).encode())
+                ans_bytes = self.ser.read_until(TERM_CHAR.encode())
             except (
                 serial.SerialTimeoutException,
                 serial.SerialException,
             ) as err:
-                # Print error and struggle on
                 pft(err, 3)
             except Exception as err:
                 pft(err, 3)
                 sys.exit(0)
             else:
-                try:
-                    ans_bytes = self.ser.read_until(TERM_CHAR.encode())
-                except (
-                    serial.SerialTimeoutException,
-                    serial.SerialException,
-                ) as err:
-                    pft(err, 3)
-                except Exception as err:
-                    pft(err, 3)
-                    sys.exit(0)
+                ans_str = ans_bytes.decode("utf8").strip()
+                if ans_str[0] == ">":
+                    # Successfull operation without meaningfull reply
+                    success = True
+                elif ans_str[0] == "!":
+                    # Error reply
+                    print("COMPAX3 COMMUNICATION ERROR: " + ans_str)
                 else:
-                    ans_str = ans_bytes.decode("utf8").strip()
-                    if ans_str[0] == ">":
-                        # Successfull operation without meaningfull reply
-                        success = True
-                    elif ans_str[0] == "!":
-                        # Error reply
-                        print("COMPAX3 COMMUNICATION ERROR: " + ans_str)
-                    else:
-                        # Successfull operation with meaningfull reply
-                        success = True
+                    # Successfull operation with meaningfull reply
+                    success = True
 
         return [success, ans_str]
 

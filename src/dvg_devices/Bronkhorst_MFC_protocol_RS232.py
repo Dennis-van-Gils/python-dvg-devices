@@ -14,7 +14,7 @@ __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "06-07-2020"  # 0.0.1 was stamped 25-07-2018
 __version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
-# pylint: disable=bare-except, try-except-raise
+# pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
 import struct
@@ -270,36 +270,36 @@ class Bronkhorst_MFC:
         ans_str = None
 
         if not self.is_alive:
-            print("ERROR: Device is not connected yet or already closed.")
+            pft("Device is not connected yet or already closed.", 3)
+            return [success, ans_str]
+
+        try:
+            # Send command string to the device as bytes
+            self.ser.write(msg_str.replace(" ", "").encode())
+        except (serial.SerialTimeoutException, serial.SerialException,) as err:
+            # Print error and struggle on
+            pft(err, 3)
+        except Exception as err:
+            pft(err, 3)
+            sys.exit(0)
         else:
             try:
-                # Send command string to the device as bytes
-                self.ser.write(msg_str.replace(" ", "").encode())
+                # Read all bytes in the line that is terminated with a
+                # newline character or until time-out has occured
+                ans_bytes = self.ser.readline()
             except (
                 serial.SerialTimeoutException,
                 serial.SerialException,
             ) as err:
-                # Print error and struggle on
                 pft(err, 3)
-            except:
-                raise
+            except Exception as err:
+                pft(err, 3)
+                sys.exit(0)
             else:
-                try:
-                    # Read all bytes in the line that is terminated with a
-                    # newline character or until time-out has occured
-                    ans_bytes = self.ser.readline()
-                except (
-                    serial.SerialTimeoutException,
-                    serial.SerialException,
-                ) as err:
-                    pft(err, 3)
-                except:
-                    raise
-                else:
-                    # Convert bytes into string and remove termination chars and
-                    # spaces
-                    ans_str = ans_bytes.decode().strip()
-                    success = True
+                # Convert bytes into string and remove termination chars and
+                # spaces
+                ans_str = ans_bytes.decode().strip()
+                success = True
 
         return [success, ans_str]
 

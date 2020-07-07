@@ -374,6 +374,7 @@ class ThermoFlex_chiller:
             # Send command string to the device as bytes
             self.ser.write(msg_bytes)
         except (serial.SerialTimeoutException, serial.SerialException) as err:
+            # Print error and struggle on
             pft(err, 3)
         except Exception as err:
             pft(err, 3)

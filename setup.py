@@ -24,7 +24,7 @@ def read(*names, **kwargs):
 
 setup(
     name="dvg-devices",
-    version="0.0.4",
+    version="0.0.5",
     license="MIT",
     description="Collection of interfaces to communicate with laboratory devices, with support for multithreading in PyQt5.",
     long_description="%s\n%s"

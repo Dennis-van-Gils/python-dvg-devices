@@ -235,7 +235,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
         # Optional user-supplied function to run. You can use this function to,
         # e.g., parse out the scan readings into separate variables and
         # post-process this data or log it.
-        if not (self.DAQ_postprocess_MUX_scan_function is None):
+        if self.DAQ_postprocess_MUX_scan_function is not None:
             self.DAQ_postprocess_MUX_scan_function()
 
         if self.worker_DAQ.debug:

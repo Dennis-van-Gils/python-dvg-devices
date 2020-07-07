@@ -5,6 +5,10 @@ Supported models:
     PD07R-20, PD07R-40, PD7LR-20, PD15R-30, PD15R-40, PD20R-30, PD28R-30,
     PD45R-20, PD07H200, PD15H200, PD20H200, PD28H200, PD15RCAL, PD15HCAL.
 Tested on model PD15R-30‐A12E
+
+TODO: Rewrite code. Though it functions, it is not elegant and makes use of
+time.sleep. Compare this code against the more advanced
+Bronkhorst_MFC_protocol_RS232.py
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
@@ -55,8 +59,17 @@ class PolyScience_PD_bath:
     #   close
     # --------------------------------------------------------------------------
 
-    def close(self):
-        self.ser.close()
+    def close(self, ignore_exceptions=False):
+        """Close the serial port
+        """
+        if self.ser is not None:
+            try:
+                self.ser.close()
+            except:
+                if ignore_exceptions:
+                    pass
+                else:
+                    raise
 
     # --------------------------------------------------------------------------
     #   _readline
@@ -516,5 +529,5 @@ if __name__ == "__main__":
         # Slow down update period
         sleep(0.5)
 
-    bath.ser.close()
+    bath.close()
     sleep(1)

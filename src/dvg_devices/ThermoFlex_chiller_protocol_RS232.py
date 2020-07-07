@@ -362,7 +362,6 @@ class ThermoFlex_chiller:
                 unsuccessful.
 
         TO DO: force ser.flush after ser.write
-        TO DO: implement ser.readline instead of sleep() & inWaiting
         """
         success = False
         ans_bytes = np.nan

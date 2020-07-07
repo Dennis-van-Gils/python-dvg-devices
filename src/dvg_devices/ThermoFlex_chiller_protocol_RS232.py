@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-RS232 function library for Thermo Scientific ThermoFlex recirculating chillers.
+"""RS232 function library for Thermo Scientific ThermoFlex recirculating
+chillers.
 
 Communication errors will be handled as non-fatal. This means it will struggle
 on with the script while reporting error messages to the command line output,
@@ -15,21 +15,24 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "02-07-2020"  # 0.0.1 was stamped 25-07-2018
-__version__ = "0.0.3"  # 0.0.1 corresponds to prototype 1.0.0
+__date__ = "07-07-2020"  # 0.0.1 was stamped 25-07-2018
+__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
+# pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
-import serial
-import serial.tools.list_ports
 import time
 from pathlib import Path
 
+import serial
+import serial.tools.list_ports
 import numpy as np
 from dvg_debug_functions import print_fancy_traceback as pft
 
 # Serial settings
-RS232_BAUDRATE = 9600       # Baudrate according to the manual
-RS232_TIMEOUT  = 1          # [sec]
+# fmt: off
+RS232_BAUDRATE = 9600  # Baudrate according to the manual
+RS232_TIMEOUT  = 1     # [sec]
+# fmt: on
 
 # RS232 header of binary serial communication
 RS232_START = [0xCA, 0x00, 0x01]
@@ -39,9 +42,11 @@ RS232_START = [0xCA, 0x00, 0x01]
 # been fully send to the computer's serial-in buffer. Note that the chiller does
 # not use any EOL characters, hence this 'sleep' approach.
 # 9600 baud is ~ 960 bytes per second
-RS232_SLEEP = 0.05          # [sec]
+RS232_SLEEP = 0.05  # [sec]
 
-class Unit_of_measure():
+
+class Unit_of_measure:
+    # fmt: off
     no_unit = 0
     deg_C   = 1     # Temperature in degrees Celsius
     deg_F   = 2     # Temperature in degrees Fahrenheit
@@ -54,24 +59,29 @@ class Unit_of_measure():
     percent = 9     # Percentage
     Volt    = 10    # Voltage in Volts
     kPa     = 11    # Pressure in kilo-Pascals
+    # fmt: on
+
 
 # Units expected to be used by the chiller
 CHILLER_FLOW_UNIT = Unit_of_measure.LPM
 CHILLER_TEMP_UNIT = Unit_of_measure.deg_C
 CHILLER_PRES_UNIT = Unit_of_measure.bar
 
-class ThermoFlex_chiller():
+
+class ThermoFlex_chiller:
     """Containers for the process and measurement variables.
     [numpy.nan] values indicate that the parameter is not initialized or that
     the last query was unsuccessful in communication.
     """
-    class Units():
+
+    # fmt: off
+    class Units:
         # Container for the units used and expected by the chiller
         temp = np.nan       # Unit of measure index for the temperature
         flow = np.nan       # Unit of measure index for the flow rate
         pres = np.nan       # Unit of measure index for the pressure
 
-    class Values_alarm():
+    class Values_alarm:
         # Container for the alarm values
         LO_temp = np.nan    # Low temperature limit  ['C]
         HI_temp = np.nan    # High temperature limit ['C]
@@ -80,13 +90,13 @@ class ThermoFlex_chiller():
         LO_pres = np.nan    # Low pressure limit     [bar]
         HI_pres = np.nan    # High pressure limit    [bar]
 
-    class Values_PID():
+    class Values_PID:
         # Container for the PID values
         P = np.nan          # Proportional term      [% span of 100 'C]
         I = np.nan          # Integral term          [repeats/minute]
         D = np.nan          # Derivative term        [minutes]
 
-    class Status_bits():
+    class Status_bits:
         # Container for the status bits of the chiller
         running               = np.nan
         RTD1_open             = np.nan
@@ -99,6 +109,8 @@ class ThermoFlex_chiller():
         high_pressure_fault   = np.nan
         low_pressure_fault    = np.nan
         phase_monitor_fault   = np.nan
+        high_level_fault      = np.nan
+        drip_pan_fault        = np.nan
         motor_overload_fault  = np.nan
         LPC_fault             = np.nan
         HPC_fault             = np.nan
@@ -115,20 +127,22 @@ class ThermoFlex_chiller():
         powering_down         = np.nan
         fault_tripped         = np.nan
 
-    class State():
+    class State:
         # Container for the process and measurement variables
         setpoint     = np.nan   # Setpoint read out of the chiller         ['C]
         temp         = np.nan   # Temperature measured by the chiller      ['C]
         flow         = np.nan   # Flow rate measured by the chiller        [LPM]
         supply_pres  = np.nan   # Supply pressure measured by the chiller  [bar]
         suction_pres = np.nan   # Suction pressure measured by the chiller [bar]
+    # fmt: on
 
     # --------------------------------------------------------------------------
     #   __init__
     # --------------------------------------------------------------------------
 
-    def __init__(self, min_setpoint_degC=10, max_setpoint_degC=40,
-                 name='chiller'):
+    def __init__(
+        self, min_setpoint_degC=10, max_setpoint_degC=40, name="chiller"
+    ):
         # Placeholder for the serial.Serial device instance referencing the
         # chiller
         self.ser = None
@@ -167,12 +181,19 @@ class ThermoFlex_chiller():
     #   close
     # --------------------------------------------------------------------------
 
-    def close(self):
-        if not self.is_alive:
-            pass    # Remain silent
-        else:
-            self.ser.close()
-            self.is_alive = False
+    def close(self, ignore_exceptions=False):
+        """Close the serial port
+        """
+        if self.ser is not None:
+            try:
+                self.ser.close()
+            except:
+                if ignore_exceptions:
+                    pass
+                else:
+                    raise
+
+        self.is_alive = False
 
     # --------------------------------------------------------------------------
     #   connect_at_port
@@ -196,13 +217,15 @@ class ThermoFlex_chiller():
         if print_trying_message:
             print("Connect to: ThermoFlex chiller")
 
-        print("  @ %-5s: " % port_str, end='')
+        print("  @ %-5s: " % port_str, end="")
         try:
             # Open the serial port
-            self.ser = serial.Serial(port=port_str,
-                                     baudrate=RS232_BAUDRATE,
-                                     timeout=RS232_TIMEOUT,
-                                     write_timeout=RS232_TIMEOUT)
+            self.ser = serial.Serial(
+                port=port_str,
+                baudrate=RS232_BAUDRATE,
+                timeout=RS232_TIMEOUT,
+                write_timeout=RS232_TIMEOUT,
+            )
         except serial.SerialException:
             print("Could not open port")
             return False
@@ -219,7 +242,8 @@ class ThermoFlex_chiller():
             success = self.query_Ack()
         except:
             print("Communication error")
-            if self.ser is not None: self.ser.close()
+            if self.ser is not None:
+                self.ser.close()
             self.is_alive = False
             success = False
 
@@ -229,7 +253,8 @@ class ThermoFlex_chiller():
             return True
         else:
             print("Wrong or no device")
-            if self.ser is not None: self.ser.close()
+            if self.ser is not None:
+                self.ser.close()
             self.is_alive = False
             return False
 
@@ -339,7 +364,7 @@ class ThermoFlex_chiller():
         TO DO: force ser.flush after ser.write
         TO DO: implement ser.readline instead of sleep() & inWaiting
         """
-        success   = False
+        success = False
         ans_bytes = np.nan
 
         if not self.is_alive:
@@ -363,9 +388,11 @@ class ThermoFlex_chiller():
             try:
                 # Read all the bytes waiting in the in-buffer
                 ans_bytes = self.ser.read(self.ser.inWaiting())
-                #print_as_hex(ans_bytes)                     # debug info
-            except (serial.SerialTimeoutException,
-                    serial.SerialException) as err:
+                # print_as_hex(ans_bytes)                     # debug info
+            except (
+                serial.SerialTimeoutException,
+                serial.SerialException,
+            ) as err:
                 pft(err, 3)
             except Exception as err:
                 pft(err, 3)
@@ -373,7 +400,7 @@ class ThermoFlex_chiller():
             else:
                 # Check for errors reported by a possibly connected ThermoFlex
                 # chiller
-                if (len(ans_bytes) >= 4) and ans_bytes[3] == 0x0f:
+                if (len(ans_bytes) >= 4) and ans_bytes[3] == 0x0F:
                     # Error reported by chiller
                     if ans_bytes[5] == 1:
                         pft("Bad command received by chiller", 3)
@@ -401,9 +428,9 @@ class ThermoFlex_chiller():
             uom      (int): Unit of measure index. [numpy.nan] if unsuccessful.
         """
         value = np.nan
-        #print_as_hex(msg_bytes)                     # debug info
+        # print_as_hex(msg_bytes)                     # debug info
         [success, ans_bytes] = self.query(msg_bytes)
-        #print_as_hex(ans_bytes)                     # debug info
+        # print_as_hex(ans_bytes)                     # debug info
         if success:
             [value, uom] = self.parse_data_bytes(ans_bytes)
         if not np.isnan(value):
@@ -430,7 +457,7 @@ class ThermoFlex_chiller():
         """
         chksum = (sum(byte_list[1:]) % 0x100) ^ 0xFF
         byte_list.append(chksum)
-        #print_as_hex(byte_list)                     # debug info
+        # print_as_hex(byte_list)                     # debug info
 
     # --------------------------------------------------------------------------
     #   Parsing
@@ -452,12 +479,13 @@ class ThermoFlex_chiller():
         value = np.nan
         uom = np.nan
         try:
-            nn = ans_bytes[4]                   # Number of data bytes to follow
-            data_bytes = ans_bytes[5:5 + nn]
-            pom = data_bytes[0] >> 4            # Precision of measurement
-            uom = data_bytes[0] % 0x10          # Unit of measure index
-            int_value = int.from_bytes(data_bytes[1:], byteorder='big',
-                                       signed=False)
+            nn = ans_bytes[4]  # Number of data bytes to follow
+            data_bytes = ans_bytes[5 : 5 + nn]
+            pom = data_bytes[0] >> 4  # Precision of measurement
+            uom = data_bytes[0] % 0x10  # Unit of measure index
+            int_value = int.from_bytes(
+                data_bytes[1:], byteorder="big", signed=False
+            )
         except Exception as err:
             pft(err, 3)
         else:
@@ -479,62 +507,81 @@ class ThermoFlex_chiller():
         warnings of the chiller. This status gets stored in the class member
         'status_bits'.
         """
-        nn = ans_bytes[4]                   # Number of data bytes to follow
-        status_bits = ans_bytes[5:5 + nn]
+        nn = ans_bytes[4]  # Number of data bytes to follow
+        status_bits = ans_bytes[5 : 5 + nn]
         d1 = np.uint8(status_bits[0])
         d2 = np.uint8(status_bits[1])
         d3 = np.uint8(status_bits[2])
         d4 = np.uint8(status_bits[3])
 
-        [self.status_bits.low_temp_fault,
-         self.status_bits.high_temp_fault,
-         self.status_bits.low_temp_fixed_fault,
-         self.status_bits.high_temp_fixed_fault,
-         self.status_bits.RTD3_open,
-         self.status_bits.RTD2_open,
-         self.status_bits.RTD1_open,
-         self.status_bits.running]                     = np.unpackbits(d1)
-        [self.status_bits.HPC_fault,
-         self.status_bits.LPC_fault,
-         self.status_bits.motor_overload_fault,
-         self.status_bits.phase_monitor_fault,
-         self.status_bits.high_level_fault,
-         self.status_bits.drip_pan_fault,
-         self.status_bits.low_pressure_fault,
-         self.status_bits.high_pressure_fault]         = np.unpackbits(d2)
-        [self.status_bits.high_pressure_fault_factory,
-         self.status_bits.low_fixed_flow_warning,
-         self.status_bits.invalid_level_fault,
-         self.status_bits.sense_5V_fault,
-         self.status_bits.low_level_fault,
-         self.status_bits.low_flow_fault,
-         self.status_bits.local_EMO_fault,
-         self.status_bits.external_EMO_fault]          = np.unpackbits(d3)
-        [dummy, dummy, dummy, dummy, dummy,
-         self.status_bits.powering_down,
-         self.status_bits.powering_up,
-         self.status_bits.low_pressure_fault_factory]  = np.unpackbits(d4)
+        [
+            self.status_bits.low_temp_fault,
+            self.status_bits.high_temp_fault,
+            self.status_bits.low_temp_fixed_fault,
+            self.status_bits.high_temp_fixed_fault,
+            self.status_bits.RTD3_open,
+            self.status_bits.RTD2_open,
+            self.status_bits.RTD1_open,
+            self.status_bits.running,
+        ] = np.unpackbits(d1)
+        [
+            self.status_bits.HPC_fault,
+            self.status_bits.LPC_fault,
+            self.status_bits.motor_overload_fault,
+            self.status_bits.phase_monitor_fault,
+            self.status_bits.high_level_fault,
+            self.status_bits.drip_pan_fault,
+            self.status_bits.low_pressure_fault,
+            self.status_bits.high_pressure_fault,
+        ] = np.unpackbits(d2)
+        [
+            self.status_bits.high_pressure_fault_factory,
+            self.status_bits.low_fixed_flow_warning,
+            self.status_bits.invalid_level_fault,
+            self.status_bits.sense_5V_fault,
+            self.status_bits.low_level_fault,
+            self.status_bits.low_flow_fault,
+            self.status_bits.local_EMO_fault,
+            self.status_bits.external_EMO_fault,
+        ] = np.unpackbits(d3)
+        [
+            dummy,
+            dummy,
+            dummy,
+            dummy,
+            dummy,
+            self.status_bits.powering_down,
+            self.status_bits.powering_up,
+            self.status_bits.low_pressure_fault_factory,
+        ] = np.unpackbits(d4)
 
-        self.status_bits.fault_tripped = (sum([
-                self.status_bits.high_temp_fixed_fault,
-                self.status_bits.low_temp_fixed_fault,
-                self.status_bits.high_temp_fault,
-                self.status_bits.low_temp_fault,
-                d2, d3,
-                self.status_bits.low_pressure_fault_factory]) > 0)
+        self.status_bits.fault_tripped = (
+            sum(
+                [
+                    self.status_bits.high_temp_fixed_fault,
+                    self.status_bits.low_temp_fixed_fault,
+                    self.status_bits.high_temp_fault,
+                    self.status_bits.low_temp_fault,
+                    d2,
+                    d3,
+                    self.status_bits.low_pressure_fault_factory,
+                ]
+            )
+            > 0
+        )
 
-        #print(np.unpackbits(d1))
-        #print(np.unpackbits(d2))
-        #print(np.unpackbits(d3))
-        #print(np.unpackbits(d4))
+        # print(np.unpackbits(d1))
+        # print(np.unpackbits(d2))
+        # print(np.unpackbits(d3))
+        # print(np.unpackbits(d4))
 
     def parse_ASCII_bytes(self, ans_bytes):
         """Parse the ASCII-encoded text bytes.
 
         Returns: The decoded text as (str), or None if unsuccessful.
         """
-        nn = ans_bytes[4]                   # Number of data bytes to follow
-        ASCII_bytes = ans_bytes[5:5 + nn]
+        nn = ans_bytes[4]  # Number of data bytes to follow
+        ASCII_bytes = ans_bytes[5 : 5 + nn]
         try:
             ans_str = ASCII_bytes.decode("ascii")
         except UnicodeDecodeError:
@@ -554,10 +601,12 @@ class ThermoFlex_chiller():
         Returns: The effected on/off state of the chiller, or [numpy.nan] if
         unsuccessful.
         """
-        msg_bytes = bytes(RS232_START + [0x81, 0x01, 0x00, 0x7c])  # includes checksum
+        msg_bytes = bytes(
+            RS232_START + [0x81, 0x01, 0x00, 0x7C]
+        )  # includes checksum
         [success, ans_bytes] = self.query(msg_bytes)
         if success:
-            return bool(ans_bytes[5])   # return resulting on/off state
+            return bool(ans_bytes[5])  # return resulting on/off state
         else:
             return np.nan
 
@@ -567,10 +616,12 @@ class ThermoFlex_chiller():
         Returns: The effected on/off state of the chiller, or [numpy.nan] if
         unsuccessful.
         """
-        msg_bytes = bytes(RS232_START + [0x81, 0x01, 0x01, 0x7b])  # includes checksum
+        msg_bytes = bytes(
+            RS232_START + [0x81, 0x01, 0x01, 0x7B]
+        )  # includes checksum
         [success, ans_bytes] = self.query(msg_bytes)
         if success:
-            return bool(ans_bytes[5])   # return resulting on/off state
+            return bool(ans_bytes[5])  # return resulting on/off state
         else:
             return np.nan
 
@@ -581,10 +632,12 @@ class ThermoFlex_chiller():
         Returns: The on/off state of the chiller, or [numpy.nan] if
         unsuccessful.
         """
-        msg_bytes = bytes(RS232_START + [0x81, 0x01, 0x02, 0x7a])  # includes checksum
+        msg_bytes = bytes(
+            RS232_START + [0x81, 0x01, 0x02, 0x7A]
+        )  # includes checksum
         [success, ans_bytes] = self.query(msg_bytes)
         if success:
-            return bool(ans_bytes[5])   # return resulting on/off state
+            return bool(ans_bytes[5])  # return resulting on/off state
         else:
             return np.nan
 
@@ -598,11 +651,12 @@ class ThermoFlex_chiller():
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x00, 0x00, 0xfe])  # includes checksum
+        msg_bytes = bytes(RS232_START + [0x00, 0x00, 0xFE])  # includes checksum
         [success, ans_bytes] = self.query(msg_bytes)
         if success and (
-          (ans_bytes == bytes(RS232_START + [0x00, 0x02, 0x00, 0x00, 0xfc])) |
-          (ans_bytes == bytes(RS232_START + [0x00, 0x02, 0x00, 0x01, 0xfb]))):
+            (ans_bytes == bytes(RS232_START + [0x00, 0x02, 0x00, 0x00, 0xFC]))
+            | (ans_bytes == bytes(RS232_START + [0x00, 0x02, 0x00, 0x01, 0xFB]))
+        ):
             return True
         else:
             return False
@@ -618,12 +672,14 @@ class ThermoFlex_chiller():
 
         Returns: True if successful, False otherwise.
         """
-        return (self.query_alarm_LO_flow() &
-                self.query_alarm_LO_temp() &
-                self.query_alarm_LO_pres() &
-                self.query_alarm_HI_flow() &
-                self.query_alarm_HI_temp() &
-                self.query_alarm_HI_pres())
+        return (
+            self.query_alarm_LO_flow()
+            & self.query_alarm_LO_temp()
+            & self.query_alarm_LO_pres()
+            & self.query_alarm_HI_flow()
+            & self.query_alarm_HI_temp()
+            & self.query_alarm_HI_pres()
+        )
 
     def query_alarm_LO_flow(self):
         """Query the alarm value and store in the class member 'values_alarm'.
@@ -632,7 +688,7 @@ class ThermoFlex_chiller():
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x30, 0x00, 0xce])  # includes checksum
+        msg_bytes = bytes(RS232_START + [0x30, 0x00, 0xCE])  # includes checksum
         [success, value, units] = self.query_data_as_float_and_uom(msg_bytes)
         self.values_alarm.LO_flow = value
         self.units.flow = units
@@ -645,7 +701,7 @@ class ThermoFlex_chiller():
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x40, 0x00, 0xbe])  # includes checksum
+        msg_bytes = bytes(RS232_START + [0x40, 0x00, 0xBE])  # includes checksum
         [success, value, units] = self.query_data_as_float_and_uom(msg_bytes)
         self.values_alarm.LO_temp = value
         self.units.temp = units
@@ -658,7 +714,7 @@ class ThermoFlex_chiller():
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x48, 0x00, 0xb6])  # includes checksum
+        msg_bytes = bytes(RS232_START + [0x48, 0x00, 0xB6])  # includes checksum
         [success, value, units] = self.query_data_as_float_and_uom(msg_bytes)
         self.values_alarm.LO_pres = value
         self.units.pres = units
@@ -671,7 +727,7 @@ class ThermoFlex_chiller():
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x50, 0x00, 0xae])  # includes checksum
+        msg_bytes = bytes(RS232_START + [0x50, 0x00, 0xAE])  # includes checksum
         [success, value, units] = self.query_data_as_float_and_uom(msg_bytes)
         self.values_alarm.HI_flow = value
         self.units.flow = units
@@ -684,7 +740,7 @@ class ThermoFlex_chiller():
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x60, 0x00, 0x9e])  # includes checksum
+        msg_bytes = bytes(RS232_START + [0x60, 0x00, 0x9E])  # includes checksum
         [success, value, units] = self.query_data_as_float_and_uom(msg_bytes)
         self.values_alarm.HI_temp = value
         self.units.temp = units
@@ -703,7 +759,6 @@ class ThermoFlex_chiller():
         self.units.pres = units
         return success
 
-
     # --------------------------------------------------------------------------
     #   Query PID values
     # --------------------------------------------------------------------------
@@ -714,9 +769,7 @@ class ThermoFlex_chiller():
 
         Returns: True if successful, False otherwise.
         """
-        return (self.query_PID_P() &
-                self.query_PID_I() &
-                self.query_PID_D())
+        return self.query_PID_P() & self.query_PID_I() & self.query_PID_D()
 
     def query_PID_P(self):
         """Query the PID value and store in the class member 'values_PID'.
@@ -724,7 +777,7 @@ class ThermoFlex_chiller():
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x74, 0x00, 0x8a])  # includes checksum
+        msg_bytes = bytes(RS232_START + [0x74, 0x00, 0x8A])  # includes checksum
         [success, value, _units] = self.query_data_as_float_and_uom(msg_bytes)
         self.values_PID.P = value
         return success
@@ -762,9 +815,10 @@ class ThermoFlex_chiller():
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x09, 0x00, 0xf5])  # included checksum
+        msg_bytes = bytes(RS232_START + [0x09, 0x00, 0xF5])  # included checksum
         [success, ans_bytes] = self.query(msg_bytes)
-        if success: self.parse_status_bits(ans_bytes)
+        if success:
+            self.parse_status_bits(ans_bytes)
         return success
 
     # --------------------------------------------------------------------------
@@ -778,11 +832,13 @@ class ThermoFlex_chiller():
 
         Returns: True if successful, False otherwise.
         """
-        return (self.query_setpoint() &
-                self.query_temp() &
-                self.query_flow() &
-                self.query_supply_pres() &
-                self.query_suction_pres())
+        return (
+            self.query_setpoint()
+            & self.query_temp()
+            & self.query_flow()
+            & self.query_supply_pres()
+            & self.query_suction_pres()
+        )
 
     def query_setpoint(self):
         """Query and store in the class member 'state':
@@ -791,7 +847,7 @@ class ThermoFlex_chiller():
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x70, 0x00, 0x8e])  # includes checksum
+        msg_bytes = bytes(RS232_START + [0x70, 0x00, 0x8E])  # includes checksum
         [success, value, _units] = self.query_data_as_float_and_uom(msg_bytes)
         self.state.setpoint = value
         return success
@@ -803,7 +859,7 @@ class ThermoFlex_chiller():
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x20, 0x00, 0xde])  # includes checksum
+        msg_bytes = bytes(RS232_START + [0x20, 0x00, 0xDE])  # includes checksum
         [success, value, _units] = self.query_data_as_float_and_uom(msg_bytes)
         self.state.temp = value
         return success
@@ -815,7 +871,7 @@ class ThermoFlex_chiller():
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x10, 0x00, 0xee])  # includes checksum
+        msg_bytes = bytes(RS232_START + [0x10, 0x00, 0xEE])  # includes checksum
         [success, value, _units] = self.query_data_as_float_and_uom(msg_bytes)
         self.state.flow = value
         return success
@@ -827,7 +883,7 @@ class ThermoFlex_chiller():
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x28, 0x00, 0xd6])  # includes checksum
+        msg_bytes = bytes(RS232_START + [0x28, 0x00, 0xD6])  # includes checksum
         [success, value, _units] = self.query_data_as_float_and_uom(msg_bytes)
         self.state.supply_pres = value
         return success
@@ -839,7 +895,7 @@ class ThermoFlex_chiller():
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x29, 0x00, 0xd5])  # includes checksum
+        msg_bytes = bytes(RS232_START + [0x29, 0x00, 0xD5])  # includes checksum
         [success, value, _units] = self.query_data_as_float_and_uom(msg_bytes)
         self.state.suction_pres = value
         return success
@@ -853,7 +909,7 @@ class ThermoFlex_chiller():
 
         Returns: The display text as (str), or None if unsuccessful.
         """
-        msg_bytes = bytes(RS232_START + [0x07, 0x00, 0xf7])  # includes checksum
+        msg_bytes = bytes(RS232_START + [0x07, 0x00, 0xF7])  # includes checksum
         [success, ans_bytes] = self.query(msg_bytes)
         if success:
             return self.parse_ASCII_bytes(ans_bytes)
@@ -884,17 +940,23 @@ class ThermoFlex_chiller():
 
         if temp_deg_C < self.min_setpoint_degC:
             temp_deg_C = self.min_setpoint_degC
-            print("WARNING: setpoint is capped\nto the lower limit of %.1f 'C" %
-                  self.min_setpoint_degC)
+            print(
+                "WARNING: setpoint is capped\nto the lower limit of %.1f 'C"
+                % self.min_setpoint_degC
+            )
         elif temp_deg_C > self.max_setpoint_degC:
             temp_deg_C = self.max_setpoint_degC
-            print("WARNING: setpoint is capped\nto the upper limit of %.1f 'C" %
-                  self.max_setpoint_degC)
+            print(
+                "WARNING: setpoint is capped\nto the upper limit of %.1f 'C"
+                % self.max_setpoint_degC
+            )
 
         # Transform temperature to bytes
-        pom = 0.1       # precision of measurement, fixed to 0.1
-        temp_bytes = int(np.round(temp_deg_C/pom)).to_bytes(2, byteorder='big')
-        msg = RS232_START + [0xf0, 0x02] + [temp_bytes[0], temp_bytes[1]]
+        pom = 0.1  # precision of measurement, fixed to 0.1
+        temp_bytes = int(np.round(temp_deg_C / pom)).to_bytes(
+            2, byteorder="big"
+        )
+        msg = RS232_START + [0xF0, 0x02] + [temp_bytes[0], temp_bytes[1]]
         self.add_checksum(msg)
         msg_bytes = bytes(msg)
 
@@ -903,17 +965,21 @@ class ThermoFlex_chiller():
         self.state.setpoint = value
         return success
 
+
 # ------------------------------------------------------------------------------
 #   Debug functions
 # ------------------------------------------------------------------------------
 
+
 def print_as_hex(byte_list):
-    list(map(lambda x: print(format(x, '02x'), end=' '), byte_list))
+    list(map(lambda x: print(format(x, "02x"), end=" "), byte_list))
     print()
+
 
 # -----------------------------------------------------------------------------
 #   read_port_config_file
 # -----------------------------------------------------------------------------
+
 
 def read_port_config_file(filepath):
     """Try to open the config textfile containing the port to open. Do not panic
@@ -933,13 +999,15 @@ def read_port_config_file(filepath):
                     port_str = f.readline().strip()
                 return port_str
             except:
-                pass    # Do not panic and remain silent
+                pass  # Do not panic and remain silent
 
     return None
+
 
 # -----------------------------------------------------------------------------
 #   write_port_config_file
 # -----------------------------------------------------------------------------
+
 
 def write_port_config_file(filepath, port_str):
     """Try to write the port name string to the config textfile. Do not panic if
@@ -957,17 +1025,18 @@ def write_port_config_file(filepath, port_str):
             try:
                 filepath.parent.mkdir()
             except:
-                pass    # Do not panic and remain silent
+                pass  # Do not panic and remain silent
 
         try:
             # Write the config file
             filepath.write_text(port_str)
         except:
-            pass        # Do not panic and remain silent
+            pass  # Do not panic and remain silent
         else:
             return True
 
     return False
+
 
 # -----------------------------------------------------------------------------
 #   Main: Will show a demo when run from the terminal
@@ -983,13 +1052,14 @@ if __name__ == "__main__":
     chiller = ThermoFlex_chiller()
 
     if chiller.auto_connect(PATH_CONFIG):
-        chiller.begin()     # Retrieve necessary parameters
+        chiller.begin()  # Retrieve necessary parameters
     else:
         time.sleep(1)
         sys.exit(0)
 
     if os.name == "nt":
         import msvcrt
+
         running_Windows = True
     else:
         running_Windows = False
@@ -1007,8 +1077,8 @@ if __name__ == "__main__":
             do_send_setpoint = False
 
         # Measure and report
-        chiller.query_status_bits()     # Faults and warnings
-        chiller.query_state()           # State variables
+        chiller.query_status_bits()  # Faults and warnings
+        chiller.query_state()  # State variables
 
         if running_Windows:
             os.system("cls")
@@ -1023,28 +1093,34 @@ if __name__ == "__main__":
         print("\n------------------------")
         print("      ALARM VALUES")
         print("        LO  |  HI")
-        print(" flow: %4.1f | %4.1f  LPM" % (chiller.values_alarm.LO_flow,
-                                             chiller.values_alarm.HI_flow))
-        print(" pres: %4.2f | %4.2f  bar" % (chiller.values_alarm.LO_pres,
-                                             chiller.values_alarm.HI_pres))
-        print(" temp: %4.1f | %4.1f  'C"  % (chiller.values_alarm.LO_temp,
-                                             chiller.values_alarm.HI_temp))
+        print(
+            " flow: %4.1f | %4.1f  LPM"
+            % (chiller.values_alarm.LO_flow, chiller.values_alarm.HI_flow)
+        )
+        print(
+            " pres: %4.2f | %4.2f  bar"
+            % (chiller.values_alarm.LO_pres, chiller.values_alarm.HI_pres)
+        )
+        print(
+            " temp: %4.1f | %4.1f  'C"
+            % (chiller.values_alarm.LO_temp, chiller.values_alarm.HI_temp)
+        )
         print("------------------------")
-        print(" P: %4.1f  %% span 100'C"  % chiller.values_PID.P)
+        print(" P: %4.1f  %% span 100'C" % chiller.values_PID.P)
         print(" I: %4.2f  repeats/minute" % chiller.values_PID.I)
-        print(" D: %4.1f  minutes"        % chiller.values_PID.D)
+        print(" D: %4.1f  minutes" % chiller.values_PID.D)
         print("------------------------")
-        print(" running         : %i"     % chiller.status_bits.running)
-        print(" powering up/down: %i"     % chiller.status_bits.powering_down)
-        print(" fault_tripped   : %i"     % chiller.status_bits.fault_tripped)
-        print(" MSG: %s"                  % chiller.query_display_msg())
+        print(" running         : %i" % chiller.status_bits.running)
+        print(" powering up/down: %i" % chiller.status_bits.powering_down)
+        print(" fault_tripped   : %i" % chiller.status_bits.fault_tripped)
+        print(" MSG: %s" % chiller.query_display_msg())
         print("------------------------")
-        print(" setpoint: %6.1f 'C"       % chiller.state.setpoint)
+        print(" setpoint: %6.1f 'C" % chiller.state.setpoint)
         print("------------------------")
-        print(" temp    : %6.1f 'C"       % chiller.state.temp)
-        print(" flow    : %6.1f LPM"      % chiller.state.flow)
-        print(" supply  : %6.2f bar"      % chiller.state.supply_pres)
-        print(" suction : %6.2f bar"      % chiller.state.suction_pres)
+        print(" temp    : %6.1f 'C" % chiller.state.temp)
+        print(" flow    : %6.1f LPM" % chiller.state.flow)
+        print(" supply  : %6.2f bar" % chiller.state.supply_pres)
+        print(" suction : %6.2f bar" % chiller.state.suction_pres)
         print("------------------------")
         sys.stdout.flush()
 
@@ -1052,15 +1128,15 @@ if __name__ == "__main__":
         if running_Windows:
             if msvcrt.kbhit():
                 key = msvcrt.getch()
-                if key == b'q':
+                if key == b"q":
                     print("\nAre you sure you want to quit [y/n]?")
-                    if msvcrt.getch() == b'y':
+                    if msvcrt.getch() == b"y":
                         print("Switching off chiller and quitting.")
                         done = True
-                elif key == b's':
+                elif key == b"s":
                     send_setpoint = input("\nEnter new setpoint [deg C]: ")
                     do_send_setpoint = True
-                elif key == b'o':
+                elif key == b"o":
                     if chiller.status_bits.running:
                         chiller.turn_off()
                     else:

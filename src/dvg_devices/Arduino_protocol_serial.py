@@ -103,24 +103,28 @@ class Arduino:
     #   close
     # --------------------------------------------------------------------------
 
-    def close(self):
-        """Close the serial port, disregarding any exceptions
+    def close(self, ignore_exceptions=False):
+        """Close the serial port
         """
-        # Prevent Windows, thinking to be smart, from keeping the port open in
-        # case the connection got lost
-        try:
-            self.ser.cancel_read()
-        except:
-            pass
-        try:
-            self.ser.cancel_write()
-        except:
-            pass
+        if self.ser is not None:
+            # Prevent Windows -- thinking to be smart -- from keeping the port
+            # open in case the connection got lost
+            try:
+                self.ser.cancel_read()
+            except:
+                pass
+            try:
+                self.ser.cancel_write()
+            except:
+                pass
 
-        try:
-            self.ser.close()
-        except:
-            pass
+            try:
+                self.ser.close()
+            except:
+                if ignore_exceptions:
+                    pass
+                else:
+                    raise
 
         self.is_alive = False
 

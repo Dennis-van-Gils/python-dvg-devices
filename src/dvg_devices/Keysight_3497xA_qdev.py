@@ -155,39 +155,15 @@ class Keysight_3497xA_qdev(QDeviceIO):
 
     @QtCore.pyqtSlot()
     def start_MUX_scan(self):
-        """
-        # [DISABLED CODE]
-        # Recreate the worker timer and acquire new samples immediately,
-        # instead of waiting for the next tick to occur of the 'old' timer.
-        # NOTE: Would love to stop the old timer first, but for some strange
-        # reason the very first Qtimer appears to be running in another
-        # thread than the 'worker_state' thread, eventhough the routine in
-        # K3497xA_qdev.__init__ has finished moving the worker_state thread.
-        # When timer is running in another thread than 'this' one, an
-        # exception is thrown py Python saying we can't stop the timer from
-        # another thread. Hence, I reassign a new Qtimer and hope that the
-        # old timer is garbage collected all right.
-        self.timer.stop()  # Does not work 100% of the time!
-        """
+        # TODO: Stop and restart the worker_DAQ timer, such that a scan is
+        # immediately begun, instead of waiting for the next occuring `tick`.
+        # Stopping and starting that timer should occur from within the
+        # worker_DAQ thread, hence implement a `timer_restart` slot in
+        # :class:`dvg-qdeviceio.Worker_DAQ`.
 
         self.is_MUX_scanning = True
         self.signal_DAQ_updated.emit()  # Show we are scanning
         QtWid.QApplication.processEvents()
-
-        """
-        # [DISABLED CODE]
-        # Disabled the recreation of the timer, because of not
-        # understood behavior. The first time iteration of every newly
-        # created QTimer seems to be running in the MAIN thread while
-        # subsequent iterations take place in the Worker_state thread.
-        # This might lead to program instability? Not sure. Simply disabled
-        # for now.
-        self.timer = QtCore.QTimer()            # Create new timer
-        self.timer.setInterval(self.scanning_interval_ms)
-        self.timer.timeout.connect(self.update)
-        self.timer.start()
-        self.update()  # Kickstart at t = 0, because timer doesn't fire now
-        """
 
     # --------------------------------------------------------------------------
     #   stop_scanning

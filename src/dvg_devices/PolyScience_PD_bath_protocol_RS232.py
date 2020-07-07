@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-RS232 function library for PolyScience PD## recirculating baths.
+"""RS232 function library for PolyScience PD## recirculating baths.
 Supported models:
     PD07R-20, PD07R-40, PD7LR-20, PD15R-30, PD15R-40, PD20R-30, PD28R-30,
     PD45R-20, PD07H200, PD15H200, PD20H200, PD28H200, PD15RCAL, PD15HCAL.
@@ -10,29 +9,36 @@ Tested on model PD15R-30‐A12E
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "02-07-2020"  # 0.0.1 was stamped 04-09-2018
-__version__ = "0.0.3"  # 0.0.1 corresponds to prototype 1.0.0
+__date__ = "07-07-2020"  # 0.0.1 was stamped 04-09-2018
+__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
+# pylint: disable=try-except-raise, bare-except
+
+import sys
+from time import sleep
 
 import serial
 import serial.tools.list_ports
 import numpy as np
-from time import sleep
-import sys
 
+# fmt: off
 # Temperature setpoint limits in software, not on a hardware level
 BATH_MIN_SETPOINT_DEG_C = 10     # [deg C]
 BATH_MAX_SETPOINT_DEG_C = 87     # [deg C]
 
 # Serial settings
-RS232_BAUDRATE = 57600      # Baudrate according to the manual
-RS232_TIMEOUT  = 0.5        # [sec]
+RS232_BAUDRATE = 57600     # Baudrate according to the manual
+RS232_TIMEOUT  = 0.5       # [sec]
+# fmt: on
 
-class PolyScience_PD_bath():
-    class State():
+
+class PolyScience_PD_bath:
+    class State:
         # Container for the process and measurement variables
-        setpoint = np.nan     # Setpoint read out of the bath              ['C]
-        P1_temp  = np.nan     # Temperature measured by the bath           ['C]
-        P2_temp  = np.nan     # Temperature measured by the external probe ['C]
+        # fmt: off
+        setpoint = np.nan  # Setpoint read out of the bath              ['C]
+        P1_temp = np.nan   # Temperature measured by the bath           ['C]
+        P2_temp = np.nan   # Temperature measured by the external probe ['C]
+        # fmt: on
 
     # --------------------------------------------------------------------------
     #   __init__
@@ -64,7 +70,7 @@ class PolyScience_PD_bath():
         Returns: The byte array received from the serial-in buffer
         """
 
-        eol = b'\r'
+        eol = b"\r"
         leneol = len(eol)
         line = bytearray()
         timeout = serial.Timeout(self.ser.timeout)
@@ -100,13 +106,15 @@ class PolyScience_PD_bath():
         if print_trying_message:
             print("Trying to connect to a PolyScience bath on")
 
-        print("  %-5s: " % port_str, end='')
+        print("  %-5s: " % port_str, end="")
         try:
             # Open the serial port
-            self.ser = serial.Serial(port=port_str,
-                                     baudrate=RS232_BAUDRATE,
-                                     timeout=RS232_TIMEOUT,
-                                     write_timeout=RS232_TIMEOUT)
+            self.ser = serial.Serial(
+                port=port_str,
+                baudrate=RS232_BAUDRATE,
+                timeout=RS232_TIMEOUT,
+                write_timeout=RS232_TIMEOUT,
+            )
         except serial.SerialException:
             print("Could not open port")
             return False
@@ -122,7 +130,8 @@ class PolyScience_PD_bath():
             success = self.disable_command_echo()
         except:
             print("Communication error")
-            if self.ser is not None: self.ser.close()
+            if self.ser is not None:
+                self.ser.close()
             success = False
 
         if success:
@@ -131,7 +140,8 @@ class PolyScience_PD_bath():
             return True
 
         print("Wrong or no device")
-        if self.ser is not None: self.ser.close()
+        if self.ser is not None:
+            self.ser.close()
         return False
 
     # --------------------------------------------------------------------------
@@ -211,7 +221,7 @@ class PolyScience_PD_bath():
 
         try:
             # Send command string to the device as bytes
-            self.ser.write(msg_str.replace(' ', '').encode())
+            self.ser.write(msg_str.replace(" ", "").encode())
         except serial.SerialTimeoutException:
             print("ERROR: serial.write() timed out in query()")
         except serial.SerialException:
@@ -222,7 +232,7 @@ class PolyScience_PD_bath():
             try:
                 # Read all bytes in the line that is terminated with a carriage
                 # return character or until time-out has occured
-                #sleep(.1)  # DEBUG
+                # sleep(.1)  # DEBUG
                 ans_bytes = self._readline()
             except serial.SerialTimeoutException:
                 print("ERROR: _readline() timed out in query()")
@@ -313,7 +323,7 @@ class PolyScience_PD_bath():
         Returns: True if successful, False otherwise.
         """
         [success, ans] = self.query("RS\r")
-        #print("query_setpoint returns: %s" % ans)  # DEBUG
+        # print("query_setpoint returns: %s" % ans)  # DEBUG
         if success:
             try:
                 num = float(ans)
@@ -349,16 +359,20 @@ class PolyScience_PD_bath():
 
         if setpoint < BATH_MIN_SETPOINT_DEG_C:
             setpoint = BATH_MIN_SETPOINT_DEG_C
-            print("WARNING: setpoint is capped\nto the lower limit of %.2f 'C" %
-                  BATH_MIN_SETPOINT_DEG_C)
+            print(
+                "WARNING: setpoint is capped\nto the lower limit of %.2f 'C"
+                % BATH_MIN_SETPOINT_DEG_C
+            )
         elif setpoint > BATH_MAX_SETPOINT_DEG_C:
             setpoint = BATH_MAX_SETPOINT_DEG_C
-            print("WARNING: setpoint is capped\nto the upper limit of %.2f 'C" %
-                  BATH_MAX_SETPOINT_DEG_C)
+            print(
+                "WARNING: setpoint is capped\nto the upper limit of %.2f 'C"
+                % BATH_MAX_SETPOINT_DEG_C
+            )
 
         [success, ans] = self.query("SS%.2f\r" % setpoint)
-        #print("send_setpoint returns: %s" % ans)  # DEBUG
-        if success and ans == "!":      # Also check status reply
+        # print("send_setpoint returns: %s" % ans)  # DEBUG
+        if success and ans == "!":  # Also check status reply
             return True
         elif success and ans == "?":
             print("WARNING @ send_setpoint")
@@ -367,9 +381,11 @@ class PolyScience_PD_bath():
         else:
             return False
 
+
 # ------------------------------------------------------------------------------
 #   read_port_config_file
 # ------------------------------------------------------------------------------
+
 
 def read_port_config_file(filepath):
     """Try to open the config textfile containing the port to open. Do not panic
@@ -388,13 +404,15 @@ def read_port_config_file(filepath):
                 port_str = f.readline().strip()
             return port_str
         except:
-            pass    # Do not panic and remain silent
+            pass  # Do not panic and remain silent
 
     return None
+
 
 # ------------------------------------------------------------------------------
 #   write_port_config_file
 # ------------------------------------------------------------------------------
+
 
 def write_port_config_file(filepath, port_str):
     """Try to write the port name string to the config textfile. Do not panic if
@@ -407,17 +425,18 @@ def write_port_config_file(filepath, port_str):
         try:
             filepath.parent.mkdir()
         except:
-            pass    # Do not panic and remain silent
+            pass  # Do not panic and remain silent
 
     try:
         # Write the config file
         filepath.write_text(port_str)
     except:
-        pass        # Do not panic and remain silent
+        pass  # Do not panic and remain silent
     else:
         return True
 
     return False
+
 
 # ------------------------------------------------------------------------------
 #   Main: Will show a demo when run from the terminal
@@ -443,6 +462,7 @@ if __name__ == "__main__":
 
     if os.name == "nt":
         import msvcrt
+
         running_Windows = True
         print("\nPress Q to quit.")
         print("Press S to enter new setpoint.")
@@ -474,22 +494,22 @@ if __name__ == "__main__":
         # Measure and report the temperatures
         bath.query_P1_temp()
         bath.query_P2_temp()
-        print("\rP1 : %6.2f 'C" % bath.state.P1_temp, end='')
-        print("  P2 : %6.2f 'C" % bath.state.P2_temp, end='')
+        print("\rP1 : %6.2f 'C" % bath.state.P1_temp, end="")
+        print("  P2 : %6.2f 'C" % bath.state.P2_temp, end="")
         sys.stdout.flush()
 
         # Process keyboard input
         if running_Windows:
             if msvcrt.kbhit():
                 key = msvcrt.getch()
-                if key == b'q':
+                if key == b"q":
                     print("\nAre you sure you want to quit [y/n]?")
-                    if msvcrt.getch() == b'y':
+                    if msvcrt.getch() == b"y":
                         print("Quitting.")
                         done = True
                     else:
                         do_send_setpoint = True  # Esthestics
-                elif key == b's':
+                elif key == b"s":
                     send_setpoint = input("\nEnter new setpoint ['C]: ")
                     do_send_setpoint = True
 

@@ -12,7 +12,7 @@ __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "07-07-2020"  # 0.0.1 was stamped 18-09-2018
 __version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
-
+# pylint: disable=broad-except
 
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
@@ -433,7 +433,8 @@ class Keysight_3497xA_qdev(QDeviceIO):
             "%s" % "\n".join(self.dev.SCPI_setup_commands)
         )
         self.qled_scanning_interval_ms.setText(
-            "%i" % self.worker_DAQ._DAQ_interval_ms
+            "%i"
+            % self.worker_DAQ._DAQ_interval_ms  # pylint: disable=protected-access
         )
 
     # --------------------------------------------------------------------------

@@ -17,7 +17,7 @@ from PyQt5.QtCore import QDateTime
 from dvg_utils.dvg_pyqt_controls import SS_GROUP, SS_TEXTBOX_READ_ONLY
 from dvg_debug_functions import print_fancy_traceback as pft
 
-from dvg_qdeviceio import QDeviceIO, DAQ_trigger
+from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 from dvg_devices.Bronkhorst_MFC_protocol_RS232 import Bronkhorst_MFC
 
 
@@ -83,7 +83,7 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
         super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
 
         self.create_worker_DAQ(
-            DAQ_trigger=DAQ_trigger.INTERNAL_TIMER,
+            DAQ_trigger=DAQ_TRIGGER.INTERNAL_TIMER,
             DAQ_function=self._DAQ_function,
             DAQ_interval_ms=DAQ_interval_ms,
             DAQ_timer_type=DAQ_timer_type,

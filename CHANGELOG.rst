@@ -1,6 +1,12 @@
 Changelog
 =========
 
+0.0.5 (2020-07-07)
+------------------
+* Update dependence dvg-qdeviceio==0.2.0
+  Enum `DAQ_trigger` is now called `DAQ_TRIGGER`
+* Code style: Black
+
 0.0.4 (2020-07-04)
 ------------------
 * Update dependence dvg-qdeviceio==0.1.2

@@ -17,13 +17,15 @@ __version__ = "0.0.4"  # 0.0.1 corresponds to prototype 1.0.0
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 
-from dvg_utils.dvg_pyqt_controls import (create_Toggle_button,
-                               SS_TEXTBOX_ERRORS,
-                               SS_TEXTBOX_READ_ONLY,
-                               SS_GROUP)
+from dvg_utils.dvg_pyqt_controls import (
+    create_Toggle_button,
+    SS_TEXTBOX_ERRORS,
+    SS_TEXTBOX_READ_ONLY,
+    SS_GROUP,
+)
 from dvg_debug_functions import dprint, print_fancy_traceback as pft
 
-from dvg_qdeviceio import QDeviceIO, DAQ_trigger
+from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 from dvg_devices.Keysight_3497xA_protocol_SCPI import Keysight_3497xA
 
 
@@ -39,7 +41,8 @@ FONT_MONOSPACE_SMALL.setStyleHint(QtGui.QFont.TypeWriter)
 INFINITY_CAP = 9.8e37
 
 # Short-hand alias for DEBUG information
-def get_tick(): return QtCore.QDateTime.currentMSecsSinceEpoch()
+def get_tick():
+    return QtCore.QDateTime.currentMSecsSinceEpoch()
 
 
 class Keysight_3497xA_qdev(QDeviceIO):
@@ -110,33 +113,35 @@ class Keysight_3497xA_qdev(QDeviceIO):
             Disable scanning and fetching data of the multiplexer during an
             'worker_DAQ' update.
     """
-    def __init__(self,
-                 dev: Keysight_3497xA,
-                 DAQ_interval_ms=1000,
-                 DAQ_timer_type=QtCore.Qt.CoarseTimer,
-                 critical_not_alive_count=3,
-                 calc_DAQ_rate_every_N_iter=1,
-                 DAQ_postprocess_MUX_scan_function=None,
-                 debug=False,
-                 **kwargs,):
+
+    def __init__(
+        self,
+        dev: Keysight_3497xA,
+        DAQ_interval_ms=1000,
+        DAQ_timer_type=QtCore.Qt.CoarseTimer,
+        critical_not_alive_count=3,
+        calc_DAQ_rate_every_N_iter=1,
+        DAQ_postprocess_MUX_scan_function=None,
+        debug=False,
+        **kwargs,
+    ):
         super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
 
         self.create_worker_DAQ(
-                DAQ_trigger=DAQ_trigger.INTERNAL_TIMER,
-                DAQ_function=self.DAQ_function,
-                DAQ_interval_ms=DAQ_interval_ms,
-                DAQ_timer_type=DAQ_timer_type,
-                critical_not_alive_count=critical_not_alive_count,
-                calc_DAQ_rate_every_N_iter=calc_DAQ_rate_every_N_iter,
-                debug=debug,
+            DAQ_trigger=DAQ_TRIGGER.INTERNAL_TIMER,
+            DAQ_function=self.DAQ_function,
+            DAQ_interval_ms=DAQ_interval_ms,
+            DAQ_timer_type=DAQ_timer_type,
+            critical_not_alive_count=critical_not_alive_count,
+            calc_DAQ_rate_every_N_iter=calc_DAQ_rate_every_N_iter,
+            debug=debug,
         )
 
-        self.create_worker_jobs(
-                jobs_function=self.jobs_function,
-                debug=debug)
+        self.create_worker_jobs(jobs_function=self.jobs_function, debug=debug)
 
         self.DAQ_postprocess_MUX_scan_function = (
-                DAQ_postprocess_MUX_scan_function)
+            DAQ_postprocess_MUX_scan_function
+        )
         self.is_MUX_scanning = False
 
         # String format to use for the readings in the table widget.
@@ -180,7 +185,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
         """
 
         self.is_MUX_scanning = True
-        self.signal_DAQ_updated.emit()      # Show we are scanning
+        self.signal_DAQ_updated.emit()  # Show we are scanning
         QtWid.QApplication.processEvents()
 
         """
@@ -205,7 +210,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
     @QtCore.pyqtSlot()
     def stop_MUX_scan(self):
         self.is_MUX_scanning = False
-        self.signal_DAQ_updated.emit()      # Show we stopped scanning
+        self.signal_DAQ_updated.emit()  # Show we stopped scanning
         QtWid.QApplication.processEvents()
 
     # --------------------------------------------------------------------------
@@ -221,23 +226,23 @@ class Keysight_3497xA_qdev(QDeviceIO):
 
         success = True
         if self.is_MUX_scanning:
-            success &= self.dev.init_scan()                 # Init scan
+            success &= self.dev.init_scan()  # Init scan
 
             if success:
-                self.dev.wait_for_OPC()                     # Wait for OPC
+                self.dev.wait_for_OPC()  # Wait for OPC
                 if self.worker_DAQ.debug:
                     tock = get_tick()
                     dprint("opc? in: %i" % (tock - tick))
                     tick = tock
 
-                success &= self.dev.fetch_scan()            # Fetch scan
+                success &= self.dev.fetch_scan()  # Fetch scan
                 if self.worker_DAQ.debug:
                     tock = get_tick()
                     dprint("fetc in: %i" % (tock - tick))
                     tick = tock
 
             if success:
-                self.dev.wait_for_OPC()                     # Wait for OPC
+                self.dev.wait_for_OPC()  # Wait for OPC
                 if self.worker_DAQ.debug:
                     tock = get_tick()
                     dprint("opc? in: %i" % (tock - tick))
@@ -246,7 +251,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
         if success:
             # Do not throw additional timeout exceptions when .init_scan()
             # might have already failed. Hence this check for no success.
-            self.dev.query_all_errors_in_queue()            # Query errors
+            self.dev.query_all_errors_in_queue()  # Query errors
             if self.worker_DAQ.debug:
                 tock = get_tick()
                 dprint("err? in: %i" % (tock - tick))
@@ -255,8 +260,8 @@ class Keysight_3497xA_qdev(QDeviceIO):
             # The next statement seems to trigger timeout, but very
             # intermittently (~once per 20 minutes). After this timeout,
             # everything times out.
-            #self.dev.wait_for_OPC()
-            #if self.worker_DAQ.debug:
+            # self.dev.wait_for_OPC()
+            # if self.worker_DAQ.debug:
             #    tock = get_tick()
             #    dprint("opc? in: %i" % (tock - tick))
             #    tick = tock
@@ -286,7 +291,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
         # Send I/O operation to the device
         try:
             func(*args)
-            self.dev.wait_for_OPC()                         # Wait for OPC
+            self.dev.wait_for_OPC()  # Wait for OPC
         except Exception as err:
             pft(err)
 
@@ -295,31 +300,34 @@ class Keysight_3497xA_qdev(QDeviceIO):
     # --------------------------------------------------------------------------
 
     def create_GUI(self):
-        p = {'alignment': QtCore.Qt.AlignCenter, 'font': FONT_MONOSPACE}
-        p2 = {'alignment': QtCore.Qt.AlignCenter + QtCore.Qt.AlignVCenter}
-        #self.qlbl_mux = QtWid.QLabel("Keysight 34972a", **p2)
+        p = {"alignment": QtCore.Qt.AlignCenter, "font": FONT_MONOSPACE}
+        p2 = {"alignment": QtCore.Qt.AlignCenter + QtCore.Qt.AlignVCenter}
+        # self.qlbl_mux = QtWid.QLabel("Keysight 34972a", **p2)
         self.qlbl_mux_state = QtWid.QLabel("Offline", **p)
         self.qpbt_start_scan = create_Toggle_button("Start scan")
 
-        self.qpte_SCPI_commands = QtWid.QPlainTextEdit('', readOnly=True,
-                                                       lineWrapMode=False)
+        self.qpte_SCPI_commands = QtWid.QPlainTextEdit(
+            "", readOnly=True, lineWrapMode=False
+        )
         self.qpte_SCPI_commands.setStyleSheet(SS_TEXTBOX_READ_ONLY)
         self.qpte_SCPI_commands.setMaximumHeight(152)
         self.qpte_SCPI_commands.setMinimumWidth(200)
         self.qpte_SCPI_commands.setFont(FONT_MONOSPACE_SMALL)
 
-        p = {'alignment': QtCore.Qt.AlignRight, 'readOnly': True}
+        p = {"alignment": QtCore.Qt.AlignRight, "readOnly": True}
         self.qled_scanning_interval_ms = QtWid.QLineEdit("", **p)
         self.qled_obtained_interval_ms = QtWid.QLineEdit("", **p)
 
-        self.qpte_errors = QtWid.QPlainTextEdit('', lineWrapMode=False)
+        self.qpte_errors = QtWid.QPlainTextEdit("", lineWrapMode=False)
         self.qpte_errors.setStyleSheet(SS_TEXTBOX_ERRORS)
         self.qpte_errors.setMaximumHeight(90)
 
+        # fmt: off
         self.qpbt_ackn_errors    = QtWid.QPushButton("Acknowledge errors")
         self.qpbt_reinit         = QtWid.QPushButton("Reinitialize")
         self.qlbl_update_counter = QtWid.QLabel("0")
         self.qpbt_debug_test     = QtWid.QPushButton("Debug test")
+        # fmt: on
 
         self.qpbt_start_scan.clicked.connect(self.process_qpbt_start_scan)
         self.qpbt_ackn_errors.clicked.connect(self.process_qpbt_ackn_errors)
@@ -327,11 +335,12 @@ class Keysight_3497xA_qdev(QDeviceIO):
         self.qpbt_debug_test.clicked.connect(self.process_qpbt_debug_test)
 
         i = 0
-        p = {'alignment': QtCore.Qt.AlignLeft + QtCore.Qt.AlignVCenter}
+        p = {"alignment": QtCore.Qt.AlignLeft + QtCore.Qt.AlignVCenter}
 
         grid = QtWid.QGridLayout()
         grid.setVerticalSpacing(4)
-        #grid.addWidget(self.qlbl_mux                      , i, 0, 1, 3); i+=1
+        # fmt: off
+        # grid.addWidget(self.qlbl_mux                    , i, 0, 1, 3); i+=1
         grid.addWidget(QtWid.QLabel("Only scan when necessary.", **p2)
                                                           , i, 0, 1, 2); i+=1
         grid.addWidget(QtWid.QLabel("It wears down the multiplexer.", **p2)
@@ -353,7 +362,8 @@ class Keysight_3497xA_qdev(QDeviceIO):
         grid.addWidget(self.qpte_errors                   , i, 0, 1, 2); i+=1
         grid.addWidget(self.qpbt_ackn_errors              , i, 0, 1, 2); i+=1
         grid.addWidget(self.qlbl_update_counter           , i, 0, 1, 2); i+=1
-        #grid.addWidget(self.qpbt_debug_test               , i, 0, 1, 2); i+=1
+        # grid.addWidget(self.qpbt_debug_test             , i, 0, 1, 2); i+=1
+        # fmt: on
 
         #  Table widget containing the readings of the current scan cycle
         # ----------------------------------------------------------------
@@ -363,7 +373,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
         self.qtbl_readings.verticalHeader().setFont(FONT_MONOSPACE_SMALL)
         self.qtbl_readings.verticalHeader().setDefaultSectionSize(24)
         self.qtbl_readings.setFont(FONT_MONOSPACE_SMALL)
-        #self.qtbl_readings.setMinimumHeight(600)
+        # self.qtbl_readings.setMinimumHeight(600)
         self.qtbl_readings.setFixedWidth(180)
         self.qtbl_readings.setColumnWidth(0, 100)
 
@@ -386,7 +396,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
         Not locking the mutex might speed up the program.
         """
         if self.dev.is_alive:
-            if (self.is_MUX_scanning):
+            if self.is_MUX_scanning:
                 self.qlbl_mux_state.setText("Scanning")
                 self.qpbt_start_scan.setChecked(True)
             else:
@@ -396,10 +406,12 @@ class Keysight_3497xA_qdev(QDeviceIO):
             self.qpte_errors.setReadOnly(self.dev.state.all_errors != [])
             self.qpte_errors.setStyleSheet(SS_TEXTBOX_ERRORS)
             self.qpte_errors.setPlainText(
-                    "%s" % '\n'.join(self.dev.state.all_errors))
+                "%s" % "\n".join(self.dev.state.all_errors)
+            )
 
             self.qled_obtained_interval_ms.setText(
-                    "%.0f" % self.obtained_DAQ_interval_ms)
+                "%.0f" % self.obtained_DAQ_interval_ms
+            )
             self.qlbl_update_counter.setText("%s" % self.DAQ_update_counter)
 
             for i in range(len(self.dev.state.all_scan_list_channels)):
@@ -408,7 +420,8 @@ class Keysight_3497xA_qdev(QDeviceIO):
                 reading = self.dev.state.readings[i]
                 if reading > INFINITY_CAP:
                     self.qtbl_readings.item(i, 0).setData(
-                            QtCore.Qt.DisplayRole, "Inf")
+                        QtCore.Qt.DisplayRole, "Inf"
+                    )
                 else:
                     if type(self.table_readings_format) == list:
                         try:
@@ -419,7 +432,8 @@ class Keysight_3497xA_qdev(QDeviceIO):
                         str_format = self.table_readings_format
 
                     self.qtbl_readings.item(i, 0).setData(
-                            QtCore.Qt.DisplayRole, str_format % reading)
+                        QtCore.Qt.DisplayRole, str_format % reading
+                    )
         else:
             self.qlbl_mux_state.setText("Offline")
             self.qgrp.setEnabled(False)
@@ -430,9 +444,11 @@ class Keysight_3497xA_qdev(QDeviceIO):
 
     def populate_SCPI_commands(self):
         self.qpte_SCPI_commands.setPlainText(
-                "%s" % '\n'.join(self.dev.SCPI_setup_commands))
+            "%s" % "\n".join(self.dev.SCPI_setup_commands)
+        )
         self.qled_scanning_interval_ms.setText(
-                "%i" % self.worker_DAQ._DAQ_interval_ms)
+            "%i" % self.worker_DAQ._DAQ_interval_ms
+        )
 
     # --------------------------------------------------------------------------
     #   Table widget related
@@ -440,9 +456,11 @@ class Keysight_3497xA_qdev(QDeviceIO):
 
     def populate_table_readings(self):
         self.qtbl_readings.setRowCount(
-                len(self.dev.state.all_scan_list_channels))
+            len(self.dev.state.all_scan_list_channels)
+        )
         self.qtbl_readings.setVerticalHeaderLabels(
-                self.dev.state.all_scan_list_channels)
+            self.dev.state.all_scan_list_channels
+        )
 
         for i in range(len(self.dev.state.all_scan_list_channels)):
             item = QtWid.QTableWidgetItem("nan")
@@ -471,19 +489,24 @@ class Keysight_3497xA_qdev(QDeviceIO):
         # Lock the dev mutex because string operations are not atomic
         locker = QtCore.QMutexLocker(self.dev.mutex)
         self.dev.state.all_errors = []
-        self.qpte_errors.setPlainText('')
-        self.qpte_errors.setReadOnly(False) # To change back to regular colors
+        self.qpte_errors.setPlainText("")
+        self.qpte_errors.setReadOnly(False)  # To change back to regular colors
         locker.unlock()
 
     @QtCore.pyqtSlot()
     def process_qpbt_reinit(self):
-        str_msg = ("Are you sure you want reinitialize the multiplexer?\n\n"
-                   "This would abort the current scan, reset the device\n"
-                   "and resend the SCPI scan command list.")
-        reply = QtWid.QMessageBox.question(None,
-                ("Reinitialize %s" % self.dev.name), str_msg,
-                QtWid.QMessageBox.Yes | QtWid.QMessageBox.No,
-                QtWid.QMessageBox.No)
+        str_msg = (
+            "Are you sure you want reinitialize the multiplexer?\n\n"
+            "This would abort the current scan, reset the device\n"
+            "and resend the SCPI scan command list."
+        )
+        reply = QtWid.QMessageBox.question(
+            None,
+            ("Reinitialize %s" % self.dev.name),
+            str_msg,
+            QtWid.QMessageBox.Yes | QtWid.QMessageBox.No,
+            QtWid.QMessageBox.No,
+        )
 
         if reply == QtWid.QMessageBox.Yes:
             self.qpbt_start_scan.setChecked(False)

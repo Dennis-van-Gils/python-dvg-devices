@@ -21,5 +21,3 @@ for multithreading in PyQt5.
 * Picotech PT104 -- temperature logger
 * PolyScience PD -- recirculating bath
 * ThermoFlex -- chiller
-
-TODO: Implement codestyle Black

@@ -16,11 +16,11 @@ from PyQt5 import QtWidgets as QtWid
 
 from dvg_utils.dvg_pyqt_controls import SS_GROUP
 
-from dvg_qdeviceio import QDeviceIO, DAQ_trigger
+from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 from dvg_devices.Picotech_PT104_protocol_UDP import Picotech_PT104
 
 # Special characters
-CHAR_DEG_C = chr(176) + 'C'
+CHAR_DEG_C = chr(176) + "C"
 
 
 class Picotech_PT104_qdev(QDeviceIO):
@@ -66,24 +66,28 @@ class Picotech_PT104_qdev(QDeviceIO):
         (*) signal_DAQ_updated()
         (*) signal_connection_lost()
     """
-    def __init__(self,
-                 dev: Picotech_PT104,
-                 DAQ_interval_ms=1000,
-                 DAQ_timer_type=QtCore.Qt.CoarseTimer,
-                 critical_not_alive_count=np.nan,
-                 calc_DAQ_rate_every_N_iter=1,
-                 debug=False,
-                 **kwargs,):
+
+    def __init__(
+        self,
+        dev: Picotech_PT104,
+        DAQ_interval_ms=1000,
+        DAQ_timer_type=QtCore.Qt.CoarseTimer,
+        critical_not_alive_count=np.nan,
+        calc_DAQ_rate_every_N_iter=1,
+        debug=False,
+        **kwargs,
+    ):
         super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
 
         self.create_worker_DAQ(
-                DAQ_trigger=DAQ_trigger.INTERNAL_TIMER,
-                DAQ_function=self.DAQ_function,
-                DAQ_interval_ms=DAQ_interval_ms,
-                DAQ_timer_type=DAQ_timer_type,
-                critical_not_alive_count=critical_not_alive_count,
-                calc_DAQ_rate_every_N_iter=calc_DAQ_rate_every_N_iter,
-                debug=debug)
+            DAQ_trigger=DAQ_TRIGGER.INTERNAL_TIMER,
+            DAQ_function=self.DAQ_function,
+            DAQ_interval_ms=DAQ_interval_ms,
+            DAQ_timer_type=DAQ_timer_type,
+            critical_not_alive_count=critical_not_alive_count,
+            calc_DAQ_rate_every_N_iter=calc_DAQ_rate_every_N_iter,
+            debug=debug,
+        )
 
         self.create_GUI()
         self.signal_DAQ_updated.connect(self.update_GUI)
@@ -95,7 +99,7 @@ class Picotech_PT104_qdev(QDeviceIO):
     # --------------------------------------------------------------------------
 
     def DAQ_function(self):
-        #print("Obtained interval: %.0f" % self.obtained_DAQ_interval_ms)
+        # print("Obtained interval: %.0f" % self.obtained_DAQ_interval_ms)
         return self.dev.scan_4_wire_temperature()
 
     # --------------------------------------------------------------------------
@@ -103,12 +107,14 @@ class Picotech_PT104_qdev(QDeviceIO):
     # --------------------------------------------------------------------------
 
     def create_GUI(self):
-        self.qlbl_offline = QtWid.QLabel("OFFLINE", visible=False,
+        self.qlbl_offline = QtWid.QLabel(
+            "OFFLINE",
+            visible=False,
             font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Bold),
-            alignment=QtCore.Qt.AlignCenter)
+            alignment=QtCore.Qt.AlignCenter,
+        )
 
-        p = {'alignment': QtCore.Qt.AlignRight,
-             'minimumWidth': 60}
+        p = {"alignment": QtCore.Qt.AlignRight, "minimumWidth": 60}
         self.qled_T_ch1 = QtWid.QLineEdit(**p, readOnly=True)
         self.qled_T_ch2 = QtWid.QLineEdit(**p, readOnly=True)
         self.qled_T_ch3 = QtWid.QLineEdit(**p, readOnly=True)
@@ -117,6 +123,7 @@ class Picotech_PT104_qdev(QDeviceIO):
 
         self.grid = QtWid.QGridLayout()
         self.grid.setVerticalSpacing(4)
+        # fmt: off
         self.grid.addWidget(self.qlbl_offline       , 0, 0, 1, 3)
         self.grid.addWidget(QtWid.QLabel("Ch 1")    , 1, 0)
         self.grid.addWidget(self.qled_T_ch1         , 1, 1)
@@ -131,6 +138,7 @@ class Picotech_PT104_qdev(QDeviceIO):
         self.grid.addWidget(self.qled_T_ch4         , 4, 1)
         self.grid.addWidget(QtWid.QLabel(CHAR_DEG_C), 4, 2)
         self.grid.addWidget(self.qlbl_update_counter, 5, 0, 1, 3)
+        # fmt: on
 
         self.qgrp = QtWid.QGroupBox("%s" % self.dev.name)
         self.qgrp.setStyleSheet(SS_GROUP)

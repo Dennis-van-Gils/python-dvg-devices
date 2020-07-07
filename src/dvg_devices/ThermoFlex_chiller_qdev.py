@@ -12,17 +12,19 @@ __version__ = "0.0.4"  # 0.0.1 corresponds to prototype 1.0.0
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 
-from dvg_utils.dvg_pyqt_controls import (create_Toggle_button,
-                               create_error_LED,
-                               create_tiny_error_LED,
-                               SS_GROUP)
+from dvg_utils.dvg_pyqt_controls import (
+    create_Toggle_button,
+    create_error_LED,
+    create_tiny_error_LED,
+    SS_GROUP,
+)
 from dvg_debug_functions import print_fancy_traceback as pft
 
-from dvg_qdeviceio import QDeviceIO, DAQ_trigger
+from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 from dvg_devices.ThermoFlex_chiller_protocol_RS232 import ThermoFlex_chiller
 
 # Special characters
-CHAR_DEG_C = chr(176) + 'C'
+CHAR_DEG_C = chr(176) + "C"
 
 
 class ThermoFlex_chiller_qdev(QDeviceIO):
@@ -72,21 +74,24 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         (*) signal_DAQ_updated()
         (*) signal_connection_lost()
     """
-    signal_GUI_alarm_values_update = QtCore.pyqtSignal()
-    signal_GUI_PID_values_update   = QtCore.pyqtSignal()
 
-    def __init__(self,
-                 dev: ThermoFlex_chiller,
-                 DAQ_interval_ms=1000,
-                 DAQ_timer_type=QtCore.Qt.CoarseTimer,
-                 critical_not_alive_count=1,
-                 calc_DAQ_rate_every_N_iter=1,
-                 debug=False,
-                 **kwargs,):
+    signal_GUI_alarm_values_update = QtCore.pyqtSignal()
+    signal_GUI_PID_values_update = QtCore.pyqtSignal()
+
+    def __init__(
+        self,
+        dev: ThermoFlex_chiller,
+        DAQ_interval_ms=1000,
+        DAQ_timer_type=QtCore.Qt.CoarseTimer,
+        critical_not_alive_count=1,
+        calc_DAQ_rate_every_N_iter=1,
+        debug=False,
+        **kwargs,
+    ):
         super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
 
         self.create_worker_DAQ(
-            DAQ_trigger=DAQ_trigger.INTERNAL_TIMER,
+            DAQ_trigger=DAQ_TRIGGER.INTERNAL_TIMER,
             DAQ_function=self.DAQ_function,
             DAQ_interval_ms=DAQ_interval_ms,
             DAQ_timer_type=DAQ_timer_type,
@@ -95,8 +100,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
             debug=debug,
         )
 
-        self.create_worker_jobs(jobs_function=self.jobs_function,
-                                debug=debug)
+        self.create_worker_jobs(jobs_function=self.jobs_function, debug=debug)
 
         self.create_GUI()
         self.signal_DAQ_updated.connect(self.update_GUI)
@@ -119,10 +123,10 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
     # --------------------------------------------------------------------------
 
     def jobs_function(self, func, args):
-        if (func == "signal_GUI_alarm_values_update"):
+        if func == "signal_GUI_alarm_values_update":
             # Special instruction
             self.signal_GUI_alarm_values_update.emit()
-        elif (func == "signal_GUI_PID_values_update"):
+        elif func == "signal_GUI_PID_values_update":
             # Special instruction
             self.signal_GUI_PID_values_update.emit()
         else:
@@ -140,10 +144,12 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
     def create_GUI(self):
         # Groupbox "Alarm values"
         # -----------------------
-        p = {'alignment': QtCore.Qt.AlignRight,
-             'minimumWidth': 50,
-             'maximumWidth': 30,
-             'readOnly': True}
+        p = {
+            "alignment": QtCore.Qt.AlignRight,
+            "minimumWidth": 50,
+            "maximumWidth": 30,
+            "readOnly": True,
+        }
         self.LO_flow = QtWid.QLineEdit(**p)
         self.HI_flow = QtWid.QLineEdit(**p)
         self.LO_pres = QtWid.QLineEdit(**p)
@@ -153,8 +159,9 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         self.pbtn_read_alarm_values = QtWid.QPushButton("Read")
         self.pbtn_read_alarm_values.setMinimumSize(50, 30)
 
-        p = {'alignment': QtCore.Qt.AlignCenter}
+        p = {"alignment": QtCore.Qt.AlignCenter}
         grid = QtWid.QGridLayout()
+        # fmt: off
         grid.addWidget(QtWid.QLabel("Values can be set in the chiller's menu",
                                     **p)          , 0, 0, 1, 4)
         grid.addWidget(QtWid.QLabel("LO")         , 1, 1)
@@ -172,6 +179,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         grid.addWidget(self.HI_temp               , 4, 2)
         grid.addWidget(QtWid.QLabel(CHAR_DEG_C)   , 4, 3)
         grid.addWidget(self.pbtn_read_alarm_values, 5, 0)
+        # fmt: on
 
         self.grpb_alarms = QtWid.QGroupBox("Alarm values")
         self.grpb_alarms.setStyleSheet(SS_GROUP)
@@ -179,18 +187,21 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
 
         # Groupbox "PID feedback"
         # -----------------------
-        p = {'alignment': QtCore.Qt.AlignRight,
-             'minimumWidth': 50,
-             'maximumWidth': 30,
-             'readOnly': True}
+        p = {
+            "alignment": QtCore.Qt.AlignRight,
+            "minimumWidth": 50,
+            "maximumWidth": 30,
+            "readOnly": True,
+        }
         self.PID_P = QtWid.QLineEdit(**p)
         self.PID_I = QtWid.QLineEdit(**p)
         self.PID_D = QtWid.QLineEdit(**p)
         self.pbtn_read_PID_values = QtWid.QPushButton("Read")
         self.pbtn_read_PID_values.setMinimumSize(50, 30)
 
-        p = {'alignment': QtCore.Qt.AlignCenter}
+        p = {"alignment": QtCore.Qt.AlignCenter}
         grid = QtWid.QGridLayout()
+        # fmt: off
         grid.addWidget(QtWid.QLabel("Values can be set in the chiller's menu",
                                     **p)                          , 0, 0, 1, 3)
         grid.addWidget(QtWid.QLabel("P", **p)                     , 1, 0)
@@ -203,6 +214,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         grid.addWidget(self.PID_D                                 , 3, 1)
         grid.addWidget(QtWid.QLabel("minutes")                    , 3, 2)
         grid.addWidget(self.pbtn_read_PID_values                  , 4, 0)
+        # fmt: on
 
         self.grpb_PID = QtWid.QGroupBox("PID feedback")
         self.grpb_PID.setStyleSheet(SS_GROUP)
@@ -210,6 +222,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
 
         # Groupbox "Status bits"
         # ----------------------
+        # fmt: off
         self.SB_tripped                = create_error_LED()
         self.SB_tripped.setText("No faults")
         self.SB_high_temp_fixed        = create_tiny_error_LED()
@@ -280,6 +293,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         grid.addWidget(self.SB_high_pressure_factory                   , 21, 1)
         grid.addWidget(QtWid.QLabel("low pressure factory fault", **p) , 22, 0)
         grid.addWidget(self.SB_low_pressure_factory                    , 22, 1)
+        # fmt: on
 
         self.grpb_SBs = QtWid.QGroupBox("Status bits")
         self.grpb_SBs.setStyleSheet(SS_GROUP)
@@ -287,13 +301,19 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
 
         # Groupbox "Control"
         # ------------------
-        p = {'alignment': QtCore.Qt.AlignRight,
-             'minimumWidth': 50,
-             'maximumWidth': 30}
+        p = {
+            "alignment": QtCore.Qt.AlignRight,
+            "minimumWidth": 50,
+            "maximumWidth": 30,
+        }
 
-        self.lbl_offline = QtWid.QLabel("OFFLINE", visible=False,
+        self.lbl_offline = QtWid.QLabel(
+            "OFFLINE",
+            visible=False,
             font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Bold),
-            alignment=QtCore.Qt.AlignCenter)
+            alignment=QtCore.Qt.AlignCenter,
+        )
+        # fmt: off
         self.pbtn_on       = create_Toggle_button("Off")
         self.powering_down = create_tiny_error_LED()
         self.send_setpoint = QtWid.QLineEdit(**p)
@@ -346,6 +366,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
                                     alignment=QtCore.Qt.AlignRight), 15, 1)
         grid.addWidget(QtWid.QLabel("bar")                         , 15, 2)
         grid.addWidget(self.lbl_update_counter                     , 16, 0, 1, 2)
+        # fmt: on
 
         self.grpb_control = QtWid.QGroupBox("Control")
         self.grpb_control.setStyleSheet(SS_GROUP)
@@ -371,7 +392,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         self.hbly_GUI.setAlignment(self.grpb_control, QtCore.Qt.AlignTop)
         self.hbly_GUI.setAlignment(QtCore.Qt.AlignTop)
 
-        #tab_chiller.setLayout(self.hbly_GUI)
+        # tab_chiller.setLayout(self.hbly_GUI)
 
     # --------------------------------------------------------------------------
     #   update_GUI
@@ -392,11 +413,13 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
                 self.send_setpoint.setText("%.1f" % self.dev.state.setpoint)
 
             # State
+            # fmt: off
             self.read_setpoint.setText("%.1f" % self.dev.state.setpoint)
             self.read_temp.setText    ("%.1f" % self.dev.state.temp)
             self.read_flow.setText    ("%.1f" % self.dev.state.flow)
             self.read_supply.setText  ("%.2f" % self.dev.state.supply_pres)
             self.read_suction.setText ("%.2f" % self.dev.state.suction_pres)
+            # fmt: on
 
             # Power
             SBs = self.dev.status_bits  # Short-hand
@@ -418,19 +441,22 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
             self.SB_high_level.setChecked(SBs.high_level_fault)
             self.SB_high_pressure.setChecked(SBs.high_pressure_fault)
             self.SB_high_pressure_factory.setChecked(
-                    SBs.high_pressure_fault_factory)
+                SBs.high_pressure_fault_factory
+            )
             self.SB_high_temp.setChecked(SBs.high_temp_fault)
             self.SB_high_temp_fixed.setChecked(SBs.high_temp_fixed_fault)
             self.SB_HPC.setChecked(SBs.HPC_fault)
             self.SB_invalid_level.setChecked(SBs.invalid_level_fault)
             self.SB_local_EMO.setChecked(SBs.local_EMO_fault)
             self.SB_low_fixed_flow_warning.setChecked(
-                    SBs.low_fixed_flow_warning)
+                SBs.low_fixed_flow_warning
+            )
             self.SB_low_flow.setChecked(SBs.low_flow_fault)
             self.SB_low_level.setChecked(SBs.low_level_fault)
             self.SB_low_pressure.setChecked(SBs.low_pressure_fault)
             self.SB_low_pressure_factory.setChecked(
-                    SBs.low_pressure_fault_factory)
+                SBs.low_pressure_fault_factory
+            )
             self.SB_low_temp.setChecked(SBs.low_temp_fault)
             self.SB_low_temp_fixed.setChecked(SBs.low_temp_fixed_fault)
             self.SB_LPC.setChecked(SBs.LPC_fault)
@@ -511,12 +537,16 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
     def connect_signals_to_slots(self):
         self.pbtn_on.clicked.connect(self.process_pbtn_on)
         self.pbtn_read_alarm_values.clicked.connect(
-                self.process_pbtn_read_alarm_values)
+            self.process_pbtn_read_alarm_values
+        )
         self.pbtn_read_PID_values.clicked.connect(
-                self.process_pbtn_read_PID_values)
+            self.process_pbtn_read_PID_values
+        )
         self.send_setpoint.editingFinished.connect(
-                self.send_setpoint_from_textbox)
+            self.send_setpoint_from_textbox
+        )
 
         self.signal_GUI_alarm_values_update.connect(
-                self.update_GUI_alarm_values)
+            self.update_GUI_alarm_values
+        )
         self.signal_GUI_PID_values_update.connect(self.update_GUI_PID_values)

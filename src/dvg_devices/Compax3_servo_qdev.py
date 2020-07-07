@@ -20,7 +20,7 @@ from dvg_utils.dvg_pyqt_controls import (
     create_tiny_LED,
 )
 
-from dvg_qdeviceio import QDeviceIO, DAQ_trigger
+from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 from dvg_devices.Compax3_servo_protocol_RS232 import Compax3_servo
 
 
@@ -83,7 +83,7 @@ class Compax3_servo_qdev(QDeviceIO):
         super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
 
         self.create_worker_DAQ(
-            DAQ_trigger=DAQ_trigger.INTERNAL_TIMER,
+            DAQ_trigger=DAQ_TRIGGER.INTERNAL_TIMER,
             DAQ_function=self.DAQ_function,
             DAQ_interval_ms=DAQ_interval_ms,
             DAQ_timer_type=DAQ_timer_type,

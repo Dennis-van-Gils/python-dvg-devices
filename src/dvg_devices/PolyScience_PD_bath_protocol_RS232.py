@@ -188,13 +188,13 @@ class PolyScience_PD_bath:
     #   auto_connect
     # --------------------------------------------------------------------------
 
-    def auto_connect(self, config_path):
+    def auto_connect(self, path_config):
         """TO DO: write explaination
         """
         # Try to open the config file containing the port to open. Do not panic
         # if the file does not exist or cannot be read. We will then scan over
         # all ports as alternative.
-        port_str = read_port_config_file(config_path)
+        port_str = read_port_config_file(path_config)
 
         # If the config file was read successfully then we can try to open the
         # port listed in the config file and connect to the device.
@@ -211,7 +211,7 @@ class PolyScience_PD_bath:
                 # Store the result of a successful connection after a port scan
                 # in the config file. Do not panic if we cannot create the
                 # config file.
-                write_port_config_file(config_path, self.ser.portstr)
+                write_port_config_file(path_config, self.ser.portstr)
 
         return success
 

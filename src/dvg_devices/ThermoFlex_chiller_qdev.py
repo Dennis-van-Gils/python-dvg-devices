@@ -35,17 +35,6 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
     In addition, it also provides PyQt5 GUI objects for control of the device.
     These can be incorporated into your application.
 
-    All device I/O operations will be offloaded to 'workers', each running in
-    a newly created thread instead of in the main/GUI thread.
-
-        - Worker_DAQ:
-            Periodically acquires data from the device.
-
-        - Worker_jobs:
-            Maintains a thread-safe queue where desired device I/O operations
-            can be put onto, and sends the queued operations first in first out
-            (FIFO) to the device.
-
     (*): See 'dvg_qdeviceio.QDeviceIO()' for details.
 
     Args:
@@ -54,25 +43,12 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
             'dvg_devices.ThermoFlex_chiller_protocol_RS232.ThermoFlex_chiller'
             instance.
 
-        (*) DAQ_interval_ms
-        (*) critical_not_alive_count
-        (*) DAQ_timer_type
-
-    Main methods:
-        (*) start(...)
-        (*) quit()
-
-    Main data attributes:
-        (*) DAQ_update_counter
-        (*) obtained_DAQ_interval_ms
-        (*) obtained_DAQ_rate_Hz
+        debug:
+            Show debug info in terminal? Warning: Slow! Do not leave on
+            unintentionally.
 
     Main GUI objects:
         hbly_GUI (PyQt5.QtWidgets.QHBoxLayout)
-
-    Signals:
-        (*) signal_DAQ_updated()
-        (*) signal_connection_lost()
     """
 
     signal_GUI_alarm_values_update = QtCore.pyqtSignal()

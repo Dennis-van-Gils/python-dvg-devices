@@ -32,18 +32,16 @@ class Picotech_PT104_qdev(QDeviceIO):
 
     NOTE: Each PT-104 reading takes roughly 720 ms per channel.
 
-    All device output operations will be offloaded to a 'worker', running in
-    a newly created thread instead of in the main/GUI thread.
-
-        - Worker_DAQ:
-            Periodically acquires data from the device.
+    All device I/O operations will be offloaded to 'workers', each running in
+    a newly created thread.
 
     (*): See 'dvg_qdeviceio.QDeviceIO()' for details.
 
     Args:
         dev:
             Reference to a
-            'dvg_devices.Picotech_PT104_protocol_UDP.Picotech_PT104' instance.
+            'dvg_devices.Picotech_PT104_protocol_UDP.Picotech_PT104'
+            instance.
 
         (*) DAQ_interval_ms:
             The minimum interval is determined by the scan rate of the PT-104,
@@ -52,19 +50,12 @@ class Picotech_PT104_qdev(QDeviceIO):
             ensure a stable DAQ rate, set 'DAQ_interval_ms' to values
             larger than 720 ms with some head room. 1000 ms, should work fine.
 
-        (*) critical_not_alive_count
-        (*) DAQ_timer_type
-
-    Main methods:
-        (*) start(...)
-        (*) quit()
+        debug:
+            Show debug info in terminal? Warning: Slow! Do not leave on
+            unintentionally.
 
     Main GUI objects:
         qgrp (PyQt5.QtWidgets.QGroupBox)
-
-    Signals:
-        (*) signal_DAQ_updated()
-        (*) signal_connection_lost()
     """
 
     def __init__(

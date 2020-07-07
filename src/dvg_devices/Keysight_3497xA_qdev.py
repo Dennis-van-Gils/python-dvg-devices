@@ -57,26 +57,15 @@ class Keysight_3497xA_qdev(QDeviceIO):
     These can be incorporated into your application.
 
     All device I/O operations will be offloaded to 'workers', each running in
-    a newly created thread instead of in the main/GUI thread.
-
-        - Worker_DAQ:
-            Periodically acquires data from the device.
-
-        - Worker_jobs:
-            Maintains a thread-safe queue where desired device I/O operations
-            can be put onto, and sends the queued operations first in first out
-            (FIFO) to the device.
+    a newly created thread.
 
     (*): See 'dvg_qdeviceio.QDeviceIO()' for details.
 
     Args:
         dev:
             Reference to a
-            'dvg_devices.Keysight_3497xA_protocol_SCPI.Keysight_3497xA' instance.
-
-        (*) DAQ_interval_ms
-        (*) critical_not_alive_count
-        (*) DAQ_timer_type
+            'dvg_devices.Keysight_3497xA_protocol_SCPI.Keysight_3497xA'
+            instance.
 
         DAQ_postprocess_MUX_data_function (optional, default=None):
             Reference to a user-supplied function that will be called during
@@ -84,10 +73,11 @@ class Keysight_3497xA_qdev(QDeviceIO):
             you can use this function to, e.g., parse out the scan readings into
             separate variables and post-process this data or log it.
 
-    Main methods:
-        (*) start(...)
-        (*) quit()
+        debug:
+            Show debug info in terminal? Warning: Slow! Do not leave on
+            unintentionally.
 
+    Main methods:
         set_table_readings_format:
             TO DO: write description
 
@@ -99,10 +89,6 @@ class Keysight_3497xA_qdev(QDeviceIO):
 
     Main GUI objects:
         qgrp (PyQt5.QtWidgets.QGroupBox)
-
-    Signals:
-        (*) signal_DAQ_updated()
-        (*) signal_connection_lost()
 
     Slots:
         start_MUX_scan():

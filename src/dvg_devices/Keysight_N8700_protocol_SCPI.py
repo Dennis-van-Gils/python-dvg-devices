@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Function library for Keysight series N8700 power supplies (PSU) over SCPI.
+"""Function library for Keysight series N8700 power supplies (PSU) over SCPI.
 
 Communication errors will be handled as non-fatal. This means it will struggle
 on with the script while reporting error messages to the command line output,
@@ -13,14 +12,16 @@ the previous query resulted in a communication error.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "02-07-2020"  # 0.0.1 was stamped 10-10-2018
-__version__ = "0.0.3"  # 0.0.1 corresponds to prototype 1.0.0
+__date__ = "07-07-2020"  # 0.0.1 was stamped 10-10-2018
+__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
+# pylint: disable=try-except-raise
 
 import os
 import time
+from pathlib import Path
+
 import visa
 import numpy as np
-from pathlib import Path
 
 from dvg_debug_functions import print_fancy_traceback as pft
 
@@ -28,17 +29,20 @@ from dvg_debug_functions import print_fancy_traceback as pft
 STR_NO_ERROR = "ERR 0"
 
 # VISA settings
-VISA_TIMEOUT = 4000      # 4000 [msec]
+VISA_TIMEOUT = 4000  # 4000 [msec]
 
 # Default config file path
 PATH_CONFIG = Path(os.getcwd() + "/config/settings_Keysight_PSU.txt")
 
-class Keysight_N8700():
-    class State():
+
+class Keysight_N8700:
+    class State:
         """Container for the process and measurement variables.
         [numpy.nan] values indicate that the parameter is not initialized or
         that the last query was unsuccessful in communication.
         """
+
+        # fmt: off
         V_source = 0        # Voltage to be sourced [V]
         I_source = 0        # Current to be sourced [A]
         P_source = 0        # Power to be sourced, when PID controller is on [W]
@@ -51,6 +55,7 @@ class Keysight_N8700():
         OVP_level  = np.nan     # Over-voltage protection level [V]
         ENA_OCP    = False      # Is over-current protection enabled?
         ENA_output = False      # Is power output enabled (by software)?
+        # fmt: on
 
         # The error string retreived from the error queue of the device. None
         # indicates no error is left in the queue.
@@ -64,6 +69,7 @@ class Keysight_N8700():
         all_errors = []
 
         # Questionable condition status registers
+        # fmt: off
         status_QC_OV  = False   # Output disabled by over-voltage protection
         status_QC_OC  = False   # Output disabled by over-current protection
         status_QC_PF  = False   # Output disabled because AC power failed
@@ -75,21 +81,22 @@ class Keysight_N8700():
         status_OC_WTG = False   # Unit waiting for transient trigger
         status_OC_CV  = False   # Output in constant voltage
         status_OC_CC  = False   # Output in constant current
+        # fmt: on
 
-    class Config():
+    class Config:
+        # fmt: off
         V_source  = 120         # Voltage to be sourced [V]
         I_source  = 1           # Current to be sourced [A]
         P_source  = 0           # Power   to be sourced [W]
         OVP_level = 126         # Over-voltage protection level [V]
         ENA_OCP   = True        # Is over-current protection enabled?
+        # fmt: on
 
     # --------------------------------------------------------------------------
     #   __init__
     # --------------------------------------------------------------------------
 
-    def __init__(self, visa_address=None,
-                 path_config=PATH_CONFIG,
-                 name='PSU'):
+    def __init__(self, visa_address=None, path_config=PATH_CONFIG, name="PSU"):
         """
         Args:
             visa_address (str): VISA device address of the power supply
@@ -97,7 +104,7 @@ class Keysight_N8700():
         """
         self._visa_address = visa_address
         self.name = name
-        self._idn = None            # The identity of the device ("*IDN?")
+        self._idn = None  # The identity of the device ("*IDN?")
 
         # Placeholder for the VISA device instance referencing the PSU
         self.device = None
@@ -118,8 +125,8 @@ class Keysight_N8700():
 
     def close(self):
         if not self.is_alive:
-            #print("ERROR: Device is already closed.")
-            pass    # Remain silent. Device is already closed.
+            # print("ERROR: Device is already closed.")
+            pass  # Remain silent. Device is already closed.
         else:
             self.device.close()
             self.is_alive = False
@@ -141,10 +148,11 @@ class Keysight_N8700():
         self.is_alive = False
 
         print("Connect to: Keysight N8700 series PSU")
-        print("  @ %s : " % self._visa_address, end='')
+        print("  @ %s : " % self._visa_address, end="")
         try:
-            self.device = rm.open_resource(self._visa_address,
-                                           timeout=VISA_TIMEOUT)
+            self.device = rm.open_resource(
+                self._visa_address, timeout=VISA_TIMEOUT
+            )
             self.device.clear()
         except visa.VisaIOError:
             print("Could not open resource.\n")
@@ -185,7 +193,7 @@ class Keysight_N8700():
         success &= self.set_PON_off()  # Force power-on state off for safety
 
         self.wait_for_OPC()
-        #self.prepare_wait_for_OPC_indefinitely() # COMMENTED OUT: .stb fails intermittently, perhaps due to the USB isolator
+        # self.prepare_wait_for_OPC_indefinitely() # COMMENTED OUT: .stb fails intermittently, perhaps due to the USB isolator
 
         success &= self.query_OVP_level()
         success &= self.query_V_source()
@@ -196,7 +204,7 @@ class Keysight_N8700():
 
         self.query_all_errors_in_queue()
 
-        #self.wait_for_OPC_indefinitely()         # COMMENTED OUT: .stb fails intermittently, perhaps due to the USB isolator
+        # self.wait_for_OPC_indefinitely()         # COMMENTED OUT: .stb fails intermittently, perhaps due to the USB isolator
         self.wait_for_OPC()
 
         return success
@@ -229,7 +237,7 @@ class Keysight_N8700():
         success &= self.set_V_source(self.config.V_source)
         success &= self.set_I_source(self.config.I_source)
         self.state.P_source = self.config.P_source
-        self.state.ENA_PID  = False
+        self.state.ENA_PID = False
         success &= self.set_ENA_OCP(self.config.ENA_OCP)
 
         self.wait_for_OPC()
@@ -283,7 +291,7 @@ class Keysight_N8700():
     # --------------------------------------------------------------------------
 
     def query(self, msg_str):
-        """ Try to query the device.
+        """Try to query the device.
 
         Args:
             msg_str (string): Message to be sent.
@@ -318,7 +326,7 @@ class Keysight_N8700():
     # --------------------------------------------------------------------------
 
     def clear_and_reset(self):
-        """ Clear device status and reset. Return when this operation has
+        """Clear device status and reset. Return when this operation has
         completed on the device. Blocking.
 
         Returns: True if the message was sent successfully, False otherwise.
@@ -345,7 +353,7 @@ class Keysight_N8700():
             return success
 
     def wait_for_OPC(self):
-        """ 'Operation complete' query, used for event synchronization.
+        """'Operation complete' query, used for event synchronization.
 
         Will wait for all device operations to complete or until a timeout is
         triggered. Blocking.
@@ -355,14 +363,14 @@ class Keysight_N8700():
         # Returns an ASCII "+1" when all pending overlapped operations have been
         # completed.
         (success, ans) = self.query("*opc?")
-        if (success and ans == "1"):
+        if success and ans == "1":
             return True
         else:
             print("Warning: *opc? timed out at device %s" % self.name)
             return False
 
     def wait_for_OPC_indefinitely(self):
-        """ Poll OPC status bit for 'operation complete', used for event
+        """Poll OPC status bit for 'operation complete', used for event
         synchronization.
 
         Will wait indefinitely for all device operations to complete. Blocking.
@@ -385,7 +393,7 @@ class Keysight_N8700():
         self.query("*esr?")
 
     def prepare_wait_for_OPC_indefinitely(self):
-        """ Set the ESR to signal bit 0 - OPC (operation complete). Should be
+        """Set the ESR to signal bit 0 - OPC (operation complete). Should be
         called only once after a '*rst' in case you want to make use of
         'wait_for_OPC_indefinitely()'.
 
@@ -394,7 +402,7 @@ class Keysight_N8700():
         return self.write("*ese 1")
 
     def query_error(self, verbose=False):
-        """ Pop one error string from the error queue of the device and store it
+        """Pop one error string from the error queue of the device and store it
         in the 'State'-class member. A value of None indicates no error is left.
 
         Returns: True if the query was received successfully, False otherwise.
@@ -405,19 +413,19 @@ class Keysight_N8700():
                 self.state.error = None
             else:
                 self.state.error = str_ans.strip("ERR").strip()
-                if verbose: # DEBUG INFO
+                if verbose:  # DEBUG INFO
                     print("  %s" % self.state.error)
         return success
 
     def query_all_errors_in_queue(self, verbose=False):
-        """ Check if there are errors in the device queue and retrieve all if
+        """Check if there are errors in the device queue and retrieve all if
         any and append these to 'state.all_errors'.
         """
         if not self.is_alive:
             print("ERROR: Device is not connected yet or already closed.")
             return
 
-        #if (self.device.stb & 0b100) == 0b100:
+        # if (self.device.stb & 0b100) == 0b100:
         # There are unread errors in the queue available. Retrieve all.
         while True:
             if self.query_error():
@@ -428,18 +436,19 @@ class Keysight_N8700():
             else:
                 break
 
-        if verbose: # DEBUG INFO
+        if verbose:  # DEBUG INFO
             for error in self.state.all_errors:
                 print("  %s" % error)
 
     def query_status_QC(self, verbose=False):
-        """ Read out the questionable condition status registers of the device
+        """Read out the questionable condition status registers of the device
         and store them in the 'State'-class members.
 
         Returns: True if the query was received successfully, False otherwise.
         """
         [success, ans] = self.query("stat:ques:cond?")
         if success:
+            # fmt: off
             status_code = int(ans)
             self.state.status_QC_OV  = bool(status_code & 1)
             self.state.status_QC_OC  = bool(status_code & 2)
@@ -455,17 +464,19 @@ class Keysight_N8700():
                 if self.state.status_QC_OT:  print("  OT")
                 if self.state.status_QC_INH: print("  INH")
                 if self.state.status_QC_UNR: print("  UNH")
+            # fmt: on
 
         return success
 
     def query_status_OC(self, verbose=False):
-        """ Read out the operation condition status registers of the device
+        """Read out the operation condition status registers of the device
         and store them in the 'State'-class members.
 
         Returns: True if the query was received successfully, False otherwise.
         """
         [success, ans] = self.query("stat:oper:cond?")
         if success:
+            # fmt: off
             status_code = int(ans)
             self.state.status_OC_WTG = bool(status_code & 32)
             self.state.status_OC_CV  = bool(status_code & 256)
@@ -475,6 +486,7 @@ class Keysight_N8700():
                 if self.state.status_OC_WTG: print("  WTG")
                 if self.state.status_OC_CV : print("  CV")
                 if self.state.status_OC_CC : print("  CC")
+            # fmt: on
 
         return success
 
@@ -483,7 +495,7 @@ class Keysight_N8700():
     # --------------------------------------------------------------------------
 
     def set_PON_off(self):
-        """ Set the power-on state of the PSU to off.
+        """Set the power-on state of the PSU to off.
 
         Returns: True if the message was sent successfully, False otherwise.
         """
@@ -494,7 +506,7 @@ class Keysight_N8700():
     # --------------------------------------------------------------------------
 
     def clear_output_protection(self):
-        """ Clear the latched signals that have disabled the output. The
+        """Clear the latched signals that have disabled the output. The
         over-voltage and over-current conditions are always latching. The over-
         temperature condition, AC-fail condition, Enable pins, and SO pins are
         latching if OUTPut:PON:STATe is RST, and non-latching if
@@ -506,7 +518,7 @@ class Keysight_N8700():
         """
         return self.write("outp:prot:cle")
 
-    """ These commands enable or disable the over-current protection (OCP)
+    """These commands enable or disable the over-current protection (OCP)
     function. The enabled state is On (1); the disabled state is Off (0). If the
     over-current protection function is enabled and the output goes into
     constant current operation, the output is disabled and OC is set in the
@@ -515,6 +527,7 @@ class Keysight_N8700():
     An over-current condition can be cleared with the Output Protection Clear
     command after the cause of the condition is removed
     """
+
     def set_ENA_OCP(self, flag=True):
         """
         Returns: True if the message was sent successfully, False otherwise.
@@ -537,11 +550,11 @@ class Keysight_N8700():
         if success:
             self.state.ENA_OCP = bool(int(self.state.ENA_OCP))
 
-            if verbose: # DEBUG INFO
+            if verbose:  # DEBUG INFO
                 print(self.state.ENA_OCP)
         return success
 
-    """ These commands set the over-voltage protection (OVP) level of the
+    """These commands set the over-voltage protection (OVP) level of the
     output. The values are programmed in volts. If the output voltage exceeds
     the OVP level, the output is disabled and OV is set in the Questionable
     Condition status register. The *RST value = Max.
@@ -555,6 +568,7 @@ class Keysight_N8700():
     An over-voltage condition can be cleared with the Output Protection Clear
     command after the condition that caused the OVP trip is removed.
     """
+
     def set_OVP_level(self, voltage_V):
         """
         Returns: True if the message was sent successfully, False otherwise.
@@ -577,7 +591,7 @@ class Keysight_N8700():
         if success:
             self.state.OVP_level = float(self.state.OVP_level)
 
-            if verbose: # DEBUG INFO
+            if verbose:  # DEBUG INFO
                 print(self.state.OVP_level)
         return success
 
@@ -630,7 +644,7 @@ class Keysight_N8700():
         if success:
             self.state.ENA_output = bool(int(self.state.ENA_output))
 
-            if verbose: # DEBUG INFO
+            if verbose:  # DEBUG INFO
                 print(self.state.ENA_output)
         return success
 
@@ -670,7 +684,7 @@ class Keysight_N8700():
         if success:
             self.state.I_source = float(self.state.I_source)
 
-            if verbose: # DEBUG INFO
+            if verbose:  # DEBUG INFO
                 print(self.state.I_source)
         return success
 
@@ -682,7 +696,7 @@ class Keysight_N8700():
         if success:
             self.state.V_source = float(self.state.V_source)
 
-            if verbose: # DEBUG INFO
+            if verbose:  # DEBUG INFO
                 print(self.state.V_source)
         return success
 
@@ -758,24 +772,25 @@ class Keysight_N8700():
     # --------------------------------------------------------------------------
 
     def report(self):
-        """ Report to terminal.
+        """Report to terminal.
         """
         print("\nQuestionable condition")
-        print(chr(0x2015)*26)
+        print(chr(0x2015) * 26)
         self.query_status_QC(True)
 
         print("\nOperation condition")
-        print(chr(0x2014)*26)
+        print(chr(0x2014) * 26)
         self.query_status_OC(True)
 
         print("\nError")
-        print(chr(0x2014)*26)
+        print(chr(0x2014) * 26)
         self.query_error(True)
         while not self.state.error is None:
             self.query_error(True)
 
         print("\nProtection")
-        print(chr(0x2014)*26)
+        print(chr(0x2014) * 26)
+        # fmt: off
         print("  ENA_output?  : ", end=''); self.query_ENA_output(True)
         print("  ENA_OCP?     : ", end=''); self.query_ENA_OCP(True)
         print("  OVP level [V]: ", end=''); self.query_OVP_level(True)
@@ -786,6 +801,7 @@ class Keysight_N8700():
         print(chr(0x2014)*26)
         print("  V_meas    [V]: ", end=''); self.query_V_meas(True)
         print("  I_meas    [A]: ", end=''); self.query_I_meas(True)
+        # fmt: on
 
     # -----------------------------------------------------------------------------
     #   read_config_file
@@ -807,16 +823,17 @@ class Keysight_N8700():
             if self.path_config.is_file():
                 try:
                     with self.path_config.open() as f:
-                        self.config.V_source  = float(f.readline().strip())
-                        self.config.I_source  = float(f.readline().strip())
-                        self.config.P_source  = float(f.readline().strip())
+                        self.config.V_source = float(f.readline().strip())
+                        self.config.I_source = float(f.readline().strip())
+                        self.config.P_source = float(f.readline().strip())
                         self.config.OVP_level = float(f.readline().strip())
-                        self.config.ENA_OCP   = (f.readline().strip().lower() ==
-                                                 "true")
+                        self.config.ENA_OCP = (
+                            f.readline().strip().lower() == "true"
+                        )
 
                     return True
                 except:
-                    pass    # Do not panic and remain silent
+                    pass  # Do not panic and remain silent
 
         return False
 
@@ -842,18 +859,22 @@ class Keysight_N8700():
                 try:
                     self.path_config.parent.mkdir()
                 except:
-                    pass    # Do not panic and remain silent
+                    pass  # Do not panic and remain silent
 
             try:
                 # Write the config file
-                self.path_config.write_text("%.2f\n%.3f\n%.2f\n%.2f\n%s" % (
+                self.path_config.write_text(
+                    "%.2f\n%.3f\n%.2f\n%.2f\n%s"
+                    % (
                         self.state.V_source,
                         self.state.I_source,
                         self.state.P_source,
                         self.state.OVP_level,
-                        self.state.ENA_OCP))
+                        self.state.ENA_OCP,
+                    )
+                )
             except:
-                pass        # Do not panic and remain silent
+                pass  # Do not panic and remain silent
             else:
                 return True
 

@@ -185,7 +185,12 @@ class Serial_Device:
     #   scan_ports
     # --------------------------------------------------------------------------
 
-    def scan_ports(self, match_serial_str=None):
+    def scan_ports(
+        self,
+        validation_query: Callable[[object], list] = None,
+        valid_broad_query_reply: object = None,
+        valid_specific_query_reply: object = None,
+    ):
         """Scan over all serial ports and try to establish a connection. A query
         for the device serial number is send over all ports. The port that gives
         the proper response (and optionally has a matching serial number) must
@@ -198,21 +203,25 @@ class Serial_Device:
 
         Returns: True if successful, False otherwise.
         """
-        if match_serial_str == "":
-            match_serial_str = None
-        if match_serial_str is None:
-            print("Scanning ports for any Aim TTi PSU")
+        if validation_query is None or valid_specific_query_reply is None:
+            print("Scanning ports for: %s" % self.long_name)
         else:
             print(
-                ("Scanning ports for a Aim TTi PSU with\n" "serial number '%s'")
-                % match_serial_str
+                "Scanning ports for: %s | `%s`"
+                % (self.long_name, valid_specific_query_reply)
             )
 
         # Ports is a list of tuples
         ports = list(serial.tools.list_ports.comports())
         for p in ports:
-            port_str = p[0]
-            if self.connect_at_port(port_str, match_serial_str, False):
+            port = p[0]
+            if self.connect_at_port(
+                port,
+                validation_query=validation_query,
+                valid_broad_query_reply=valid_broad_query_reply,
+                valid_specific_query_reply=valid_specific_query_reply,
+                verbose=False,
+            ):
                 return True
             else:
                 continue

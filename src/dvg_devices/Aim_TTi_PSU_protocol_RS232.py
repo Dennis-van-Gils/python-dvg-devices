@@ -10,7 +10,6 @@ __version__ = "0.0.5"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
-import struct
 from pathlib import Path
 
 import serial

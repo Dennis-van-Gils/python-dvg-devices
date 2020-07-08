@@ -190,6 +190,7 @@ class Serial_Device:
         validation_query: Callable[[object], list] = None,
         valid_broad_query_reply: object = None,
         valid_specific_query_reply: object = None,
+        **kwargs,
     ):
         """Scan over all serial ports and try to establish a connection. A query
         for the device serial number is send over all ports. The port that gives
@@ -221,6 +222,7 @@ class Serial_Device:
                 valid_broad_query_reply=valid_broad_query_reply,
                 valid_specific_query_reply=valid_specific_query_reply,
                 verbose=False,
+                **kwargs,
             ):
                 return True
             else:

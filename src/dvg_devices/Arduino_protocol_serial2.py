@@ -64,8 +64,11 @@ class Arduino(SerialDevice):
         self,
         name="Ard_1",
         long_name="Arduino",
-        specific_valid_query_reply=None,
         baudrate=9600,
+        read_term_char = "\n",
+        write_term_char = "\n",
+        broad_valid_query_reply="Arduino",
+        specific_valid_query_reply=None,
         **kwargs
     ):
         super().__init__(
@@ -73,13 +76,10 @@ class Arduino(SerialDevice):
         )
 
         # Serial communication settings
-        # self.baudrate = baudrate
-        # self.read_timeout = read_timeout
-        # self.write_timeout = write_timeout
-        self.read_term_char = "\n"
-        self.write_term_char = "\n"
+        self.read_term_char = read_term_char
+        self.write_term_char = write_term_char
 
-        self.BROAD_VALID_QUERY_REPLY = "Arduino"
+        self.broad_valid_query_reply = broad_valid_query_reply
         self.set_device_validation(
             self.validation_query, specific_valid_query_reply
         )
@@ -101,7 +101,7 @@ class Arduino(SerialDevice):
         reply = reply_str.split(",")
         broad_reply = reply[0].strip()
         specific_reply = reply[1].strip()
-        return (broad_reply == self.BROAD_VALID_QUERY_REPLY, specific_reply)
+        return (broad_reply == self.broad_valid_query_reply, specific_reply)
 
     # --------------------------------------------------------------------------
     #   write

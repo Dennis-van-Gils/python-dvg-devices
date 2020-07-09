@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Provides class SerialDevice(), offering higher-level general I/O methods
+"""Provides base class SerialDevice(), offering higher-level general I/O methods
 for a serial device, like autoconnect. Instances of this class will tie in
 nicely with :class:`dvg_qdeviceio.QDeviceIO`.
+
+These base classes are meant to be inherited into your own specific Device
+class.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"

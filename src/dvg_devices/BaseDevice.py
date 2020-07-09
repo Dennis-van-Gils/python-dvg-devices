@@ -149,9 +149,7 @@ class SerialDevice:
         long_name="Serial Device",
         read_timeout=2,
         write_timeout=2,
-        validation_query: Callable[[object], list] = None,
-        broad_valid_query_reply: object = None,
-        specific_valid_query_reply: object = None,
+        specific_valid_query_reply=None,
         **kwargs,
     ):
 
@@ -159,13 +157,26 @@ class SerialDevice:
         self.long_name = long_name
         self._read_timeout = read_timeout
         self._write_timeout = write_timeout
-        self._validation_query = validation_query
-        self._broad_valid_query_reply = broad_valid_query_reply
-        self._specific_valid_query_reply = specific_valid_query_reply
         self._Serial_init_kwargs = kwargs
+
+        self._validation_query = None
+        self._specific_valid_query_reply = specific_valid_query_reply
+
+        print(self._validation_query)
+        print(kwargs)
 
         self.ser = None
         self.is_alive = False
+
+    def set_device_validation(
+        self,
+        validation_query: Callable[[], list],
+        specific_valid_query_reply: object = None,
+    ):
+        # TODO: Check for the necessary parameter and return types in
+        # `validation_query()`
+        self._validation_query = validation_query
+        self._specific_valid_query_reply = specific_valid_query_reply
 
     # --------------------------------------------------------------------------
     #   close
@@ -256,7 +267,8 @@ class SerialDevice:
 
         if self._validation_query is None:
             # Found any device
-            print("Any Success!\n")
+            print("Any Success!")
+            print("  `%s`\n" % self.name)
             self.is_alive = True
             return True
 
@@ -265,7 +277,7 @@ class SerialDevice:
             (
                 is_matching_broadly,
                 specific_query_reply,
-            ) = self._validation_query(self._broad_valid_query_reply)
+            ) = self._validation_query()
         except:
             print("I/O error in validation_query().")
             self.close(ignore_exceptions=True)
@@ -277,13 +289,15 @@ class SerialDevice:
 
             if self._specific_valid_query_reply is None:
                 # Found a matching device in a broad sense
-                print("Broad Success!\n")
+                print("Broad Success!")
+                print("  `%s`\n" % self.name)
                 self.is_alive = True
                 return True
 
             elif specific_query_reply == self._specific_valid_query_reply:
                 # Found a matching device in a specific sense
-                print("Specific Success!\n")
+                print("Specific Success!")
+                print("  `%s`\n" % self.name)
                 self.is_alive = True
                 return True
 

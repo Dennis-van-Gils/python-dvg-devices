@@ -64,25 +64,24 @@ class Arduino(SerialDevice):
         self,
         name="Ard_1",
         long_name="Arduino",
-        baudrate=9600,
-        read_term_char = "\n",
-        write_term_char = "\n",
+        serial_kwargs={"baudrate": 9600, "timeout": 2, "write_timeout": 2,},
+        read_term_char="\n",
+        write_term_char="\n",
         broad_valid_query_reply="Arduino",
         specific_valid_query_reply=None,
-        **kwargs
     ):
         super().__init__(
-            name=name, long_name=long_name, baudrate=baudrate, **kwargs
+            name=name, long_name=long_name, serial_kwargs=serial_kwargs
         )
 
         # Serial communication settings
         self.read_term_char = read_term_char
         self.write_term_char = write_term_char
 
-        self.broad_valid_query_reply = broad_valid_query_reply
-        self.set_device_validation(
-            self.validation_query, specific_valid_query_reply
-        )
+        if broad_valid_query_reply is not None:
+            self._validation_query = self.validation_query
+        self._broad_valid_query_reply = broad_valid_query_reply
+        self._specific_valid_query_reply = specific_valid_query_reply
 
     def validation_query(self) -> (bool, str):
         """LEGACY DOCSTR
@@ -101,7 +100,7 @@ class Arduino(SerialDevice):
         reply = reply_str.split(",")
         broad_reply = reply[0].strip()
         specific_reply = reply[1].strip()
-        return (broad_reply == self.broad_valid_query_reply, specific_reply)
+        return (broad_reply == self._broad_valid_query_reply, specific_reply)
 
     # --------------------------------------------------------------------------
     #   write

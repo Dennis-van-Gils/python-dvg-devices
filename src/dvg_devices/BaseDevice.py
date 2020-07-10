@@ -50,15 +50,13 @@ class SerialDevice:
 
             Default: `"Serial Device"`
 
-        read_timeout (:obj:`float`, optional):
-            See :attr:`serial.Serial.timeout`, in seconds.
+        serial_kwargs (:obj:`dict`, optional):
+            Dictionary of keyword arguments to be passed directly to
+            :attr:`serial.Serial` at initialization of the serial port. E.g.,
+            `"{"baudrate", 9600, "timeout": 2, "write_timeout": 2}"`. Do not
+            specify `port` in this dictionary.
 
-            Default: :const:`2`
-
-        write_timeout (:obj:`float`):
-            See :attr:`serial.Serial.write_timeout`, in seconds.
-
-            Default: :const:`2`
+            Default: `"{"baudrate": 9600, "timeout": 2, "write_timeout": 2}"`
 
         validation_query (:obj:`~typing.Callable` [[:obj:`object`], :obj:`list`], optional):
             Reference to a function to perform an optional validation query on
@@ -147,23 +145,21 @@ class SerialDevice:
         self,
         name="Dev_1",
         long_name="Serial Device",
-        read_timeout=2,
-        write_timeout=2,
-        specific_valid_query_reply=None,
-        **kwargs,
+        serial_kwargs: dict = None,
     ):
 
         self.name = name
         self.long_name = long_name
-        self._read_timeout = read_timeout
-        self._write_timeout = write_timeout
-        self._Serial_init_kwargs = kwargs
+        self._serial_kwargs = (
+            {"baudrate": 9600, "timeout": 2, "write_timeout": 2}
+            if serial_kwargs is None
+            else serial_kwargs
+        )
 
         self._validation_query = None
-        self._specific_valid_query_reply = specific_valid_query_reply
+        self._specific_valid_query_reply = None
 
-        print(self._validation_query)
-        print(kwargs)
+        print(serial_kwargs)
 
         self.ser = None
         self.is_alive = False
@@ -252,12 +248,7 @@ class SerialDevice:
         print("  @ %-5s: " % port, end="")
         try:
             # Open the serial port
-            self.ser = serial.Serial(
-                port=port,
-                timeout=self._read_timeout,
-                write_timeout=self._write_timeout,
-                **self._Serial_init_kwargs,
-            )
+            self.ser = serial.Serial(port=port, **self._serial_kwargs,)
         except serial.SerialException:
             print("Could not open port.")
             return False

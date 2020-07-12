@@ -4,7 +4,7 @@
 for a serial device, like autoconnect. Instances of this class will tie in
 nicely with :class:`dvg_qdeviceio.QDeviceIO`.
 
-These base classes are meant to be inherited into your own specific Device
+These base classes are meant to be inherited into your own specific *Device*
 class.
 """
 __author__ = "Dennis van Gils"
@@ -63,12 +63,12 @@ class SerialDevice:
             Dictionary of keyword arguments to be passed directly to
             :class:`serial.Serial` at initialization of the serial port when
             trying to connect. Do not specify `port` in this dictionary as it
-            will be supplied by this module's machinery.
+            will be supplied by this class's machinery.
 
             Default: `{"baudrate": 9600, "timeout": 2, "write_timeout": 2}`
 
         ser (:class:`serial.Serial` | :obj:`None`):
-            Will be set to a :class:`serial.Serial` device instance, when a
+            Will be set to a :class:`serial.Serial` device instance when a
             connection has been established. Otherwise: :obj:`None`.
 
         is_alive (:obj:`bool`):
@@ -102,14 +102,28 @@ class SerialDevice:
         valid_ID_broad: object,
         valid_ID_specific: object = None,
     ):
-        """TODO: Single-line description
+        """When this method **is not** called, then the following default scheme
+        applies:
 
-        .. _`ID_validation_query_arg`:
+            During :meth:`connect_at_port`, :meth:`scan_ports` or
+            :meth:`auto_connect` a succesful connection to *any* serial device
+            will be accepted and be stored in class member :attr:`ser`.
+
+        When this method **is** called, then the following scheme applies:
+
+            During :meth:`connect_at_port`, :meth:`scan_ports` or
+            :meth:`auto_connect` a connection to a *desired* device will be
+            attempted by performing a query for a device ID over the serial
+            connection. The serial connection will be accepted and be stored in
+            class member :attr:`ser` whenever the following scheme returns
+            succesful:
 
         Args:
             ID_validation_query (:obj:`~typing.Callable` [[], :obj:`list`]):
-                Reference to a function to perform an optional validation query
-                on the device when connecting. Only when the outcome of the
+                Reference to a function to perform an ID validation query
+                on the device when connecting. The function should take zero
+                arguments and return a list consisting of two objects, as will
+                be explained further down. Only when the outcome of the
                 validation is successful, will the connection be accepted and
                 remain open. Otherwise, the connection will be automatically
                 closed again.
@@ -120,9 +134,9 @@ class SerialDevice:
 
                 The *broad* reply can be used to allow connections to a device
                 of a certain manufacturer and model. E.g., in a response to an
-                ``*idn?`` validation query, one can test part of the reply --
-                say, `"THURLBY THANDAR, QL355TP, 279730, 1.00 – 1.00"` --
-                against `"THURLBY THANDAR, QL"` to allow connections to *any*
+                ``*idn?`` validation query, one can test a part of the full
+                reply -- say, `"THURLBY THANDAR, QL355TP, 279730, 1.00 – 1.00"`
+                -- against `"THURLBY THANDAR, QL"` to allow connections to *any*
                 Thurlby Thandar QL-series power supply.
 
                 The *specific* reply can be used to narrow down to a specific
@@ -132,45 +146,37 @@ class SerialDevice:
                 is not supplied, any *broad* match will be accepted as
                 connection.
 
-                The function to be passed should have a general form like:
+                The function to be passed, being defined as a class method
+                inside of a derived :class:`SerialDevice` class, should have a
+                general form like:
 
                 .. code-block:: python
 
-                    def my_ID_validation_query() ->
-                        (ID_reply_broad: object, ID_reply_specific: object):
+                    def my_ID_validation_query(self) -> (object, object):
+                        self.ser.write("*idn?\\n".encode())
+                        ans = self.ser.readline().decode().strip()
+                        # ans = "THURLBY THANDAR, QL355TP, 279730, 1.00 – 1.00"
 
-                        dev.ser.write("*idn?\\n".encode())
-                        ans = dev.ser.readline().decode().strip()
-
-                        ID_reply_broad = ans[:19]
-                        ID_reply_specific = ans.split(",")[2]
+                        ID_reply_broad = ans[:19]               # "THURLBY THANDAR, QL"
+                        ID_reply_specific = ans.split(",")[2]   # "279730"
 
                         return (ID_reply_broad, ID_reply_specific)
 
-                , where argument ``valid_ID_broad`` would be set to
-                `"THURLBY THANDAR, QL"` and ``valid_ID_specific`` to the serial
-                number `"279730"`, for instance.
-
-                When set to :obj:`None`, no validation will take place and any
+                When set to :obj:`None`, no validation will take place and *any*
                 successful connection will be accepted and remain open.
 
             valid_ID_broad (:obj:`object`):
                 Reply to be broadly matched when a function reference is being
-                passed onto ``ID_validation_query``. See the mechanism described
-                :ref:`here <ID_validation_query_arg>`.
+                passed onto ``ID_validation_query``.
 
             valid_ID_specific (:obj:`object`, optional):
                 Reply to be specifically matched when a function reference is
-                being passed onto ``ID_validation_query``. See the mechanism
-                described :ref:`here <ID_validation_query_arg>`. Note: When set
-                to :obj:`None`, any connection that is broadly matched will be
+                being passed onto ``ID_validation_query``. Note: When set
+                to :obj:`None`, any connection that is *broadly* matched will be
                 accepted and remain open.
 
                 Default: :obj:`None`
         """
-
-        # TODO: Check for the necessary parameter and return types in
-        # `ID_validation_query()`
         self._ID_validation_query = ID_validation_query
         self._valid_ID_broad = valid_ID_broad
         self._valid_ID_specific = valid_ID_specific
@@ -211,11 +217,10 @@ class SerialDevice:
         """Open the serial port at address ``port`` and try to establish a
         connection.
 
-        When the connection is successful and :meth:`set_ID_validation_query`
-        was not set, then this function will return :const:`True`, otherwise
-        :const:`False`.
+        If the connection is successful and :meth:`set_ID_validation_query`
+        was not set, then this function will return :const:`True`.
 
-        When :meth:`set_ID_validation_query` was set, then this function will
+        If :meth:`set_ID_validation_query` was set, then this function will
         return :const:`True` or :const:`False` depending on the validation
         scheme as explained in :meth:`set_ID_validation_query`.
 
@@ -224,8 +229,7 @@ class SerialDevice:
                 Serial port address to open.
 
             verbose (:obj:`bool`, optional):
-                Print a `"Connecting to: "`-message to the terminal, when
-                :const:`True`.
+                Print a `"Connecting to: "`-message to the terminal?
 
                 Default: :const:`True`
 
@@ -304,7 +308,7 @@ class SerialDevice:
 
     def scan_ports(self) -> bool:
         """Scan over all serial ports and try to establish a connection. See
-        the description at :meth:`connect_at_port` for the validation scheme.
+        further the description at :meth:`connect_at_port`.
 
         Returns:
             :const:`True` when successful, :const:`False` otherwise.
@@ -343,10 +347,7 @@ class SerialDevice:
 
         When the file does not exist, can not be read or if the desired device
         can not be found at that specific port, then a scan over all ports will
-        be performed.
-
-        See the description at :meth:`connect_at_port` for the validation
-        scheme.
+        be performed by automatically invoking :meth:`scan_ports`.
 
         Args:
             filepath_last_known_port (:obj:`str`):

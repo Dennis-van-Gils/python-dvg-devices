@@ -58,7 +58,7 @@ class SerialDevice:
 
             Default: `"{"baudrate": 9600, "timeout": 2, "write_timeout": 2}"`
 
-        validation_query (:obj:`~typing.Callable` [[:obj:`object`], :obj:`list`], optional):
+        ID_validation_query (:obj:`~typing.Callable` [[:obj:`object`], :obj:`list`], optional):
             Reference to a function to perform an optional validation query on
             the device when connecting. Only when the outcome of the validation
             is successful, will the connection remain open. Otherwise, the
@@ -66,7 +66,7 @@ class SerialDevice:
 
             The device's reply on the validation query will be tested against
             the two optionally given parameters:
-            ``valid_broad_query_reply`` and ``valid_specific_query_reply``.
+            ``valid_ID_broad`` and ``valid_ID_specific``.
 
             The *broad* reply can be used to allow connections to a device of a
             certain manufacturer and model. E.g., in a response to an ``*idn?``
@@ -78,26 +78,26 @@ class SerialDevice:
             The *specific* reply can be used to narrow down a specific device,
             once it has passed the *broad* validation test. In the example
             above, one could test against the series number `"279730"`, for
-            instance. When argument ``valid_specific_query_reply`` is not
+            instance. When argument ``valid_ID_specific`` is not
             supplied, any *broad* match will be accepted as connection.
 
             The function to be passed should have a general form like:
 
             .. code-block:: python
 
-                def my_validation_query(valid_broad_query_reply: object) ->
+                def my_ID_validation_query(valid_ID_broad: object) ->
                     (is_matching_broadly: bool, specific_query_reply: object):
 
                     dev.ser.write("*idn?\\n".encode())
                     ans = dev.ser.readline().decode().strip()
 
-                    is_matching_broadly = valid_broad_query_reply==ans[:19]
+                    is_matching_broadly = valid_ID_broad==ans[:19]
                     serial_number = ans.split(",")[2]
 
                     return (is_matching_broadly, serial_number)
 
 
-            , where ``valid_broad_query_reply`` is set to `"THURLBY THANDAR, QL"`,
+            , where ``valid_ID_broad`` is set to `"THURLBY THANDAR, QL"`,
             for instance.
 
             When set to :obj:`None`, no validation will take place and any
@@ -105,17 +105,17 @@ class SerialDevice:
 
             Default: :obj:`None`
 
-        valid_broad_query_reply (:obj:`object`, optional):
+        valid_ID_broad (:obj:`object`, optional):
             Reply to be broadly matched when a function reference is being
-            passed onto ``validation_query``. Note: You must supply a
-            ``valid_broad_query_reply`` when supplying ``validation_query``,
+            passed onto ``ID_validation_query``. Note: You must supply a
+            ``valid_ID_broad`` when supplying ``ID_validation_query``,
             otherwise the broad validation will likely fail garantueed.
 
             Default: :obj:`None`
 
-        valid_specific_query_reply (:obj:`object`, optional):
+        valid_ID_specific (:obj:`object`, optional):
             Reply to be specifically matched when a function reference is being
-            passed onto ``validation_query``. Note: When set to :obj:`None`, it
+            passed onto ``ID_validation_query``. Note: When set to :obj:`None`, it
             will allow any connection that is broadly matched.
 
             Default: :obj:`None`
@@ -155,24 +155,24 @@ class SerialDevice:
             "write_timeout": 2,
         }
 
-        self._validation_query = None
-        self._valid_broad_query_reply = None
-        self._valid_specific_query_reply = None
+        self._ID_validation_query = None
+        self._valid_ID_broad = None
+        self._valid_ID_specific = None
 
         self.ser = None
         self.is_alive = False
 
-    def set_device_validation(
+    def set_ID_validation_query(
         self,
-        validation_query: Callable[[], list],
-        valid_broad_query_reply: object,
-        valid_specific_query_reply: object = None,
+        ID_validation_query: Callable[[], list],
+        valid_ID_broad: object,
+        valid_ID_specific: object = None,
     ):
         # TODO: Check for the necessary parameter and return types in
-        # `validation_query()`
-        self._validation_query = validation_query
-        self._valid_broad_query_reply = valid_broad_query_reply
-        self._valid_specific_query_reply = valid_specific_query_reply
+        # `ID_validation_query()`
+        self._ID_validation_query = ID_validation_query
+        self._valid_ID_broad = valid_ID_broad
+        self._valid_ID_specific = valid_ID_specific
 
     # --------------------------------------------------------------------------
     #   close
@@ -210,11 +210,11 @@ class SerialDevice:
         """Open the serial port at address ``port`` and try to establish a
         connection.
 
-        When the connection was successful and no ``validation_query`` was
+        When the connection was successful and no ``ID_validation_query`` was
         passed onto the initialization of :class:`SerialDevice`, then this
         function will return :const:`True`, otherwise :const:`False`.
 
-        When the connection was successful and a ``validation_query`` was
+        When the connection was successful and a ``ID_validation_query`` was
         passed onto the initialization of :class:`SerialDevice`, then this
         function will return :const:`True` or :const:`False`, depending on the
         validation scheme as explained in :class:`SerialDevice`.
@@ -235,14 +235,14 @@ class SerialDevice:
 
         if verbose:
             if (
-                self._validation_query is None
-                or self._valid_specific_query_reply is None
+                self._ID_validation_query is None
+                or self._valid_ID_specific is None
             ):
                 print("Connecting to: %s" % self.long_name)
             else:
                 print(
                     "Connecting to: %s | `%s`"
-                    % (self.long_name, self._valid_specific_query_reply)
+                    % (self.long_name, self._valid_ID_specific)
                 )
 
         print("  @ %-5s: " % port, end="")
@@ -256,7 +256,7 @@ class SerialDevice:
             pft(err, 3)
             sys.exit(0)
 
-        if self._validation_query is None:
+        if self._ID_validation_query is None:
             # Found any device
             print("Any Success!")
             print("  `%s`\n" % self.name)
@@ -269,25 +269,25 @@ class SerialDevice:
             (
                 broad_query_reply,
                 specific_query_reply,
-            ) = self._validation_query()
+            ) = self._ID_validation_query()
 
         except:
-            print("I/O error in validation_query().")
+            print("I/O error in ID_validation_query().")
             self.close(ignore_exceptions=True)
             return False
 
-        if broad_query_reply == self._valid_broad_query_reply:
+        if broad_query_reply == self._valid_ID_broad:
             if specific_query_reply is not None:
                 print("Found `%s`: " % specific_query_reply, end="")
 
-            if self._valid_specific_query_reply is None:
+            if self._valid_ID_specific is None:
                 # Found a matching device in a broad sense
                 print("Broad Success!")
                 print("  `%s`\n" % self.name)
                 self.is_alive = True
                 return True
 
-            elif specific_query_reply == self._valid_specific_query_reply:
+            elif specific_query_reply == self._valid_ID_specific:
                 # Found a matching device in a specific sense
                 print("Specific Success!")
                 print("  `%s`\n" % self.name)
@@ -309,15 +309,12 @@ class SerialDevice:
         Returns:
             :const:`True` when successful, :const:`False` otherwise.
         """
-        if (
-            self._validation_query is None
-            or self._valid_specific_query_reply is None
-        ):
+        if self._ID_validation_query is None or self._valid_ID_specific is None:
             print("Scanning ports for: %s" % self.long_name)
         else:
             print(
                 "Scanning ports for: %s | `%s`"
-                % (self.long_name, self._valid_specific_query_reply)
+                % (self.long_name, self._valid_ID_specific)
             )
 
         # Ports is a list of tuples

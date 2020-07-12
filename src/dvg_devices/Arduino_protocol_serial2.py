@@ -66,7 +66,7 @@ class Arduino(SerialDevice):
         long_name="Arduino",
         read_term_char="\n",
         write_term_char="\n",
-        valid_specific_query_reply=None,
+        connect_to_specific_ID=None,
     ):
         super().__init__(
             name=name, long_name=long_name,
@@ -83,11 +83,13 @@ class Arduino(SerialDevice):
             "write_timeout": 2,
         }
 
-        self.set_device_validation(
-            self.validation_query, "Arduino", valid_specific_query_reply
+        self.set_ID_validation_query(
+            ID_validation_query=self.ID_validation_query,
+            valid_ID_broad="Arduino",
+            valid_ID_specific=connect_to_specific_ID,
         )
 
-    def validation_query(self) -> (bool, str):
+    def ID_validation_query(self) -> (bool, str):
         """LEGACY DOCSTR
         Response of self.query('id?') received from the Arduino.
         Note that the Arduino should be programmed to respond to such a
@@ -241,7 +243,7 @@ class Arduino(SerialDevice):
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    ard = Arduino(name="Ard_1", valid_specific_query_reply="FASTLED demo")
+    ard = Arduino(name="Ard_1", connect_to_specific_ID="FASTLED demo")
 
     # ard.auto_connect(
     #     path_config=Path("last_used_port.txt"), match_identity="My Arduino"

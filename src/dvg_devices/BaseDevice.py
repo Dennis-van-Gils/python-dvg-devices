@@ -10,7 +10,7 @@ class.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "09-07-2020"
+__date__ = "12-07-2020"
 __version__ = "0.0.5"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
@@ -50,81 +50,6 @@ class SerialDevice:
 
             Default: `"Serial Device"`
 
-        serial_kwargs (:obj:`dict`, optional):
-            Dictionary of keyword arguments to be passed directly to
-            :attr:`serial.Serial` at initialization of the serial port. E.g.,
-            `"{"baudrate", 9600, "timeout": 2, "write_timeout": 2}"`. Do not
-            specify `port` in this dictionary.
-
-            Default: `"{"baudrate": 9600, "timeout": 2, "write_timeout": 2}"`
-
-        ID_validation_query (:obj:`~typing.Callable` [[:obj:`object`], :obj:`list`], optional):
-            Reference to a function to perform an optional validation query on
-            the device when connecting. Only when the outcome of the validation
-            is successful, will the connection remain open. Otherwise, the
-            connection will be automatically closed again.
-
-            The device's reply on the validation query will be tested against
-            the two optionally given parameters:
-            ``valid_ID_broad`` and ``valid_ID_specific``.
-
-            The *broad* reply can be used to allow connections to a device of a
-            certain manufacturer and model. E.g., in a response to an ``*idn?``
-            validation query, one can test part of the reply -- say,
-            `"THURLBY THANDAR, QL355TP, 279730, 1.00 – 1.00"` --
-            against `"THURLBY THANDAR, QL"` to allow connections to *any*
-            Thurlby Thandar QL-series power supply.
-
-            The *specific* reply can be used to narrow down a specific device,
-            once it has passed the *broad* validation test. In the example
-            above, one could test against the series number `"279730"`, for
-            instance. When argument ``valid_ID_specific`` is not
-            supplied, any *broad* match will be accepted as connection.
-
-            The function to be passed should have a general form like:
-
-            .. code-block:: python
-
-                def my_ID_validation_query(valid_ID_broad: object) ->
-                    (is_matching_broadly: bool, specific_query_reply: object):
-
-                    dev.ser.write("*idn?\\n".encode())
-                    ans = dev.ser.readline().decode().strip()
-
-                    is_matching_broadly = valid_ID_broad==ans[:19]
-                    serial_number = ans.split(",")[2]
-
-                    return (is_matching_broadly, serial_number)
-
-
-            , where ``valid_ID_broad`` is set to `"THURLBY THANDAR, QL"`,
-            for instance.
-
-            When set to :obj:`None`, no validation will take place and any
-            successful connection will remain valid and open.
-
-            Default: :obj:`None`
-
-        valid_ID_broad (:obj:`object`, optional):
-            Reply to be broadly matched when a function reference is being
-            passed onto ``ID_validation_query``. Note: You must supply a
-            ``valid_ID_broad`` when supplying ``ID_validation_query``,
-            otherwise the broad validation will likely fail garantueed.
-
-            Default: :obj:`None`
-
-        valid_ID_specific (:obj:`object`, optional):
-            Reply to be specifically matched when a function reference is being
-            passed onto ``ID_validation_query``. Note: When set to :obj:`None`, it
-            will allow any connection that is broadly matched.
-
-            Default: :obj:`None`
-
-        **kwargs:
-            Will be passed directly onto the initialization of
-            :class:`serial.Serial` when trying to connect to the device, e.g.,
-            `baudrate=9600`, `xonxoff=False`, etc.
-
     Attributes:
         name (:obj:`str`):
             Short display name for the device, e.g., `"PSU_1"`.
@@ -134,8 +59,17 @@ class SerialDevice:
             [Manufacturer] [Model] [Device category], e.g.,
             `"Keysight N8700 PSU"`.
 
+        serial_init_kwargs (:obj:`dict`):
+            Dictionary of keyword arguments to be passed directly to
+            :class:`serial.Serial` at initialization of the serial port when
+            trying to connect. Do not specify `port` in this dictionary as it
+            will be supplied by this module's machinery.
+
+            Default: `{"baudrate": 9600, "timeout": 2, "write_timeout": 2}`
+
         ser (:class:`serial.Serial` | :obj:`None`):
-            :class:`serial.Serial` device instance.
+            Will be set to a :class:`serial.Serial` device instance, when a
+            connection has been established. Otherwise: :obj:`None`.
 
         is_alive (:obj:`bool`):
             Is the connection alive? I.e., Can we communicate?
@@ -168,6 +102,73 @@ class SerialDevice:
         valid_ID_broad: object,
         valid_ID_specific: object = None,
     ):
+        """TODO: Single-line description
+
+        .. _`ID_validation_query_arg`:
+
+        Args:
+            ID_validation_query (:obj:`~typing.Callable` [[], :obj:`list`]):
+                Reference to a function to perform an optional validation query
+                on the device when connecting. Only when the outcome of the
+                validation is successful, will the connection be accepted and
+                remain open. Otherwise, the connection will be automatically
+                closed again.
+
+                The device's reply on the validation query will be tested
+                against the two other arguments: ``valid_ID_broad`` (required)
+                and ``valid_ID_specific`` (optional).
+
+                The *broad* reply can be used to allow connections to a device
+                of a certain manufacturer and model. E.g., in a response to an
+                ``*idn?`` validation query, one can test part of the reply --
+                say, `"THURLBY THANDAR, QL355TP, 279730, 1.00 – 1.00"` --
+                against `"THURLBY THANDAR, QL"` to allow connections to *any*
+                Thurlby Thandar QL-series power supply.
+
+                The *specific* reply can be used to narrow down to a specific
+                device, once it has passed the *broad* validation test. In the
+                example above, one could test against the series number
+                `"279730"`, for instance. When argument ``valid_ID_specific``
+                is not supplied, any *broad* match will be accepted as
+                connection.
+
+                The function to be passed should have a general form like:
+
+                .. code-block:: python
+
+                    def my_ID_validation_query() ->
+                        (ID_reply_broad: object, ID_reply_specific: object):
+
+                        dev.ser.write("*idn?\\n".encode())
+                        ans = dev.ser.readline().decode().strip()
+
+                        ID_reply_broad = ans[:19]
+                        ID_reply_specific = ans.split(",")[2]
+
+                        return (ID_reply_broad, ID_reply_specific)
+
+                , where argument ``valid_ID_broad`` would be set to
+                `"THURLBY THANDAR, QL"` and ``valid_ID_specific`` to the serial
+                number `"279730"`, for instance.
+
+                When set to :obj:`None`, no validation will take place and any
+                successful connection will be accepted and remain open.
+
+            valid_ID_broad (:obj:`object`):
+                Reply to be broadly matched when a function reference is being
+                passed onto ``ID_validation_query``. See the mechanism described
+                :ref:`here <ID_validation_query_arg>`.
+
+            valid_ID_specific (:obj:`object`, optional):
+                Reply to be specifically matched when a function reference is
+                being passed onto ``ID_validation_query``. See the mechanism
+                described :ref:`here <ID_validation_query_arg>`. Note: When set
+                to :obj:`None`, any connection that is broadly matched will be
+                accepted and remain open.
+
+                Default: :obj:`None`
+        """
+
         # TODO: Check for the necessary parameter and return types in
         # `ID_validation_query()`
         self._ID_validation_query = ID_validation_query
@@ -210,21 +211,20 @@ class SerialDevice:
         """Open the serial port at address ``port`` and try to establish a
         connection.
 
-        When the connection was successful and no ``ID_validation_query`` was
-        passed onto the initialization of :class:`SerialDevice`, then this
-        function will return :const:`True`, otherwise :const:`False`.
+        When the connection is successful and :meth:`set_ID_validation_query`
+        was not set, then this function will return :const:`True`, otherwise
+        :const:`False`.
 
-        When the connection was successful and a ``ID_validation_query`` was
-        passed onto the initialization of :class:`SerialDevice`, then this
-        function will return :const:`True` or :const:`False`, depending on the
-        validation scheme as explained in :class:`SerialDevice`.
+        When :meth:`set_ID_validation_query` was set, then this function will
+        return :const:`True` or :const:`False` depending on the validation
+        scheme as explained in :meth:`set_ID_validation_query`.
 
         Args:
             port (:obj:`str`):
                 Serial port address to open.
 
             verbose (:obj:`bool`, optional):
-                Print a '"Connecting to: `"-message to the terminal, when
+                Print a `"Connecting to: "`-message to the terminal, when
                 :const:`True`.
 
                 Default: :const:`True`

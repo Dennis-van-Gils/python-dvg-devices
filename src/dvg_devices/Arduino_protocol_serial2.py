@@ -89,7 +89,7 @@ class Arduino(SerialDevice):
             valid_ID_specific=connect_to_specific_ID,
         )
 
-    def ID_validation_query(self) -> (bool, str):
+    def ID_validation_query(self) -> (str, str):
         """LEGACY DOCSTR
         Response of self.query('id?') received from the Arduino.
         Note that the Arduino should be programmed to respond to such a

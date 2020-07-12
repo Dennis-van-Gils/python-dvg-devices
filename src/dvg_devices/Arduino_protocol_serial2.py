@@ -48,7 +48,7 @@ Classes:
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "06-07-2020"  # 0.0.1 was stamped 15-08-2019
+__date__ = "12-07-2020"  # 0.0.1 was stamped 15-08-2019
 __version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.2
 # pylint: disable=bare-except, broad-except, try-except-raise
 
@@ -180,9 +180,11 @@ class Arduino(SerialDevice):
                 serial.SerialTimeoutException,
                 serial.SerialException,
             ) as err:
-                # Note though: The Serial library does not throw an
-                # exception when it actually times out! We will check for
-                # zero received bytes as indication for timeout, later.
+                # Note: The Serial library does not throw an exception when it
+                # times out in `read`, only when it times out in`write`! We
+                # will check for zero received bytes as indication for a read
+                # timeout, later.
+                # See https://stackoverflow.com/questions/10978224/serialtimeoutexception-in-python-not-working-as-expected
                 pft(err, 3)
             except Exception as err:
                 pft(err, 3)

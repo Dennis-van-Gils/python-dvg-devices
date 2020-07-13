@@ -26,7 +26,12 @@ from dvg_debug_functions import print_fancy_traceback as pft
 
 class SerialDevice:
     """This class provides higher-level general I/O methods for a serial device,
-    such as:
+    by wrapping the excellent `pySerial
+    <https://pyserial.readthedocs.io/en/latest/pyserial.html>`_ library.
+
+    The following functionality is offered:
+
+    * TODO: mention write, query and close.
 
     * Scanning over all serial ports to autoconnect to the desired serial
       device, based on the device's reply to a validation query.
@@ -38,26 +43,24 @@ class SerialDevice:
     :class:`dvg_qdeviceio.QDeviceIO`.
 
     Args:
-        name (:obj:`str`, optional):
-            Short display name for the device, e.g., `"PSU_1"`.
-
-            Default: `"Dev_1"`
-
         long_name (:obj:`str`, optional):
-            Long display name of the device in a general sense. Suggestion:
-            [Manufacturer] [Model] [Device category], e.g.,
-            `"Keysight N8700 PSU"`.
+            Long display name of the device in a general sense. E.g.,
+            `"Keysight N8700 PSU"` or `"Arduino M0 Pro"`.
 
             Default: `"Serial Device"`
 
-    Attributes:
-        name (:obj:`str`):
-            Short display name for the device, e.g., `"PSU_1"`.
+        name (:obj:`str`, optional):
+            Short display name for the device. E.g., `"PSU_1"` or `"blinker"`.
 
+            Default: `"Dev_1"`
+
+    Attributes:
         long_name (:obj:`str`):
-            Long display name of the device in a general sense. Suggestion:
-            [Manufacturer] [Model] [Device category], e.g.,
-            `"Keysight N8700 PSU"`.
+            Long display name of the device in a general sense. E.g,
+            `"Keysight N8700 PSU"` or `"Arduino M0 Pro"`.
+
+        name (:obj:`str`):
+            Short display name for the device. E.g., `"PSU_1"` or `"blinker"`.
 
         serial_init_kwargs (:obj:`dict`):
             Dictionary of keyword arguments to be passed directly to

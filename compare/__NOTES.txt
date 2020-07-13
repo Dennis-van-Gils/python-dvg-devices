@@ -1,0 +1,20 @@
+**** Bronkhorst
+
+    Ready for SerialDevice using method '`query'
+
+**** Compax
+
+    Ready for SerialDevice using method '`query'
+    BUT
+    Needs extra check at finish of query::
+
+    ans_str = ans_bytes.decode("utf8").strip()
+    if ans_str[0] == ">":
+        # Successfull operation without meaningfull reply
+        success = True
+    elif ans_str[0] == "!":
+        # Error reply
+        print("COMPAX3 COMMUNICATION ERROR: " + ans_str)
+    else:
+        # Successfull operation with meaningfull reply
+        success = True

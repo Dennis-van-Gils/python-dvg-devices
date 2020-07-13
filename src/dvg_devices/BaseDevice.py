@@ -88,6 +88,8 @@ class SerialDevice:
             "timeout": 2,
             "write_timeout": 2,
         }
+        self.read_term_char = "\n"
+        self.write_term_char = "\n"
 
         self._ID_validation_query = None
         self._valid_ID_broad = None
@@ -102,7 +104,7 @@ class SerialDevice:
 
     def set_ID_validation_query(
         self,
-        ID_validation_query: Callable[[], list],
+        ID_validation_query: Callable[[], tuple],
         valid_ID_broad: object,
         valid_ID_specific: object = None,
     ):
@@ -123,10 +125,10 @@ class SerialDevice:
             succesful:
 
         Args:
-            ID_validation_query (:obj:`~typing.Callable` [[], :obj:`list`]):
+            ID_validation_query (:obj:`~typing.Callable` [[], :obj:`tuple`]):
                 Reference to a function to perform an ID validation query
                 on the device when connecting. The function should take zero
-                arguments and return a list consisting of two objects, as will
+                arguments and return a tuple consisting of two objects, as will
                 be explained further down. Only when the outcome of the
                 validation is successful, will the connection be accepted and
                 remain open. Otherwise, the connection will be automatically
@@ -184,6 +186,119 @@ class SerialDevice:
         self._ID_validation_query = ID_validation_query
         self._valid_ID_broad = valid_ID_broad
         self._valid_ID_specific = valid_ID_specific
+
+    # --------------------------------------------------------------------------
+    #   write
+    # --------------------------------------------------------------------------
+
+    def write(self, msg_str, timeout_warning_style=1) -> bool:
+        """Send a message to the serial device.
+
+        Args:
+            msg_str (:obj:`str`):
+                ASCII string to be sent to the serial device.
+
+            timeout_warning_style (:obj:`int`, optional):
+                - :const:`1`: Will print a traceback error message on screen and
+                  continue.
+                - :const:`2`: Will raise the exception again.
+
+                Default: :const:`1`
+
+        Returns:
+            True if successful, False otherwise.
+        """
+        success = False
+
+        if not self.is_alive:
+            pft("Device is not connected yet or already closed.", 3)
+        else:
+            try:
+                self.ser.write((msg_str + self.write_term_char).encode())
+            except (
+                serial.SerialTimeoutException,
+                serial.SerialException,
+            ) as err:
+                if timeout_warning_style == 1:
+                    pft(err, 3)
+                elif timeout_warning_style == 2:
+                    raise (err)
+            except Exception as err:
+                pft(err, 3)
+                sys.exit(0)
+            else:
+                success = True
+
+        return success
+
+    # --------------------------------------------------------------------------
+    #   query
+    # --------------------------------------------------------------------------
+
+    def query(self, msg_str, timeout_warning_style=1) -> tuple:
+        """Send a message to the serial device and subsequently read the reply.
+
+        Args:
+            msg_str (:obj:`str`):
+                ASCII string to be sent to the serial device.
+
+            timeout_warning_style (:obj:`int`, optional):
+                - :const:`1`: Will print a traceback error message on screen and
+                  continue.
+
+                - :const:`2`: Will raise the exception again.
+
+                Default: :const:`1`
+
+        Returns:
+            :obj:`tuple`:
+
+                - success (:obj:`bool`):
+                    True if successful, False otherwise.
+
+                - ans_str (:obj:`str` | :obj:`None`):
+                    ASCII string received from the device. :obj:`None` if
+                    unsuccessful.
+        """
+        success = False
+        ans_str = None
+
+        if self.write(msg_str, timeout_warning_style):
+            try:
+                ans_bytes = self.ser.read_until(self.read_term_char.encode())
+            except (
+                serial.SerialTimeoutException,
+                serial.SerialException,
+            ) as err:
+                # Note: The Serial library does not throw an exception when it
+                # times out in `read`, only when it times out in`write`! We
+                # will check for zero received bytes as indication for a read
+                # timeout, later.
+                # See https://stackoverflow.com/questions/10978224/serialtimeoutexception-in-python-not-working-as-expected
+                pft(err, 3)
+            except Exception as err:
+                pft(err, 3)
+                sys.exit(0)
+            else:
+                if len(ans_bytes) == 0:
+                    # Received 0 bytes, probably due to a timeout.
+                    if timeout_warning_style == 1:
+                        pft("Received 0 bytes. Read probably timed out.", 3)
+                    elif timeout_warning_style == 2:
+                        raise serial.SerialTimeoutException
+                else:
+                    try:
+                        ans_str = ans_bytes.decode("utf8").strip()
+                    except UnicodeDecodeError as err:
+                        # Print error and struggle on
+                        pft(err, 3)
+                    except Exception as err:
+                        pft(err, 3)
+                        sys.exit(0)
+                    else:
+                        success = True
+
+        return (success, ans_str)
 
     # --------------------------------------------------------------------------
     #   close

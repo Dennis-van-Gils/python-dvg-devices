@@ -6,7 +6,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "06-07-2020"  # 0.0.1 was stamped 14-09-2018
+__date__ = "13-07-2020"  # 0.0.1 was stamped 14-09-2018
 __version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
 # pylint: disable=bare-except
 
@@ -72,21 +72,21 @@ def about_to_quit():
 
 if __name__ == "__main__":
     # Config file containing COM port address
-    PATH_CONFIG = Path("config/port_Bronkhorst_MFC_1.txt")
+    PATH_CONFIG = "config/port_Bronkhorst_MFC_1.txt"
 
     # Serial number of Bronkhorst mass flow controller to connect to.
     # SERIAL_MFC = "M16216843A"
     SERIAL_MFC = None
 
     # The state of the MFC is polled with this time interval
-    UPDATE_INTERVAL_MS = 200  # [ms]
+    DAQ_INTERVAL_MS = 200  # [ms]
 
     # --------------------------------------------------------------------------
     #   Connect to Bronkhorst mass flow controller (MFC)
     # --------------------------------------------------------------------------
 
-    mfc = Bronkhorst_MFC(name="MFC")
-    if mfc.auto_connect(PATH_CONFIG, SERIAL_MFC):
+    mfc = Bronkhorst_MFC(connect_to_specific_serial_number=SERIAL_MFC)
+    if mfc.auto_connect(filepath_last_known_port=PATH_CONFIG):
         mfc.begin()
 
     # --------------------------------------------------------------------------
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     #   Set up communication threads for the MFC
     # --------------------------------------------------------------------------
 
-    mfc_qdev = Bronkhorst_MFC_qdev(mfc, UPDATE_INTERVAL_MS)
+    mfc_qdev = Bronkhorst_MFC_qdev(dev=mfc, DAQ_interval_ms=DAQ_INTERVAL_MS)
     mfc_qdev.start()
 
     # --------------------------------------------------------------------------

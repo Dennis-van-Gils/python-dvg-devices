@@ -6,7 +6,7 @@ acquisition for a Bronkhorst mass flow controller (MFC).
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-07-2020"  # 0.0.1 was stamped 18-09-2018
+__date__ = "13-07-2020"  # 0.0.1 was stamped 18-09-2018
 __version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
 
 
@@ -233,13 +233,13 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
         """
         if self.dev.is_alive:
             # At startup
-            if self.DAQ_update_counter == 1:
+            if self.update_counter_DAQ == 1:
                 self.qled_send_setpoint.setText(
                     "%.2f" % self.dev.state.setpoint
                 )
             self.qled_flow_rate.setText("%.2f" % self.dev.state.flow_rate)
             self.qled_read_setpoint.setText("%.2f" % self.dev.state.setpoint)
-            self.qlbl_update_counter.setText("%s" % self.DAQ_update_counter)
+            self.qlbl_update_counter.setText("%s" % self.update_counter_DAQ)
         else:
             self.qgrp.setEnabled(False)
             self.qlbl_offline.setVisible(True)

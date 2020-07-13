@@ -48,244 +48,64 @@ Classes:
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "06-07-2020"  # 0.0.1 was stamped 15-08-2019
+__date__ = "13-07-2020"  # 0.0.1 was stamped 15-08-2019
 __version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.2
 # pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
-from pathlib import Path
-
 import serial
-import serial.tools.list_ports
 
 from dvg_debug_functions import print_fancy_traceback as pft
+from dvg_devices.BaseDevice import SerialDevice
 
 
-class Arduino:
+class Arduino(SerialDevice):
     def __init__(
         self,
-        name="Ard",
-        baudrate=9600,
-        read_timeout=1,
-        write_timeout=1,
+        name="Ard_1",
+        long_name="Arduino",
         read_term_char="\n",
         write_term_char="\n",
+        connect_to_specific_ID=None,
     ):
-        # Reference to the serial.Serial device instance when a connection has
-        # been established
-        self.ser = None
-
-        # Given name for display and debugging purposes
-        self.name = name
-
-        # Response of self.query('id?') received from the Arduino.
-        # Note that the Arduino should be programmed to respond to such a
-        # query if you want the following functionality:
-        # By giving each Arduino in your project an unique identity response,
-        # one can scan over all serial ports to automatically connect to the
-        # Arduino with the proper identity response, by either calling
-        #   self.scan_ports(match_identity='your identity here')
-        # or
-        #   self.auto_connect(path_config, match_identity='your identity here')
-        self.identity = None
+        super().__init__(
+            name=name, long_name=long_name,
+        )
 
         # Serial communication settings
-        self.baudrate = baudrate
-        self.read_timeout = read_timeout
-        self.write_timeout = write_timeout
         self.read_term_char = read_term_char
         self.write_term_char = write_term_char
 
-        # Is the connection to the device alive?
-        self.is_alive = False
+        # Default serial settings
+        self.serial_init_kwargs = {
+            "baudrate": 9600,
+            "timeout": 2,
+            "write_timeout": 2,
+        }
 
-    # --------------------------------------------------------------------------
-    #   close
-    # --------------------------------------------------------------------------
+        self.set_ID_validation_query(
+            ID_validation_query=self.ID_validation_query,
+            valid_ID_broad="Arduino",
+            valid_ID_specific=connect_to_specific_ID,
+        )
 
-    def close(self, ignore_exceptions=False):
-        """Close the serial port
+    def ID_validation_query(self) -> (str, str):
+        """LEGACY DOCSTR
+        Response of self.query('id?') received from the Arduino.
+        Note that the Arduino should be programmed to respond to such a
+        query if you want the following functionality:
+        By giving each Arduino in your project an unique identity response,
+        one can scan over all serial ports to automatically connect to the
+        Arduino with the proper identity response, by either calling
+          self.scan_ports(match_identity='your identity here')
+        or
+          self.auto_connect(path_config, match_identity='your identity here')
         """
-        if self.ser is not None:
-            # Prevent Windows -- thinking to be smart -- from keeping the port
-            # open in case the connection got lost
-            try:
-                self.ser.cancel_read()
-            except:
-                pass
-            try:
-                self.ser.cancel_write()
-            except:
-                pass
-
-            try:
-                self.ser.close()
-            except:
-                if ignore_exceptions:
-                    pass
-                else:
-                    raise
-
-        self.is_alive = False
-
-    # --------------------------------------------------------------------------
-    #   connect_at_port
-    # --------------------------------------------------------------------------
-
-    def connect_at_port(
-        self, port_str, match_identity=None, print_trying_message=True
-    ):
-        """Open the port at address 'port_str' and try to establish a
-        connection. Subsequently, an identity query is send to the device.
-        Optionally, if a 'match_identity' string is passed, only connections to
-        devices with a matching identity response are accepted.
-
-        Args:
-            port_str (str):
-                Serial port address to open
-            match_identity (str, optional):
-                Identity string of the Arduino to establish a connection to.
-                When empty or None any device is accepted. Defaults to None.
-            print_trying_message (bool, optional):
-                When True then a 'trying to open' message is printed to the
-                terminal. Defaults to True.
-
-        Returns: True if successful, False otherwise.
-        """
-        self.is_alive = False
-
-        if match_identity == "":
-            match_identity = None
-        if print_trying_message:
-            if match_identity is None:
-                print("Connect to Arduino")
-            else:
-                print("Connect to Arduino with identity '%s'" % match_identity)
-
-        print("  @ %-5s: " % port_str, end="")
-        try:
-            # Open the serial port
-            self.ser = serial.Serial(
-                port=port_str,
-                baudrate=self.baudrate,
-                timeout=self.read_timeout,
-                write_timeout=self.write_timeout,
-            )
-        except (serial.SerialException):
-            print("Could not open port")
-            return False
-        except:
-            raise
-
-        try:
-            # Query the identity string.
-            self.is_alive = True
-            [success, identity_str] = self.query("id?", timeout_warning_style=2)
-        except:
-            print("Identity query 'id?' failed")
-            if self.ser is not None:
-                self.ser.close()
-            self.is_alive = False
-            return False
-
-        if success:
-            self.identity = identity_str
-            print("ID '%s' : " % identity_str, end="")
-            if match_identity is None:
-                # Found any device
-                print("Success!")
-                print("  Name: '%s'\n" % self.name)
-                self.is_alive = True
-                return True
-            elif identity_str.lower() == match_identity.lower():
-                # Found the Arduino with matching identity
-                print("Success!")
-                print("  Name: '%s'\n" % self.name)
-                self.is_alive = True
-                return True
-            else:
-                print("Wrong identity")
-                self.ser.close()
-                self.is_alive = False
-                return False
-
-        print("Wrong or no device")
-        if self.ser is not None:
-            self.ser.close()
-        self.is_alive = False
-        return False
-
-    # --------------------------------------------------------------------------
-    #   scan_ports
-    # --------------------------------------------------------------------------
-
-    def scan_ports(self, match_identity=None):
-        """Scan over all serial ports and try to establish a connection. A query
-        for the identity string is send over all ports. The port that gives the
-        proper response (and optionally has a matching identity string) must be
-        the Arduino we're looking for.
-
-        Args:
-            match_identity (str, optional):
-                Identity string of the Arduino to establish a connection to.
-                When empty or None any Arduino is accepted. Defaults to None.
-
-        Returns: True if successful, False otherwise.
-        """
-        if match_identity == "":
-            match_identity = None
-        if match_identity is None:
-            print("Scanning ports for any Arduino")
-        else:
-            print(
-                ("Scanning ports for an Arduino with " "identity '%s'")
-                % match_identity
-            )
-
-        # Ports is a list of tuples
-        ports = list(serial.tools.list_ports.comports())
-        for p in ports:
-            port_str = p[0]
-            if self.connect_at_port(port_str, match_identity, False):
-                return True
-            else:
-                continue
-
-        # Scanned over all the ports without finding a match
-        print("\n  ERROR: Device not found")
-        return False
-
-    # --------------------------------------------------------------------------
-    #   auto_connect
-    # --------------------------------------------------------------------------
-
-    def auto_connect(self, path_config="", match_identity=None):
-        """
-        """
-        # Try to open the config file containing the port to open. Do not panic
-        # if the file does not exist or cannot be read. We will then scan over
-        # all ports as alternative.
-        port_str = read_port_config_file(path_config)
-
-        # If the config file was read successfully then we can try to open the
-        # port listed in the config file and connect to the device.
-        if port_str is not None:
-            success = self.connect_at_port(port_str, match_identity)
-        else:
-            success = False
-
-        # Check if we failed establishing a connection
-        if not success:
-            # Now scan over all ports and try to connect to the device
-            print("")  # Terminal esthetics
-            success = self.scan_ports(match_identity)
-            if success:
-                # Store the result of a successful connection after a port scan
-                # in the config file. Do not panic if we cannot create the
-                # config file.
-                write_port_config_file(path_config, self.ser.portstr)
-
-        return success
+        [_success, reply_str] = self.query("id?", timeout_warning_style=2)
+        reply = reply_str.split(",")
+        broad_reply = reply[0].strip()
+        specific_reply = reply[1].strip()
+        return (broad_reply, specific_reply)
 
     # --------------------------------------------------------------------------
     #   write
@@ -321,7 +141,7 @@ class Arduino:
                     raise (err)
             except Exception as err:
                 pft(err, 3)
-                sys.exit(1)
+                sys.exit(0)
             else:
                 success = True
 
@@ -360,20 +180,22 @@ class Arduino:
                 serial.SerialTimeoutException,
                 serial.SerialException,
             ) as err:
-                # Note though: The Serial library does not throw an
-                # exception when it actually times out! We will check for
-                # zero received bytes as indication for timeout, later.
+                # Note: The Serial library does not throw an exception when it
+                # times out in `read`, only when it times out in`write`! We
+                # will check for zero received bytes as indication for a read
+                # timeout, later.
+                # See https://stackoverflow.com/questions/10978224/serialtimeoutexception-in-python-not-working-as-expected
                 pft(err, 3)
             except Exception as err:
                 pft(err, 3)
-                sys.exit(1)
+                sys.exit(0)
             else:
                 if len(ans_bytes) == 0:
                     # Received 0 bytes, probably due to a timeout.
                     if timeout_warning_style == 1:
                         pft("Received 0 bytes. Read probably timed out.", 3)
                     elif timeout_warning_style == 2:
-                        raise (serial.SerialTimeoutException)
+                        raise serial.SerialTimeoutException
                 else:
                     try:
                         ans_str = ans_bytes.decode("utf8").strip()
@@ -382,7 +204,7 @@ class Arduino:
                         pft(err, 3)
                     except Exception as err:
                         pft(err, 3)
-                        sys.exit(1)
+                        sys.exit(0)
                     else:
                         success = True
 
@@ -403,7 +225,7 @@ class Arduino:
         """
         [success, ans_str] = self.query(msg_str)
 
-        if success and not (ans_str == ""):
+        if success and not ans_str == "":
             try:
                 ans_floats = list(map(float, ans_str.split(separator)))
             except ValueError as err:
@@ -411,7 +233,7 @@ class Arduino:
                 pft(err, 3)
             except Exception as err:
                 pft(err, 3)
-                sys.exit(1)
+                sys.exit(0)
             else:
                 return [True, ans_floats]
 
@@ -419,87 +241,19 @@ class Arduino:
 
 
 # ------------------------------------------------------------------------------
-#   read_port_config_file
-# ------------------------------------------------------------------------------
-
-
-def read_port_config_file(filepath):
-    """Try to open the config textfile containing the port to open. Do not panic
-    if the file does not exist or cannot be read.
-
-    Args:
-        filepath (pathlib.Path):
-            Path to the config file, e.g. Path("config/port.txt")
-
-    Returns:
-        The port name string when the config file is read out successfully,
-        None otherwise.
-    """
-    if isinstance(filepath, Path):
-        if filepath.is_file():
-            try:
-                with filepath.open() as f:
-                    port_str = f.readline().strip()
-                return port_str
-            except:
-                pass  # Do not panic and remain silent
-
-    return None
-
-
-# ------------------------------------------------------------------------------
-#   write_port_config_file
-# ------------------------------------------------------------------------------
-
-
-def write_port_config_file(filepath, port_str):
-    """Try to write the port name string to the config textfile. Do not panic if
-    the file cannot be created.
-
-    Args:
-        filepath (pathlib.Path):
-            Path to the config file, e.g. Path("config/port.txt")
-        port_str (string):
-            Serial port string to save to file.
-
-    Returns: True when successful, False otherwise.
-    """
-    if isinstance(filepath, Path):
-        if not filepath.parent.is_dir():
-            # Subfolder does not exists yet. Create.
-            try:
-                filepath.parent.mkdir()
-            except:
-                pass  # Do not panic and remain silent
-
-        try:
-            # Write the config file
-            filepath.write_text(port_str)
-        except:
-            pass  # Do not panic and remain silent
-        else:
-            return True
-
-    return False
-
-
-# ------------------------------------------------------------------------------
 #   Main: Will show a demo when run from the terminal
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    ard = Arduino(name="Ard", baudrate=9600)
+    ard = Arduino(name="Ard_1", connect_to_specific_ID=None)
 
-    # ard.auto_connect(
-    #     path_config=Path("last_used_port.txt"), match_identity="My Arduino"
-    # )
-    # ard.scan_ports(match_identity="My Arduino")
-    ard.scan_ports()
+    ard.auto_connect()
+    # ard.scan_ports()
 
-    if not (ard.is_alive):
-        sys.exit(1)
+    if not ard.is_alive:
+        sys.exit(0)
 
-    print(ard.query("?"))
-    print(ard.query_ascii_values("?", "\t"))
+    print(ard.query("?")[1])
+    # print(ard.query_ascii_values("?", "\t"))
 
     ard.close()

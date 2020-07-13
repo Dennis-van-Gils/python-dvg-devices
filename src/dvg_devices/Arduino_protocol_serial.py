@@ -52,6 +52,8 @@ __date__ = "13-07-2020"  # 0.0.1 was stamped 15-08-2019
 __version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.2
 # pylint: disable=bare-except, broad-except, try-except-raise
 
+# Ready for subclassing SerialDevice with method `query`
+
 import sys
 import serial
 
@@ -72,22 +74,24 @@ class Arduino(SerialDevice):
             name=name, long_name=long_name,
         )
 
-        # Serial communication settings
-        self.read_term_char = read_term_char
-        self.write_term_char = write_term_char
-
         # Default serial settings
         self.serial_init_kwargs = {
             "baudrate": 9600,
             "timeout": 2,
             "write_timeout": 2,
         }
+        self.read_term_char = read_term_char
+        self.write_term_char = write_term_char
 
         self.set_ID_validation_query(
             ID_validation_query=self.ID_validation_query,
             valid_ID_broad="Arduino",
             valid_ID_specific=connect_to_specific_ID,
         )
+
+    # --------------------------------------------------------------------------
+    #   ID_validation_query
+    # --------------------------------------------------------------------------
 
     def ID_validation_query(self) -> (str, str):
         """LEGACY DOCSTR

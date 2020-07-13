@@ -16,6 +16,8 @@ __date__ = "13-07-2020"  # 0.0.1 was stamped 25-07-2018
 __version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
 # pylint: disable=bare-except, broad-except, try-except-raise
 
+# Ready for subclassing SerialDevice with method `query`
+
 import sys
 import struct
 import serial
@@ -46,14 +48,8 @@ class Bronkhorst_MFC(SerialDevice):
             "timeout": 0.1,
             "write_timeout": 0.1,
         }
-
-        self.serial_str = None  # Serial number of the MFC
-        self.model_str = None  # Model of the MFC
-        self.fluid_name = None  # Fluid for which the MFC is calibrated
-        self.max_flow_rate = None  # Max. capacity [ln/min]
-
-        # Container for the process and measurement variables
-        self.state = self.State()
+        self.read_term_char = "\r\n"
+        self.write_term_char = "\r\n"
 
         self.set_ID_validation_query(
             ID_validation_query=self.ID_validation_query,
@@ -61,10 +57,21 @@ class Bronkhorst_MFC(SerialDevice):
             valid_ID_specific=connect_to_specific_serial_number,
         )
 
+        # Container for the process and measurement variables
+        self.state = self.State()
+
+        self.serial_str = None  # Serial number of the MFC
+        self.model_str = None  # Model of the MFC
+        self.fluid_name = None  # Fluid for which the MFC is calibrated
+        self.max_flow_rate = None  # Max. capacity [ln/min]
+
+    # --------------------------------------------------------------------------
+    #   ID_validation_query
+    # --------------------------------------------------------------------------
+
     def ID_validation_query(self) -> (str, str):
-        # Perform a query on the serial number
-        [_success, reply_str] = self.query(":0780047163716300\r\n")
-        broad_reply = reply_str[3:13]
+        [_success, reply_str] = self.query(":0780047163716300")
+        broad_reply = reply_str[3:13]  # Expected: "8002716300"
         specific_reply = bytearray.fromhex(
             reply_str[13:-2]
         ).decode()  # Serial number
@@ -78,71 +85,20 @@ class Bronkhorst_MFC(SerialDevice):
         """This function should run directly after having established a
         connection to the device.
 
-        Query the model, fluid and the maximum mass flow rate of the MFC
-        and store these in the class member 'state's. The max flow rate is
-        mandatory to be known, because it is used to set and read the setpoint,
-        and to read the flow rate.
+        Query the serial number, model, fluid and the maximum mass flow rate of
+        the MFC and store these in the class member 'state's. The max flow rate
+        is mandatory to be known, because it is used to set and read the
+        setpoint, and to read the flow rate.
 
         Returns: True if successful, False otherwise.
         """
-        success = False
+        success = self.query_serial_str()
         success &= self.query_model_str()
         success &= self.query_fluid_name()
         success &= self.query_max_flow_rate()
         success &= self.query_setpoint()
         success &= self.query_flow_rate()
         return success
-
-    # --------------------------------------------------------------------------
-    #   query
-    # --------------------------------------------------------------------------
-
-    def query(self, msg_str):
-        """Send a command to the serial device and subsequently read the reply.
-
-        Args:
-            msg_str (str): Message to be sent to the serial device.
-
-        Returns:
-            success (bool): True if successful, False otherwise.
-            ans_str (str): Reply received from the device. None if unsuccessful.
-        """
-        success = False
-        ans_str = None
-
-        if not self.is_alive:
-            pft("Device is not connected yet or already closed.", 3)
-            return [success, ans_str]
-
-        try:
-            # Send command string to the device as bytes
-            self.ser.write(msg_str.replace(" ", "").encode())
-        except (serial.SerialTimeoutException, serial.SerialException,) as err:
-            # Print error and struggle on
-            pft(err, 3)
-        except Exception as err:
-            pft(err, 3)
-            sys.exit(0)
-        else:
-            try:
-                # Read all bytes in the line that is terminated with a
-                # newline character or until time-out has occured
-                ans_bytes = self.ser.readline()
-            except (
-                serial.SerialTimeoutException,
-                serial.SerialException,
-            ) as err:
-                pft(err, 3)
-            except Exception as err:
-                pft(err, 3)
-                sys.exit(0)
-            else:
-                # Convert bytes into string and remove termination chars and
-                # spaces
-                ans_str = ans_bytes.decode().strip()
-                success = True
-
-        return [success, ans_str]
 
     # --------------------------------------------------------------------------
     #   query_serial_str
@@ -153,7 +109,7 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query(":0780047163716300\r\n")
+        [success, ans] = self.query(":0780047163716300")
         if success and ans[3:13] == "8002716300":
             self.serial_str = bytearray.fromhex(ans[13:-2]).decode()
             return True
@@ -170,7 +126,7 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query(":0780047162716200\r\n")
+        [success, ans] = self.query(":0780047162716200")
         if success:
             self.model_str = bytearray.fromhex(ans[13:-2]).decode()
             return True
@@ -188,7 +144,7 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query(":078004017101710A\r\n")
+        [success, ans] = self.query(":078004017101710A")
         if success:
             self.fluid_name = bytearray.fromhex(ans[13:-2]).decode()
             return True
@@ -207,7 +163,7 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query(":068004014D014D\r\n")
+        [success, ans] = self.query(":068004014D014D")
         if success:
             self.max_flow_rate = hex_to_32bit_IEEE754_float(ans[11:])
             return True
@@ -226,7 +182,7 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query(":06800401210121\r\n")
+        [success, ans] = self.query(":06800401210121")
         if success:
             try:
                 num = int(ans[-4:], 16)
@@ -250,7 +206,7 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query(":06800401210120\r\n")
+        [success, ans] = self.query(":06800401210120")
         if success:
             try:
                 num = int(ans[-4:], 16)
@@ -284,7 +240,7 @@ class Bronkhorst_MFC(SerialDevice):
         setpoint = int(setpoint / self.max_flow_rate * 32000)
         setpoint = max(0, min(setpoint, 32000))
 
-        [success, ans] = self.query(":0680010121%04x\r\n" % setpoint)
+        [success, ans] = self.query(":0680010121%04x" % setpoint)
         if success and ans[5:].strip() == "000005":  # Also check status reply
             return True
         else:

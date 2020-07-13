@@ -63,7 +63,7 @@ class Bronkhorst_MFC(SerialDevice):
 
     def ID_validation_query(self) -> (str, str):
         # Perform a query on the serial number
-        [_success, reply_str] = self.query(":07 80 04 71 63 71 63 00\r\n")
+        [_success, reply_str] = self.query(":0780047163716300\r\n")
         broad_reply = reply_str[3:13]
         specific_reply = bytearray.fromhex(
             reply_str[13:-2]
@@ -153,7 +153,7 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query(":07 80 04 71 63 71 63 00\r\n")
+        [success, ans] = self.query(":0780047163716300\r\n")
         if success and ans[3:13] == "8002716300":
             self.serial_str = bytearray.fromhex(ans[13:-2]).decode()
             return True
@@ -170,7 +170,7 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query(":07 80 04 71 62 71 62 00\r\n")
+        [success, ans] = self.query(":0780047162716200\r\n")
         if success:
             self.model_str = bytearray.fromhex(ans[13:-2]).decode()
             return True
@@ -188,7 +188,7 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query(":07 80 04 01 71 01 71 0A\r\n")
+        [success, ans] = self.query(":078004017101710A\r\n")
         if success:
             self.fluid_name = bytearray.fromhex(ans[13:-2]).decode()
             return True
@@ -207,7 +207,7 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query(":06 80 04 01 4D 01 4D\r\n")
+        [success, ans] = self.query(":068004014D014D\r\n")
         if success:
             self.max_flow_rate = hex_to_32bit_IEEE754_float(ans[11:])
             return True
@@ -226,7 +226,7 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query(":06 80 04 01 21 01 21\r\n")
+        [success, ans] = self.query(":06800401210121\r\n")
         if success:
             try:
                 num = int(ans[-4:], 16)
@@ -250,7 +250,7 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query(":06 80 04 01 21 01 20\r\n")
+        [success, ans] = self.query(":06800401210120\r\n")
         if success:
             try:
                 num = int(ans[-4:], 16)
@@ -284,7 +284,7 @@ class Bronkhorst_MFC(SerialDevice):
         setpoint = int(setpoint / self.max_flow_rate * 32000)
         setpoint = max(0, min(setpoint, 32000))
 
-        [success, ans] = self.query(":06 80 01 01 21 %04x \r\n" % setpoint)
+        [success, ans] = self.query(":0680010121%04x\r\n" % setpoint)
         if success and ans[5:].strip() == "000005":  # Also check status reply
             return True
         else:

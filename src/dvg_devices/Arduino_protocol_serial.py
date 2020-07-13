@@ -94,20 +94,9 @@ class Arduino(SerialDevice):
     # --------------------------------------------------------------------------
 
     def ID_validation_query(self) -> (str, str):
-        """LEGACY DOCSTR
-        Response of self.query('id?') received from the Arduino.
-        Note that the Arduino should be programmed to respond to such a
-        query if you want the following functionality:
-        By giving each Arduino in your project an unique identity response,
-        one can scan over all serial ports to automatically connect to the
-        Arduino with the proper identity response, by either calling
-          self.scan_ports(match_identity='your identity here')
-        or
-          self.auto_connect(path_config, match_identity='your identity here')
-        """
         [_success, reply_str] = self.query("id?", timeout_warning_style=2)
         reply = reply_str.split(",")
-        broad_reply = reply[0].strip()
+        broad_reply = reply[0].strip()  # Expected: "Arduino"
         specific_reply = reply[1].strip()
         return (broad_reply, specific_reply)
 

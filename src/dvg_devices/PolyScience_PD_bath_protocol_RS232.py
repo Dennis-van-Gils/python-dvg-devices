@@ -5,37 +5,28 @@ Supported models:
     PD07R-20, PD07R-40, PD7LR-20, PD15R-30, PD15R-40, PD20R-30, PD28R-30,
     PD45R-20, PD07H200, PD15H200, PD20H200, PD28H200, PD15RCAL, PD15HCAL.
 Tested on model PD15R-30‐A12E
-
-TODO: Rewrite code. Though it functions, it is not elegant and makes use of
-time.sleep. Compare this code against the more advanced
-Bronkhorst_MFC_protocol_RS232.py
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "07-07-2020"  # 0.0.1 was stamped 04-09-2018
+__date__ = "13-07-2020"  # 0.0.1 was stamped 04-09-2018
 __version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
 # pylint: disable=try-except-raise, bare-except
 
-import sys
-from time import sleep
+# Ready for subclassing SerialDevice with method `query`
 
+import sys
 import serial
-import serial.tools.list_ports
 import numpy as np
 
-# fmt: off
+from dvg_devices.BaseDevice import SerialDevice
+
 # Temperature setpoint limits in software, not on a hardware level
-BATH_MIN_SETPOINT_DEG_C = 10     # [deg C]
-BATH_MAX_SETPOINT_DEG_C = 87     # [deg C]
-
-# Serial settings
-RS232_BAUDRATE = 57600     # Baudrate according to the manual
-RS232_TIMEOUT  = 0.5       # [sec]
-# fmt: on
+BATH_MIN_SETPOINT_DEG_C = 10  # [deg C]
+BATH_MAX_SETPOINT_DEG_C = 87  # [deg C]
 
 
-class PolyScience_PD_bath:
+class PolyScience_PD_bath(SerialDevice):
     class State:
         # Container for the process and measurement variables
         # fmt: off
@@ -44,237 +35,40 @@ class PolyScience_PD_bath:
         P2_temp = np.nan   # Temperature measured by the external probe ['C]
         # fmt: on
 
-    # --------------------------------------------------------------------------
-    #   __init__
-    # --------------------------------------------------------------------------
+    def __init__(self, name="Bath", long_name="PolyScience PD bath"):
+        super().__init__(
+            name=name, long_name=long_name,
+        )
 
-    def __init__(self):
-        # serial.Serial device instance
-        self.ser = None
+        # Default serial settings
+        self.serial_init_kwargs = {
+            "baudrate": 57600,
+            "timeout": 0.5,
+            "write_timeout": 0.5,
+        }
+        self.read_term_char = "\r"
+        self.write_term_char = "\r"
+
+        self.set_ID_validation_query(
+            ID_validation_query=self.ID_validation_query,
+            valid_ID_broad="!",
+            valid_ID_specific=None,
+        )
 
         # Container for the process and measurement variables
         self.state = self.State()
 
     # --------------------------------------------------------------------------
-    #   close
+    #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def close(self, ignore_exceptions=False):
-        """Close the serial port
-        """
-        if self.ser is not None:
-            try:
-                self.ser.close()
-            except:
-                if ignore_exceptions:
-                    pass
-                else:
-                    raise
+    def ID_validation_query(self) -> (str, str):
+        # We'll use the `Disable command echo` of the PolyScience bath and check
+        # for the proper reply '!'.
+        [_success, reply_str] = self.query("SE0", timeout_warning_style=2)
+        broad_reply = reply_str.strip()  # Expected: "!"
 
-    # --------------------------------------------------------------------------
-    #   _readline
-    # --------------------------------------------------------------------------
-
-    def _readline(self):
-        """Custom method of [serial.Serial.readline] where the termination
-        character is fixed to a single carriage return '\r' instead of a newline
-        character '\n'.
-
-        Returns: The byte array received from the serial-in buffer
-        """
-
-        eol = b"\r"
-        leneol = len(eol)
-        line = bytearray()
-        timeout = serial.Timeout(self.ser.timeout)
-        while True:
-            c = self.ser.read(1)
-            if c:
-                line += c
-                if line[-leneol:] == eol:
-                    break
-            else:
-                break
-            if timeout.expired():
-                break
-        return bytes(line)
-
-    # --------------------------------------------------------------------------
-    #   connect_at_port
-    # --------------------------------------------------------------------------
-
-    def connect_at_port(self, port_str, print_trying_message=True):
-        """Open the port at address 'port_str' and try to establish a
-        connection. A command is send to try to disable the command echo of the
-        PolyScience bath ("SE0\r"). If it gives the proper response ("!\r")
-        it must be a PolyScience bath.
-
-        Args:
-            port_str (str): Serial port address to open
-            print_trying_message (bool, optional): When True then a 'trying to
-                open' message is printed to the terminal. Defaults to True.
-
-        Returns: True if successful, False otherwise.
-        """
-        if print_trying_message:
-            print("Trying to connect to a PolyScience bath on")
-
-        print("  %-5s: " % port_str, end="")
-        try:
-            # Open the serial port
-            self.ser = serial.Serial(
-                port=port_str,
-                baudrate=RS232_BAUDRATE,
-                timeout=RS232_TIMEOUT,
-                write_timeout=RS232_TIMEOUT,
-            )
-        except serial.SerialException:
-            print("Could not open port")
-            return False
-        except:
-            raise
-
-        try:
-            # Disable the command echo of the PolyScience bath.
-            # NOTE: this function can finish okay and return False as indication
-            # that the device on the serial port gives /a/ reply but it is not a
-            # proper reply you would except from a PolyScience bath. In other
-            # words: the device replies but it is not a PolyScience bath.
-            success = self.disable_command_echo()
-        except:
-            print("Communication error")
-            if self.ser is not None:
-                self.ser.close()
-            success = False
-
-        if success:
-            # Found a PolyScience bath
-            print("Success!\n")
-            return True
-
-        print("Wrong or no device")
-        if self.ser is not None:
-            self.ser.close()
-        return False
-
-    # --------------------------------------------------------------------------
-    #   scan_ports
-    # --------------------------------------------------------------------------
-
-    def scan_ports(self):
-        """Scan over all serial ports and try to establish a connection. A
-        command is send to try to disable the command echo of the PolyScience
-        bath ("SE0\r"). If it gives the proper response ("!\r") it must be a
-        PolyScience bath.
-
-        Returns: True if successful, False otherwise.
-        """
-        print("Scanning ports for any PolyScience bath")
-
-        # Ports is a list of tuples
-        ports = list(serial.tools.list_ports.comports())
-        for p in ports:
-            port_str = p[0]
-            if self.connect_at_port(port_str, False):
-                return True
-            else:
-                continue
-
-        # Scanned over all the ports without finding a match
-        print("\n  ERROR: Device not found")
-        return False
-
-    # --------------------------------------------------------------------------
-    #   auto_connect
-    # --------------------------------------------------------------------------
-
-    def auto_connect(self, path_config):
-        """TO DO: write explaination
-        """
-        # Try to open the config file containing the port to open. Do not panic
-        # if the file does not exist or cannot be read. We will then scan over
-        # all ports as alternative.
-        port_str = read_port_config_file(path_config)
-
-        # If the config file was read successfully then we can try to open the
-        # port listed in the config file and connect to the device.
-        if port_str is not None:
-            success = self.connect_at_port(port_str)
-        else:
-            success = False
-
-        # Check if we failed establishing a connection
-        if not success:
-            # Now scan over all ports and try to connect to the device
-            success = self.scan_ports()
-            if success:
-                # Store the result of a successful connection after a port scan
-                # in the config file. Do not panic if we cannot create the
-                # config file.
-                write_port_config_file(path_config, self.ser.portstr)
-
-        return success
-
-    # --------------------------------------------------------------------------
-    #   query
-    # --------------------------------------------------------------------------
-
-    def query(self, msg_str):
-        """Send a command to the serial device and subsequently read the reply.
-
-        Args:
-            msg_str (str): Message to be sent to the serial device.
-
-        Returns:
-            success (bool): True if successful, False otherwise.
-            ans_str (str): Reply received from the device. None if unsuccessful.
-        """
-        success = False
-        ans_str = None
-
-        try:
-            # Send command string to the device as bytes
-            self.ser.write(msg_str.replace(" ", "").encode())
-        except serial.SerialTimeoutException:
-            print("ERROR: serial.write() timed out in query()")
-        except serial.SerialException:
-            print("ERROR: serial.write() failed in query()")
-        except:
-            raise
-        else:
-            try:
-                # Read all bytes in the line that is terminated with a carriage
-                # return character or until time-out has occured
-                # sleep(.1)  # DEBUG
-                ans_bytes = self._readline()
-            except serial.SerialTimeoutException:
-                print("ERROR: _readline() timed out in query()")
-            except serial.SerialException:
-                print("ERROR: _readline() failed in query()")
-            except:
-                raise
-            else:
-                # Convert bytes into string and remove termination chars and
-                # spaces
-                ans_str = ans_bytes.decode().strip()
-                success = True
-
-        return [success, ans_str]
-
-    # --------------------------------------------------------------------------
-    #   disable_command_echo
-    # --------------------------------------------------------------------------
-
-    def disable_command_echo(self):
-        """Disable the command echo of the PolyScience bath.
-
-        Returns: True if successful, False otherwise.
-        """
-        [success, ans] = self.query("SE0\r")
-        if success and ans == "!":
-            return True
-        else:
-            return False
+        return (broad_reply, None)
 
     # --------------------------------------------------------------------------
     #   query_P1_temp
@@ -286,7 +80,7 @@ class PolyScience_PD_bath:
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query("RT\r")
+        [success, ans] = self.query("RT")
         if success:
             try:
                 num = float(ans)
@@ -310,7 +104,7 @@ class PolyScience_PD_bath:
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query("RR\r")
+        [success, ans] = self.query("RR")
         if success:
             try:
                 num = float(ans)
@@ -335,7 +129,7 @@ class PolyScience_PD_bath:
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query("RS\r")
+        [success, ans] = self.query("RS")
         # print("query_setpoint returns: %s" % ans)  # DEBUG
         if success:
             try:
@@ -383,7 +177,7 @@ class PolyScience_PD_bath:
                 % BATH_MAX_SETPOINT_DEG_C
             )
 
-        [success, ans] = self.query("SS%.2f\r" % setpoint)
+        [success, ans] = self.query("SS%.2f" % setpoint)
         # print("send_setpoint returns: %s" % ans)  # DEBUG
         if success and ans == "!":  # Also check status reply
             return True
@@ -396,81 +190,23 @@ class PolyScience_PD_bath:
 
 
 # ------------------------------------------------------------------------------
-#   read_port_config_file
-# ------------------------------------------------------------------------------
-
-
-def read_port_config_file(filepath):
-    """Try to open the config textfile containing the port to open. Do not panic
-    if the file does not exist or cannot be read.
-
-    Args:
-        path (pathlib.Path): path to the config file,
-            e.g. Path("configs/port.txt")
-
-    Returns: The port name string when the config file is read out successfully,
-        None otherwise.
-    """
-    if filepath.is_file():
-        try:
-            with filepath.open() as f:
-                port_str = f.readline().strip()
-            return port_str
-        except:
-            pass  # Do not panic and remain silent
-
-    return None
-
-
-# ------------------------------------------------------------------------------
-#   write_port_config_file
-# ------------------------------------------------------------------------------
-
-
-def write_port_config_file(filepath, port_str):
-    """Try to write the port name string to the config textfile. Do not panic if
-    the file cannot be created.
-
-    Returns: True when successful, False otherwise.
-    """
-    if not filepath.parent.is_dir():
-        # Subfolder does not exists yet. Create.
-        try:
-            filepath.parent.mkdir()
-        except:
-            pass  # Do not panic and remain silent
-
-    try:
-        # Write the config file
-        filepath.write_text(port_str)
-    except:
-        pass  # Do not panic and remain silent
-    else:
-        return True
-
-    return False
-
-
-# ------------------------------------------------------------------------------
 #   Main: Will show a demo when run from the terminal
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    from pathlib import Path
     import os
+    import time
 
     # Path to the config textfile containing the (last used) RS232 port
-    PATH_CONFIG = Path("config/port_PolyScience.txt")
+    PATH_CONFIG = "config/port_PolyScience.txt"
 
     bath = PolyScience_PD_bath()
-
-    # Were we able to connect to a PolyScience bath?
-    if bath.auto_connect(PATH_CONFIG):
+    if bath.auto_connect(filepath_last_known_port=PATH_CONFIG):
         # TO DO: display internal settings of the PolyScience bath, like
         # its temperature limits, etc.
         pass
     else:
-        sleep(1)
+        time.sleep(1)
         sys.exit(0)
 
     if os.name == "nt":
@@ -499,7 +235,7 @@ if __name__ == "__main__":
             bath.send_setpoint(send_setpoint)
             # The bath needs time to process and update its setpoint, which is
             # found to be up to 1 seconds (!) long. Hence, we sleep.
-            sleep(1)
+            time.sleep(1)
             bath.query_setpoint()
             print("\nSet: %6.2f 'C" % bath.state.setpoint)
             do_send_setpoint = False
@@ -527,7 +263,7 @@ if __name__ == "__main__":
                     do_send_setpoint = True
 
         # Slow down update period
-        sleep(0.5)
+        time.sleep(0.5)
 
     bath.close()
-    sleep(1)
+    time.sleep(1)

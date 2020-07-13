@@ -10,7 +10,7 @@ class.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "12-07-2020"
+__date__ = "13-07-2020"
 __version__ = "0.0.5"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
@@ -95,6 +95,10 @@ class SerialDevice:
 
         self.ser = None
         self.is_alive = False
+
+    # --------------------------------------------------------------------------
+    #   def set_ID_validation_query
+    # --------------------------------------------------------------------------
 
     def set_ID_validation_query(
         self,

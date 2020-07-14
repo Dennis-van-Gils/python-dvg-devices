@@ -10,7 +10,7 @@ class.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "14-07-2020"
+__date__ = "15-07-2020"
 __version__ = "0.0.5"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
@@ -115,7 +115,7 @@ class SerialDevice:
     # --------------------------------------------------------------------------
 
     def set_read_termination(
-        self, term: Union[str, bytes, None], query_wait_time: float = 0.1,
+        self, term: Union[str, bytes], query_wait_time: float = 0.1,
     ):
         """Set the termination character(s) for serial read.
 
@@ -126,7 +126,7 @@ class SerialDevice:
                 seconds before reading out the complete serial-input buffer,
                 which by then should contain the device's reply to the query.
 
-            query_wait_time (:obj:`float`):
+            query_wait_time (:obj:`float`, optional):
                 See above.
 
                 Default: :const:`0.1`
@@ -224,8 +224,9 @@ class SerialDevice:
                         reply_specific = ans.split(",")[2]   # "279730"
                         return (reply_broad, reply_specific)
 
-                When set to :obj:`None`, no validation will take place and *any*
-                successful connection will be accepted and remain open.
+                When ``ID_validation_query`` is set to :obj:`None`, no
+                validation will take place and *any* successful connection will
+                be accepted and remain open.
 
             valid_ID_broad (:obj:`object`):
                 Reply to be broadly matched when a function reference is being
@@ -299,7 +300,7 @@ class SerialDevice:
             msg (:obj:`str` | :obj:`bytes`):
                 ASCII string or bytes to be sent to the serial device.
 
-           raises_on_timeout (:obj:`bool`, optional):
+            raises_on_timeout (:obj:`bool`, optional):
                 Should an exception be raised when a write or read timeout
                 occurs?
 

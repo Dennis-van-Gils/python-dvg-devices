@@ -38,13 +38,13 @@ def query(self, msg_str):
         else:
             ans_str = ans_bytes.decode("utf8").strip()
             if ans_str[0] == ">":
-                # Successfull operation without meaningfull reply
+                # Successful operation without meaningful reply
                 success = True
             elif ans_str[0] == "!":
                 # Error reply
                 print("COMPAX3 COMMUNICATION ERROR: " + ans_str)
             else:
-                # Successfull operation with meaningfull reply
+                # Successful operation with meaningful reply
                 success = True
 
     return [success, ans_str]

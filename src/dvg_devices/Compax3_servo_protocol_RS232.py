@@ -105,14 +105,14 @@ class Compax3_servo(SerialDevice):
         # The Compax3 is more complex in its replies than the average device.
         # Hence:
         if ans_str[0] == ">":
-            # Successfull operation without meaningfull reply
+            # Successful operation without meaningful reply
             success = True
         elif ans_str[0] == "!":
             # Error reply
             print("COMPAX3 COMMUNICATION ERROR: " + ans_str)
             success = False
         else:
-            # Successfull operation with meaningfull reply
+            # Successful operation with meaningful reply
             success = True
 
         return (success, ans_str)
@@ -170,7 +170,7 @@ class Compax3_servo(SerialDevice):
 
     def query_position(self):
         """Query the position and store in the class member 'state.cur_pos'
-        when successfull. When the communication fails the class member will be
+        when successful. When the communication fails the class member will be
         set to [numpy.nan].
 
         Returns: True if successful, False otherwise.
@@ -185,7 +185,7 @@ class Compax3_servo(SerialDevice):
 
     def query_error(self):
         """Query the last error and store in the class member 'state.error_msg'
-        when successfull. When the communication fails the class member will be
+        when successful. When the communication fails the class member will be
         set to [numpy.nan].
 
         Returns: True if successful, False otherwise.
@@ -222,7 +222,7 @@ class Compax3_servo(SerialDevice):
 
     def query_status_word_1(self):
         """Query the status word 1 and store in the class member 'status_word_1'
-        when successfull. When the communication fails the class member
+        when successful. When the communication fails the class member
         'status_word_1' will be populated with [numpy.nan].
 
         Returns: True if successful, False otherwise.

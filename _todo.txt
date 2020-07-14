@@ -40,4 +40,3 @@
   
   Likewise change `for x in y`
   
-  * Make uniform: :obj:`True` when successful, True, if succesful, ....

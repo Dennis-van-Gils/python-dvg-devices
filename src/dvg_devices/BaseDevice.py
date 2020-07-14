@@ -10,12 +10,13 @@ class.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "13-07-2020"
+__date__ = "14-07-2020"
 __version__ = "0.0.5"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
-from typing import Callable
+import time
+from typing import Union, Callable
 from pathlib import Path
 
 import serial
@@ -62,7 +63,7 @@ class SerialDevice:
         name (:obj:`str`):
             Short display name for the device. E.g., `"PSU_1"` or `"blinker"`.
 
-        serial_init_kwargs (:obj:`dict`):
+        serial_settings (:obj:`dict`):
             Dictionary of keyword arguments to be passed directly to
             :class:`serial.Serial` at initialization of the serial port when
             trying to connect. Do not specify `port` in this dictionary as it
@@ -81,19 +82,27 @@ class SerialDevice:
     def __init__(
         self, name="Dev_1", long_name="Serial Device",
     ):
-
-        self.name = name
         self.long_name = long_name
+        self.name = name
 
         # Default serial settings
-        self.serial_init_kwargs = {
+        self.serial_settings = {
             "baudrate": 9600,
             "timeout": 2,
             "write_timeout": 2,
         }
-        self.read_term_char = "\n"
-        self.write_term_char = "\n"
 
+        # Termination characters, must always be of type `bytes`.
+        self._read_termination = "\n".encode()
+        self._write_termination = "\n".encode()
+
+        # Wait time during :meth:`query` in case there is no read termination
+        # character set. We have to wait long enough to make sure the device has
+        # had ample time to send out the reply to the serial-input buffer of
+        # the host PC, which we will then read completely in one go.
+        self._query_wait_time = 0.1  # [s]
+
+        # See :meth:`set_ID_validation_query`
         self._ID_validation_query = None
         self._valid_ID_broad = None
         self._valid_ID_specific = None
@@ -102,7 +111,53 @@ class SerialDevice:
         self.is_alive = False
 
     # --------------------------------------------------------------------------
-    #   def set_ID_validation_query
+    #   set_read_termination
+    # --------------------------------------------------------------------------
+
+    def set_read_termination(
+        self, term: Union[str, bytes, None], query_wait_time: float = 0.1,
+    ):
+        """Set the termination character(s) for serial read.
+
+        Args:
+            term (:obj:`str` | :obj:`bytes` | :obj:`None`):
+                Termination character(s). When set to :obj:`None` or empty the
+                I/O operation :meth:`query` will wait ``query_wait_time``
+                seconds before reading out the complete serial-input buffer,
+                which by then should contain the device's reply to the query.
+
+            query_wait_time (:obj:`float`):
+                See above.
+
+                Default: :const:`0.1`
+        """
+        if term is None:
+            term = b""
+        self._read_termination = (
+            term.encode() if isinstance(term, str) else term
+        )
+
+        self._query_wait_time = query_wait_time
+
+    # --------------------------------------------------------------------------
+    #   set_write_termination
+    # --------------------------------------------------------------------------
+
+    def set_write_termination(self, term: Union[str, bytes, None]):
+        """Set the termination character(s) for serial write.
+
+        Args:
+            term (:obj:`str` | :obj:`bytes` | :obj:`None`):
+                Termination character(s).
+        """
+        if term is None:
+            term = b""
+        self._write_termination = (
+            term.encode() if isinstance(term, str) else term
+        )
+
+    # --------------------------------------------------------------------------
+    #   set_ID_validation_query
     # --------------------------------------------------------------------------
 
     def set_ID_validation_query(
@@ -162,14 +217,12 @@ class SerialDevice:
                 .. code-block:: python
 
                     def my_ID_validation_query(self) -> (object, object):
-                        self.ser.write("*idn?\\n".encode())
-                        ans = self.ser.readline().decode().strip()
-                        # ans = "THURLBY THANDAR, QL355TP, 279730, 1.00 – 1.00"
+                        _success, reply = self.query("*idn?", raises_on_timeout=True)
+                        # reply = "THURLBY THANDAR, QL355TP, 279730, 1.00 – 1.00"
 
-                        ID_reply_broad = ans[:19]               # "THURLBY THANDAR, QL"
-                        ID_reply_specific = ans.split(",")[2]   # "279730"
-
-                        return (ID_reply_broad, ID_reply_specific)
+                        reply_broad = ans[:19]               # "THURLBY THANDAR, QL"
+                        reply_specific = ans.split(",")[2]   # "279730"
+                        return (reply_broad, reply_specific)
 
                 When set to :obj:`None`, no validation will take place and *any*
                 successful connection will be accepted and remain open.
@@ -194,114 +247,124 @@ class SerialDevice:
     #   write
     # --------------------------------------------------------------------------
 
-    def write(self, msg_str, timeout_warning_style=1) -> bool:
+    def write(self, msg, raises_on_timeout: bool = False) -> bool:
         """Send a message to the serial device.
 
         Args:
-            msg_str (:obj:`str`):
-                ASCII string to be sent to the serial device.
+            msg (:obj:`str` | :obj:`bytes`):
+                ASCII string or bytes to be sent to the serial device.
 
-            timeout_warning_style (:obj:`int`, optional):
-                - :const:`1`: Will print a traceback error message on screen and
-                  continue.
-                - :const:`2`: Will raise the exception again.
+            raises_on_timeout (:obj:`bool`, optional):
+                Should an exception be raised when a write timeout occurs?
 
-                Default: :const:`1`
+                Default: :const:`False`
 
         Returns:
             True if successful, False otherwise.
         """
-        success = False
-
         if not self.is_alive:
             pft("Device is not connected yet or already closed.", 3)
-        else:
-            try:
-                self.ser.write((msg_str + self.write_term_char).encode())
-            except (
-                serial.SerialTimeoutException,
-                serial.SerialException,
-            ) as err:
-                if timeout_warning_style == 1:
-                    pft(err, 3)
-                elif timeout_warning_style == 2:
-                    raise (err)
-            except Exception as err:
-                pft(err, 3)
-                sys.exit(0)
-            else:
-                success = True
+            return False  # --> leaving
 
-        return success
+        if isinstance(msg, str):
+            msg = msg.encode()
+
+        try:
+            self.ser.write(msg + self._write_termination)
+        except (serial.SerialTimeoutException, serial.SerialException,) as err:
+            if raises_on_timeout:
+                raise err  # --> leaving
+            else:
+                pft(err, 3)
+                return False  # --> leaving
+        except Exception as err:
+            pft(err, 3)
+            sys.exit(0)  # --> leaving
+
+        return True
 
     # --------------------------------------------------------------------------
     #   query
     # --------------------------------------------------------------------------
 
-    def query(self, msg_str, timeout_warning_style=1) -> tuple:
+    def query(
+        self,
+        msg: Union[str, bytes],
+        raises_on_timeout: bool = False,
+        returns_ascii: bool = True,
+    ) -> tuple:
         """Send a message to the serial device and subsequently read the reply.
 
         Args:
-            msg_str (:obj:`str`):
-                ASCII string to be sent to the serial device.
+            msg (:obj:`str` | :obj:`bytes`):
+                ASCII string or bytes to be sent to the serial device.
 
-            timeout_warning_style (:obj:`int`, optional):
-                - :const:`1`: Will print a traceback error message on screen and
-                  continue.
+           raises_on_timeout (:obj:`bool`, optional):
+                Should an exception be raised when a write or read timeout
+                occurs?
 
-                - :const:`2`: Will raise the exception again.
+                Default: :const:`False`
 
-                Default: :const:`1`
+            returns_ascii (:obj:`bool`, optional):
+                When set to :const:`True` the device's reply will be returned as
+                an ASCII string. Otherwise, it will return as bytes.
+
+                Default: :const:`True`
 
         Returns:
             :obj:`tuple`:
-
                 - success (:obj:`bool`):
                     True if successful, False otherwise.
 
-                - ans_str (:obj:`str` | :obj:`None`):
-                    ASCII string received from the device. :obj:`None` if
-                    unsuccessful.
+                - reply (:obj:`str` | :obj:`bytes` | :obj:`None`):
+                    Reply received from the device, either as ASCII string
+                    (default) or as bytes when ``returns_ascii`` was set to
+                    :const:`False`. :obj:`None` if unsuccessful.
         """
-        success = False
-        ans_str = None
 
-        if self.write(msg_str, timeout_warning_style):
+        # Send query
+        if not self.write(msg, raises_on_timeout=raises_on_timeout):
+            return (False, None)  # --> leaving
+
+        # Read reply
+        try:
+            if self._read_termination == b"":
+                self.ser.flush()
+                time.sleep(self._query_wait_time)
+                reply = self.ser.read(self.ser.inWaiting())
+            else:
+                reply = self.ser.read_until(self._read_termination)
+        except serial.SerialException as err:
+            # Note: The Serial library does not throw an exception when it
+            # times out in `read`, only when it times out in `write`! We
+            # will check for zero received bytes as indication for a read
+            # timeout, later. See: https://stackoverflow.com/questions/10978224/serialtimeoutexception-in-python-not-working-as-expected
+            pft(err, 3)
+            return (False, None)  # --> leaving
+        except Exception as err:
+            pft(err, 3)
+            sys.exit(0)  # --> leaving
+
+        if len(reply) == 0:
+            if raises_on_timeout:
+                raise serial.SerialException(
+                    "Received 0 bytes. Read probably timed out."
+                )  # --> leaving
+            else:
+                pft("Received 0 bytes. Read probably timed out.", 3)
+                return (False, None)  # --> leaving
+
+        if returns_ascii:
             try:
-                ans_bytes = self.ser.read_until(self.read_term_char.encode())
-            except (
-                serial.SerialTimeoutException,
-                serial.SerialException,
-            ) as err:
-                # Note: The Serial library does not throw an exception when it
-                # times out in `read`, only when it times out in`write`! We
-                # will check for zero received bytes as indication for a read
-                # timeout, later.
-                # See https://stackoverflow.com/questions/10978224/serialtimeoutexception-in-python-not-working-as-expected
+                reply = reply.decode("utf8").strip()
+            except UnicodeDecodeError as err:
                 pft(err, 3)
+                return (False, None)  # --> leaving
             except Exception as err:
                 pft(err, 3)
-                sys.exit(0)
-            else:
-                if len(ans_bytes) == 0:
-                    # Received 0 bytes, probably due to a timeout.
-                    if timeout_warning_style == 1:
-                        pft("Received 0 bytes. Read probably timed out.", 3)
-                    elif timeout_warning_style == 2:
-                        raise serial.SerialTimeoutException
-                else:
-                    try:
-                        ans_str = ans_bytes.decode("utf8").strip()
-                    except UnicodeDecodeError as err:
-                        # Print error and struggle on
-                        pft(err, 3)
-                    except Exception as err:
-                        pft(err, 3)
-                        sys.exit(0)
-                    else:
-                        success = True
+                sys.exit(0)  # --> leaving
 
-        return (success, ans_str)
+        return (True, reply)
 
     # --------------------------------------------------------------------------
     #   close
@@ -356,7 +419,7 @@ class SerialDevice:
                 Default: :const:`True`
 
         Returns:
-            :const:`True` when successful, :const:`False` otherwise.
+            True if successful, False otherwise.
         """
 
         if verbose:
@@ -374,7 +437,7 @@ class SerialDevice:
         print("  @ %-5s: " % port, end="")
         try:
             # Open the serial port
-            self.ser = serial.Serial(port=port, **self.serial_init_kwargs)
+            self.ser = serial.Serial(port=port, **self.serial_settings)
         except serial.SerialException:
             print("Could not open port.")
             return False
@@ -392,19 +455,15 @@ class SerialDevice:
         # Optional validation query
         try:
             self.is_alive = True  # We must assume communication is possible
-            (
-                broad_query_reply,
-                specific_query_reply,
-            ) = self._ID_validation_query()
-
+            reply_broad, reply_specific = self._ID_validation_query()
         except:
-            print("I/O error in ID_validation_query().")
+            print("Wrong or no device.")
             self.close(ignore_exceptions=True)
             return False
 
-        if broad_query_reply == self._valid_ID_broad:
-            if specific_query_reply is not None:
-                print("Found `%s`: " % specific_query_reply, end="")
+        if reply_broad == self._valid_ID_broad:
+            if reply_specific is not None:
+                print("Found `%s`: " % reply_specific, end="")
 
             if self._valid_ID_specific is None:
                 # Found a matching device in a broad sense
@@ -413,14 +472,14 @@ class SerialDevice:
                 self.is_alive = True
                 return True
 
-            elif specific_query_reply == self._valid_ID_specific:
+            elif reply_specific == self._valid_ID_specific:
                 # Found a matching device in a specific sense
                 print("Specific Success!")
                 print("  `%s`\n" % self.name)
                 self.is_alive = True
                 return True
 
-        print("Wrong or no device.")
+        print("Wrong device.")
         self.close(ignore_exceptions=True)
         return False
 
@@ -433,7 +492,7 @@ class SerialDevice:
         further the description at :meth:`connect_at_port`.
 
         Returns:
-            :const:`True` when successful, :const:`False` otherwise.
+            True if successful, False otherwise.
         """
         if self._ID_validation_query is None or self._valid_ID_specific is None:
             print("Scanning ports for: %s" % self.long_name)
@@ -453,7 +512,7 @@ class SerialDevice:
                 continue
 
         # Scanned over all the ports without finding a match
-        print("\n  ERROR: Device not found")
+        print("\n  ERROR: Device not found.")
         return False
 
     # --------------------------------------------------------------------------
@@ -476,7 +535,7 @@ class SerialDevice:
                 Default: `"config/port.txt"`
 
         Returns:
-            :const:`True` when successful, :const:`False` otherwise.
+            True if successful, False otherwise.
         """
         path = Path(filepath_last_known_port)
         port = self._get_last_known_port(path)
@@ -537,7 +596,7 @@ class SerialDevice:
                 The port name string to write to file.
 
         Returns:
-            :const:`True` when successful, :const:`False` otherwise.
+            True if successful, False otherwise.
         """
         if isinstance(path, Path):
             if not path.parent.is_dir():

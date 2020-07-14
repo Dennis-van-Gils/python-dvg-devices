@@ -55,7 +55,6 @@ __version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.2
 # Ready for subclassing SerialDevice with method `query`
 
 import sys
-import serial
 
 from dvg_debug_functions import print_fancy_traceback as pft
 from dvg_devices.BaseDevice import SerialDevice
@@ -63,25 +62,20 @@ from dvg_devices.BaseDevice import SerialDevice
 
 class Arduino(SerialDevice):
     def __init__(
-        self,
-        name="Ard_1",
-        long_name="Arduino",
-        read_term_char="\n",
-        write_term_char="\n",
-        connect_to_specific_ID=None,
+        self, name="Ard_1", long_name="Arduino", connect_to_specific_ID=None,
     ):
         super().__init__(
             name=name, long_name=long_name,
         )
 
         # Default serial settings
-        self.serial_init_kwargs = {
+        self.serial_settings = {
             "baudrate": 9600,
             "timeout": 2,
             "write_timeout": 2,
         }
-        self.read_term_char = read_term_char
-        self.write_term_char = write_term_char
+        self.set_read_termination("\n")
+        self.set_write_termination("\n")
 
         self.set_ID_validation_query(
             ID_validation_query=self.ID_validation_query,
@@ -94,114 +88,17 @@ class Arduino(SerialDevice):
     # --------------------------------------------------------------------------
 
     def ID_validation_query(self) -> (str, str):
-        [_success, reply_str] = self.query("id?", timeout_warning_style=2)
-        reply = reply_str.split(",")
-        broad_reply = reply[0].strip()  # Expected: "Arduino"
-        specific_reply = reply[1].strip()
-        return (broad_reply, specific_reply)
+        _success, reply = self.query("id?", raises_on_timeout=True)
+
+        reply = reply.split(",")  # Expected: "Arduino, [specific ID]"
+        reply_broad = reply[0].strip()  # Expected: "Arduino"
+        reply_specific = reply[1].strip() if len(reply) > 1 else None
+
+        return (reply_broad, reply_specific)
 
     # --------------------------------------------------------------------------
-    #   write
+    #   query_ascii_values
     # --------------------------------------------------------------------------
-
-    def write(self, msg_str, timeout_warning_style=1):
-        """Send a message to the serial device.
-
-        Args:
-            msg_str (str):
-                String to be sent to the serial device.
-            timeout_warning_style (int, optional):
-                1 (default): Will print a traceback error message on screen and
-                continue.
-                2: Will raise the exception again.
-
-        Returns: True if successful, False otherwise.
-        """
-        success = False
-
-        if not self.is_alive:
-            pft("Device is not connected yet or already closed.", 3)
-        else:
-            try:
-                self.ser.write((msg_str + self.write_term_char).encode())
-            except (
-                serial.SerialTimeoutException,
-                serial.SerialException,
-            ) as err:
-                if timeout_warning_style == 1:
-                    pft(err, 3)
-                elif timeout_warning_style == 2:
-                    raise (err)
-            except Exception as err:
-                pft(err, 3)
-                sys.exit(0)
-            else:
-                success = True
-
-        return success
-
-    # --------------------------------------------------------------------------
-    #   query
-    # --------------------------------------------------------------------------
-
-    def query(self, msg_str, timeout_warning_style=1):
-        """Send a message to the serial device and subsequently read the reply.
-
-        Args:
-            msg_str (str):
-                Message to be sent to the serial device.
-            timeout_warning_style (int, optional):
-                Work-around for the Serial library not throwing an exception
-                when read has timed out.
-                1 (default): Will print a traceback error message on screen and
-                continue.
-                2: Will raise the exception again.
-
-        Returns:
-            success (bool):
-                True if successful, False otherwise.
-            ans_str (str):
-                Reply received from the device. [None] if unsuccessful.
-        """
-        success = False
-        ans_str = None
-
-        if self.write(msg_str, timeout_warning_style):
-            try:
-                ans_bytes = self.ser.read_until(self.read_term_char.encode())
-            except (
-                serial.SerialTimeoutException,
-                serial.SerialException,
-            ) as err:
-                # Note: The Serial library does not throw an exception when it
-                # times out in `read`, only when it times out in`write`! We
-                # will check for zero received bytes as indication for a read
-                # timeout, later.
-                # See https://stackoverflow.com/questions/10978224/serialtimeoutexception-in-python-not-working-as-expected
-                pft(err, 3)
-            except Exception as err:
-                pft(err, 3)
-                sys.exit(0)
-            else:
-                if len(ans_bytes) == 0:
-                    # Received 0 bytes, probably due to a timeout.
-                    if timeout_warning_style == 1:
-                        pft("Received 0 bytes. Read probably timed out.", 3)
-                    elif timeout_warning_style == 2:
-                        raise serial.SerialTimeoutException
-                else:
-                    try:
-                        ans_str = ans_bytes.decode("utf8").strip()
-                    except UnicodeDecodeError as err:
-                        # Print error and struggle on
-                        pft(err, 3)
-                    except Exception as err:
-                        pft(err, 3)
-                        sys.exit(0)
-                    else:
-                        success = True
-
-        return [success, ans_str]
 
     def query_ascii_values(self, msg_str="", separator="\t"):
         """Send a message to the serial device and subsequently read the reply.
@@ -238,7 +135,7 @@ class Arduino(SerialDevice):
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    ard = Arduino(name="Ard_1", connect_to_specific_ID=None)
+    ard = Arduino(name="Ard_1")  # , connect_to_specific_ID="Wave generator")
 
     ard.auto_connect()
     # ard.scan_ports()
@@ -246,6 +143,8 @@ if __name__ == "__main__":
     if not ard.is_alive:
         sys.exit(0)
 
+    print(ard.query("?")[1])
+    print(ard.query("?")[1])
     print(ard.query("?")[1])
     # print(ard.query_ascii_values("?", "\t"))
 

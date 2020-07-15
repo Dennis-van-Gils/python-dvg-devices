@@ -48,15 +48,11 @@ Classes:
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "15-07-2020"  # 0.0.1 was stamped 15-08-2019
-__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.2
-# pylint: disable=bare-except, broad-except, try-except-raise
-
-# Ready for subclassing SerialDevice with method `query`
+__date__ = "15-07-2020"
+__version__ = "0.0.5"
 
 import sys
 
-from dvg_debug_functions import print_fancy_traceback as pft
 from dvg_devices.BaseDevice import SerialDevice
 
 

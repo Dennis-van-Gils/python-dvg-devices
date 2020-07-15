@@ -33,9 +33,7 @@ class PolyScience_PD_bath(SerialDevice):
         # fmt: on
 
     def __init__(self, name="Bath", long_name="PolyScience PD bath"):
-        super().__init__(
-            name=name, long_name=long_name,
-        )
+        super().__init__(name=name, long_name=long_name)
 
         # Default serial settings
         self.serial_init_kwargs = {

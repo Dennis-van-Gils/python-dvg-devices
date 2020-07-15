@@ -48,9 +48,7 @@ class Arduino(SerialDevice):
     def __init__(
         self, name="Ard_1", long_name="Arduino", connect_to_specific_ID=None,
     ):
-        super().__init__(
-            name=name, long_name=long_name,
-        )
+        super().__init__(name=name, long_name=long_name)
 
         # Default serial settings
         self.serial_settings = {

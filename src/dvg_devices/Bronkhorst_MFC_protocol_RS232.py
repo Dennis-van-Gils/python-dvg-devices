@@ -34,9 +34,7 @@ class Bronkhorst_MFC(SerialDevice):
         long_name="Bronkhorst MFC",
         connect_to_serial_number=None,
     ):
-        super().__init__(
-            name=name, long_name=long_name,
-        )
+        super().__init__(name=name, long_name=long_name)
 
         # Default serial settings
         self.serial_init_kwargs = {

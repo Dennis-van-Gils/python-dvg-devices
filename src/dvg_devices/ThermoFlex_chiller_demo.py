@@ -6,11 +6,10 @@ recirculating chiller.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "07-07-2020"  # 0.0.1 was stamped 14-09-2018
-__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
+__date__ = "15-07-2020"
+__version__ = "0.0.6"
 
 import sys
-from pathlib import Path
 
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
@@ -74,7 +73,7 @@ if __name__ == "__main__":
     MAX_SETPOINT_DEG_C = 40  # [deg C]
 
     # Config file containing COM port address
-    PATH_CONFIG = Path("config/port_chiller.txt")
+    PATH_CONFIG = "config/port_chiller.txt"
 
     # The state of the chiller is polled with this time interval
     UPDATE_INTERVAL_MS = 1000  # [ms]
@@ -84,11 +83,11 @@ if __name__ == "__main__":
     # --------------------------------------------------------------------------
 
     chiller = ThermoFlex_chiller(
+        name="chiller",
         min_setpoint_degC=MIN_SETPOINT_DEG_C,
         max_setpoint_degC=MAX_SETPOINT_DEG_C,
-        name="chiller",
     )
-    if chiller.auto_connect(PATH_CONFIG):
+    if chiller.auto_connect(filepath_last_known_port=PATH_CONFIG):
         chiller.begin()
 
     # --------------------------------------------------------------------------
@@ -106,7 +105,9 @@ if __name__ == "__main__":
     #   Set up communication threads for the chiller
     # --------------------------------------------------------------------------
 
-    chiller_qdev = ThermoFlex_chiller_qdev(chiller, UPDATE_INTERVAL_MS)
+    chiller_qdev = ThermoFlex_chiller_qdev(
+        dev=chiller, DAQ_interval_ms=UPDATE_INTERVAL_MS
+    )
     chiller_qdev.start()
 
     # --------------------------------------------------------------------------

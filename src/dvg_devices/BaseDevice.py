@@ -340,6 +340,8 @@ class SerialDevice:
             == "connect_at_port"
             or inspect.getouterframes(inspect.currentframe())[3].function
             == "connect_at_port"
+            or inspect.getouterframes(inspect.currentframe())[4].function
+            == "connect_at_port"
         ):
             raises_on_timeout = True
 

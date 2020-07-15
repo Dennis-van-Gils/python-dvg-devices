@@ -66,9 +66,7 @@ class Compax3_servo(SerialDevice):
         long_name="Compax3 servo",
         connect_to_serial_number=None,
     ):
-        super().__init__(
-            name=name, long_name=long_name,
-        )
+        super().__init__(name=name, long_name=long_name)
 
         # Default serial settings
         self.serial_init_kwargs = {

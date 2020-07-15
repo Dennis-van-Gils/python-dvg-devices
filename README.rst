@@ -39,8 +39,8 @@ Highlights
 
 * Class Arduino() which wraps around SerialDevice(). In combination with
   https://github.com/Dennis-van-Gils/DvG_SerialCommand it allows for
-  automatically connecting to your Arduino(-like) device without specifying
-  the serial port.
+  automatically connecting to your Arduino(-like) device and for easy serial
+  I/O communication.
 
 * Separate PyQt5 interfaces are provided for each of these devices
   offering out-of-the-box multithreaded data acquisition and communication. It

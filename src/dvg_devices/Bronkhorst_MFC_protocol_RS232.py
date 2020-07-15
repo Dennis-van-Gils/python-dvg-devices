@@ -32,7 +32,7 @@ class Bronkhorst_MFC(SerialDevice):
         self,
         name="MFC",
         long_name="Bronkhorst MFC",
-        connect_to_specific_serial_number=None,
+        connect_to_serial_number=None,
     ):
         super().__init__(
             name=name, long_name=long_name,
@@ -50,7 +50,7 @@ class Bronkhorst_MFC(SerialDevice):
         self.set_ID_validation_query(
             ID_validation_query=self.ID_validation_query,
             valid_ID_broad="8002716300",
-            valid_ID_specific=connect_to_specific_serial_number,
+            valid_ID_specific=connect_to_serial_number,
         )
 
         # Container for the process and measurement variables
@@ -272,7 +272,7 @@ if __name__ == "__main__":
     SERIAL_MFC = None
 
     # Create connection to Bronkhorst MFC over RS232
-    mfc = Bronkhorst_MFC(connect_to_specific_serial_number=SERIAL_MFC)
+    mfc = Bronkhorst_MFC(connect_to_serial_number=SERIAL_MFC)
     if mfc.auto_connect(filepath_last_known_port=PATH_CONFIG):
         mfc.begin()  # Retrieve necessary parameters
         print("  Serial  : %s" % mfc.serial_str)

@@ -15,17 +15,14 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "13-07-2020"  # 0.0.1 was stamped 01-08-2018
-__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
+__date__ = "15-07-2020"
+__version__ = "0.0.6"
 # pylint: disable=bare-except, broad-except, try-except-raise, pointless-string-statement
 
-# Ready for subclassing SerialDevice with method `query`
-
 import sys
-import serial
+from typing import Union
 import numpy as np
 
-from dvg_debug_functions import print_fancy_traceback as pft
 from dvg_devices.BaseDevice import SerialDevice
 
 
@@ -67,7 +64,7 @@ class Compax3_servo(SerialDevice):
         self,
         name="trav",
         long_name="Compax3 servo",
-        connect_to_specific_serial_number=None,
+        connect_to_serial_number=None,
     ):
         super().__init__(
             name=name, long_name=long_name,
@@ -80,13 +77,13 @@ class Compax3_servo(SerialDevice):
             "write_timeout": 0.4,
             "rtscts": True,
         }
-        self.read_term_char = "\r"
-        self.write_term_char = "\r"
+        self.set_read_termination("\r")
+        self.set_write_termination("\r")
 
         self.set_ID_validation_query(
             ID_validation_query=self.ID_validation_query,
             valid_ID_broad="Compax3",
-            valid_ID_specific=connect_to_specific_serial_number,
+            valid_ID_specific=connect_to_serial_number,
         )
 
         # Containers for the status, process and measurement variables
@@ -99,33 +96,39 @@ class Compax3_servo(SerialDevice):
     #   OVERRIDE: query
     # --------------------------------------------------------------------------
 
-    def query(self, msg_str, *args, **kwargs):
-        (success, ans_str) = super().query(msg_str, *args, **kwargs)
+    def query(
+        self,
+        msg: Union[str, bytes],
+        raises_on_timeout: bool = False,
+        returns_ascii: bool = True,
+    ) -> tuple:
+        success, reply = super().query(msg, raises_on_timeout, returns_ascii)
 
         # The Compax3 is more complex in its replies than the average device.
         # Hence:
-        if ans_str[0] == ">":
-            # Successful operation without meaningful reply
-            success = True
-        elif ans_str[0] == "!":
-            # Error reply
-            print("COMPAX3 COMMUNICATION ERROR: " + ans_str)
-            success = False
-        else:
-            # Successful operation with meaningful reply
-            success = True
+        if success:
+            if reply[0] == ">":
+                # Successful operation without meaningful reply
+                pass
+            elif reply[0] == "!":
+                # Error reply
+                print("COMPAX3 COMMUNICATION ERROR: " + reply)
+                success = False
+            else:
+                # Successful operation with meaningful reply
+                pass
 
-        return (success, ans_str)
+        return (success, reply)
 
     # --------------------------------------------------------------------------
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
     def ID_validation_query(self) -> (str, str):
-        [_success, reply_str] = self.query("_?")
-        broad_reply = reply_str[:7]  # Expected: "Compax3"
-        [_success, reply_str] = self.query("o1.4")
-        specific_reply = reply_str  # Serial number
+        _success, reply = self.query("_?")
+        broad_reply = reply[:7]  # Expected: "Compax3"
+        _success, reply = self.query("o1.4")
+        specific_reply = reply  # Serial number
         return (broad_reply, specific_reply)
 
     # --------------------------------------------------------------------------
@@ -157,12 +160,12 @@ class Compax3_servo(SerialDevice):
         # have to exclude the possibility that another device will reply with
         # an error message to the serial number request, which then could be
         # mistaken for /the/ serial number.
-        [success, ans_str] = self.query("_?")
-        if success and ans_str.startswith("Compax3"):
+        success, reply = self.query("_?")
+        if success and reply.startswith("Compax3"):
             # Now we can query the serial number
-            [success, ans_str] = self.query("o1.4")
+            success, reply = self.query("o1.4")
             if success:
-                self.serial_str = ans_str
+                self.serial_str = reply
                 return True
 
         self.serial_str = None
@@ -175,9 +178,9 @@ class Compax3_servo(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans_str] = self.query("o680.5")
+        success, reply = self.query("o680.5")
         if success:
-            self.state.cur_pos = float(ans_str)
+            self.state.cur_pos = float(reply)
         else:
             self.state.cur_pos = np.nan
 
@@ -190,31 +193,31 @@ class Compax3_servo(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans_str] = self.query("o550.1")
+        success, reply = self.query("o550.1")
         if success:
             # Translate error codes to more meaningful messages
-            if ans_str == "1":
+            if reply == "1":
                 self.state.error_msg = ""
-            elif ans_str == "17168":
-                self.state.error_msg = "%s: Motor temperature" % ans_str
-            elif ans_str == "29472":
-                self.state.error_msg = "%s: Following error" % ans_str
-            elif ans_str == "29475":
+            elif reply == "17168":
+                self.state.error_msg = "%s: Motor temperature" % reply
+            elif reply == "29472":
+                self.state.error_msg = "%s: Following error" % reply
+            elif reply == "29475":
                 self.state.error_msg = (
                     "%s: Target or actual position "
-                    "exceeds positive end limit" % ans_str
+                    "exceeds positive end limit" % reply
                 )
-            elif ans_str == "29476":
+            elif reply == "29476":
                 self.state.error_msg = (
                     "%s: Target or actual position "
-                    "exceeds negative end limit" % ans_str
+                    "exceeds negative end limit" % reply
                 )
-            elif ans_str == "29479":
+            elif reply == "29479":
                 self.state.error_msg = (
-                    "%s: Change of direction during " "movement" % ans_str
+                    "%s: Change of direction during " "movement" % reply
                 )
             else:
-                self.state.error_msg = ans_str
+                self.state.error_msg = reply
         else:
             self.state.error_msg = np.nan
 
@@ -227,9 +230,9 @@ class Compax3_servo(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans_str] = self.query("o1000.3")
+        success, reply = self.query("o1000.3")
 
-        if ans_str is None:
+        if reply is None:
             # fmt: off
             self.status_word_1.I0 = np.nan
             self.status_word_1.I1 = np.nan
@@ -249,7 +252,7 @@ class Compax3_servo(SerialDevice):
             self.status_word_1.PSB2 = np.nan
             # fmt: on
         else:
-            dec_x = int(ans_str)
+            dec_x = int(reply)
 
             # Convert dec to bin string, remove prefix '0b', prefix with 0's to
             # garantuee 16 bits and reverse
@@ -304,31 +307,29 @@ class Compax3_servo(SerialDevice):
         print("    decel = %.2f" % decel)
         print("    jerk  = %.2f\n" % jerk)
 
-        [success, _ans_str] = self.query(
+        success, _reply = self.query(
             "o1901.%d=%.2f" % (profile_number, target_position)
         )
         if success:
-            [success, _ans_str] = self.query(
+            success, _reply = self.query(
                 "o1902.%d=%.2f" % (profile_number, velocity)
             )
         if success:
-            [success, _ans_str] = self.query(
-                "o1905.%d=%d" % (profile_number, mode)
-            )
+            success, _reply = self.query("o1905.%d=%d" % (profile_number, mode))
         if success:
-            [success, _ans_str] = self.query(
+            success, _reply = self.query(
                 "o1906.%d=%.2f" % (profile_number, accel)
             )
         if success:
-            [success, _ans_str] = self.query(
+            success, _reply = self.query(
                 "o1907.%d=%.2f" % (profile_number, decel)
             )
         if success:
-            [success, _ans_str] = self.query(
+            success, _reply = self.query(
                 "o1908.%d=%.2f" % (profile_number, jerk)
             )
         if success:
-            [success, _ans_str] = self.query(
+            success, _reply = self.query(
                 "o1904.%d=$32" % (profile_number)
             )  # Store profile
 
@@ -343,11 +344,11 @@ class Compax3_servo(SerialDevice):
         #             start bit (bit 13) low
         CW_LO = 0b0100000000000011
         CW_LO = CW_LO + (profile_number << 8)
-        [success, _ans_str] = self.query("o1100.3=%d" % CW_LO)
+        success, _reply = self.query("o1100.3=%d" % CW_LO)
         if success:
             # Then send start bit (bit 13) high
             CW_HI = CW_LO + (1 << 13)
-            [success, _ans_str] = self.query("o1100.3=%d" % CW_HI)
+            success, _reply = self.query("o1100.3=%d" % CW_HI)
 
         return success
 
@@ -357,7 +358,7 @@ class Compax3_servo(SerialDevice):
         at least once with 'self.store_motion_profile' before moving.
         """
         # Send new target position
-        [success, _ans_str] = self.query(
+        success, _reply = self.query(
             "o1901.%d=%.2f" % (profile_number, target_position)
         )
 
@@ -371,11 +372,11 @@ class Compax3_servo(SerialDevice):
         """
         # Control word (CW) for activating the jog+
         CW_LO = 0b0100000000000011
-        [success, _ans_str] = self.query("o1100.3=%d" % CW_LO)
+        success, _reply = self.query("o1100.3=%d" % CW_LO)
         if success:
             # Then send jog+ bit (bit 2) high
             CW_HI = CW_LO + (1 << 2)
-            [success, _ans_str] = self.query("o1100.3=%d" % CW_HI)
+            success, _reply = self.query("o1100.3=%d" % CW_HI)
 
         return success
 
@@ -384,11 +385,11 @@ class Compax3_servo(SerialDevice):
         """
         # Control word (CW) for activating the jog-
         CW_LO = 0b0100000000000011
-        [success, _ans_str] = self.query("o1100.3=%d" % CW_LO)
+        success, _reply = self.query("o1100.3=%d" % CW_LO)
         if success:
             # Then send jog- bit (bit 3) high
             CW_HI = CW_LO + (1 << 3)
-            [success, _ans_str] = self.query("o1100.3=%d" % CW_HI)
+            success, _reply = self.query("o1100.3=%d" % CW_HI)
 
         return success
 
@@ -396,14 +397,14 @@ class Compax3_servo(SerialDevice):
         """
         """
         CW_LO = 0b0100000000000011
-        [success, _ans_str] = self.query("o1100.3=%d" % CW_LO)
+        success, _reply = self.query("o1100.3=%d" % CW_LO)
 
         return success
 
     def stop_motion_and_remove_power(self):
         """
         """
-        [success, _ans_str] = self.query("o1100.3=0")
+        success, _reply = self.query("o1100.3=0")
 
         return success
 
@@ -417,9 +418,9 @@ class Compax3_servo(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, _ans_str] = self.query("o1100.3=0")
+        success, _reply = self.query("o1100.3=0")
         if success:
-            [success, _ans_str] = self.query("o1100.3=1")
+            success, _reply = self.query("o1100.3=1")
 
         return success
 
@@ -506,7 +507,7 @@ if __name__ == "__main__":
 
     # Create connection to Compax3 servo controller over RS232
     trav = Compax3_servo(
-        name=trav_conn.name, connect_to_specific_serial_number=trav_conn.serial
+        name=trav_conn.name, connect_to_serial_number=trav_conn.serial
     )
 
     if trav.auto_connect(filepath_last_known_port=trav_conn.path_config):

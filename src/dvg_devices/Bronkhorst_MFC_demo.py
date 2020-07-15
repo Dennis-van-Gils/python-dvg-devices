@@ -84,7 +84,7 @@ if __name__ == "__main__":
     #   Connect to Bronkhorst mass flow controller (MFC)
     # --------------------------------------------------------------------------
 
-    mfc = Bronkhorst_MFC(connect_to_specific_serial_number=SERIAL_MFC)
+    mfc = Bronkhorst_MFC(connect_to_serial_number=SERIAL_MFC)
     if mfc.auto_connect(filepath_last_known_port=PATH_CONFIG):
         mfc.begin()
 

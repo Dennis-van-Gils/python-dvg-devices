@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Multithreaded PyQt5 GUI to interface with a Compax3 traverse controller.
+"""Multithreaded PyQt5 GUI to interface with a Compax3 servo controller.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "06-07-2020"  # 0.0.1 was stamped 14-09-2018
-__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
+__date__ = "15-07-2020"
+__version__ = "0.0.6"
 # pylint: disable=bare-except
 
 import sys
@@ -142,19 +142,19 @@ if __name__ == "__main__":
         # Display name
         name = "TRAV"
         # Path to the config textfile containing the (last used) RS232 port
-        path_config = Path("config/port_Compax3_trav.txt")
+        path_config = "config/port_Compax3_trav.txt"
 
     # Horizontal axis
     trav_conn_horz = Trav_connection_params()
     trav_conn_horz.serial = "4409980001"
     trav_conn_horz.name = "TRAV HORZ"
-    trav_conn_horz.path_config = Path("config/port_Compax3_trav_horz.txt")
+    trav_conn_horz.path_config = "config/port_Compax3_trav_horz.txt"
 
     # Vertical axis
     trav_conn_vert = Trav_connection_params()
     trav_conn_vert.serial = "4319370001"
     trav_conn_vert.name = "TRAV VERT"
-    trav_conn_vert.path_config = Path("config/port_Compax3_trav_vert.txt")
+    trav_conn_vert.path_config = "config/port_Compax3_trav_vert.txt"
 
     # The state of the traverse controllers is polled with this time interval
     UPDATE_INTERVAL_MS = 250  # [ms]
@@ -163,11 +163,17 @@ if __name__ == "__main__":
     #   Connect to and set up Compax3 traverse controllers
     # --------------------------------------------------------------------------
 
-    trav_horz = Compax3_servo(name=trav_conn_horz.name)
-    trav_vert = Compax3_servo(name=trav_conn_vert.name)
+    trav_horz = Compax3_servo(
+        name=trav_conn_horz.name,
+        connect_to_serial_number=trav_conn_horz.serial,
+    )
+    trav_vert = Compax3_servo(
+        name=trav_conn_vert.name,
+        connect_to_serial_number=trav_conn_vert.serial,
+    )
 
     if trav_horz.auto_connect(
-        trav_conn_horz.path_config, trav_conn_horz.serial
+        filepath_last_known_port=trav_conn_horz.path_config
     ):
         trav_horz.begin()
 
@@ -183,7 +189,7 @@ if __name__ == "__main__":
         )
 
     if trav_vert.auto_connect(
-        trav_conn_vert.path_config, trav_conn_vert.serial
+        filepath_last_known_port=trav_conn_vert.path_config
     ):
         trav_vert.begin()
 

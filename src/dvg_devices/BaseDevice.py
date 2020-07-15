@@ -18,11 +18,12 @@ import sys
 import time
 from typing import Union, Callable
 from pathlib import Path
+import inspect
 
 import serial
 import serial.tools.list_ports
 
-from dvg_debug_functions import print_fancy_traceback as pft
+from dvg_debug_functions import dprint, ANSI, print_fancy_traceback as pft
 
 
 class SerialDevice:
@@ -115,12 +116,12 @@ class SerialDevice:
     # --------------------------------------------------------------------------
 
     def set_read_termination(
-        self, term: Union[str, bytes], query_wait_time: float = 0.1,
+        self, termination: Union[str, bytes], query_wait_time: float = 0.1,
     ):
         """Set the termination character(s) for serial read.
 
         Args:
-            term (:obj:`str` | :obj:`bytes` | :obj:`None`):
+            termination (:obj:`str` | :obj:`bytes` | :obj:`None`):
                 Termination character(s). When set to :obj:`None` or empty the
                 I/O operation :meth:`query` will wait ``query_wait_time``
                 seconds before reading out the complete serial-input buffer,
@@ -131,10 +132,13 @@ class SerialDevice:
 
                 Default: :const:`0.1`
         """
-        if term is None:
-            term = b""
+        if termination is None:
+            termination = b""
+
         self._read_termination = (
-            term.encode() if isinstance(term, str) else term
+            termination.encode()
+            if isinstance(termination, str)
+            else termination
         )
 
         self._query_wait_time = query_wait_time
@@ -143,17 +147,20 @@ class SerialDevice:
     #   set_write_termination
     # --------------------------------------------------------------------------
 
-    def set_write_termination(self, term: Union[str, bytes, None]):
+    def set_write_termination(self, termination: Union[str, bytes, None]):
         """Set the termination character(s) for serial write.
 
         Args:
-            term (:obj:`str` | :obj:`bytes` | :obj:`None`):
+            termination (:obj:`str` | :obj:`bytes` | :obj:`None`):
                 Termination character(s).
         """
-        if term is None:
-            term = b""
+        if termination is None:
+            termination = b""
+
         self._write_termination = (
-            term.encode() if isinstance(term, str) else term
+            termination.encode()
+            if isinstance(termination, str)
+            else termination
         )
 
     # --------------------------------------------------------------------------
@@ -217,11 +224,11 @@ class SerialDevice:
                 .. code-block:: python
 
                     def my_ID_validation_query(self) -> (object, object):
-                        _success, reply = self.query("*idn?", raises_on_timeout=True)
-                        # reply = "THURLBY THANDAR, QL355TP, 279730, 1.00 – 1.00"
+                        _success, reply = self.query("*idn?")
+                        # Expected: reply = "THURLBY THANDAR, QL355TP, 279730, 1.00 – 1.00"
 
                         reply_broad = ans[:19]               # "THURLBY THANDAR, QL"
-                        reply_specific = ans.split(",")[2]   # "279730"
+                        reply_specific = ans.split(",")[2]   # "279730", i.e. serial number
                         return (reply_broad, reply_specific)
 
                 When ``ID_validation_query`` is set to :obj:`None`, no
@@ -323,6 +330,14 @@ class SerialDevice:
                     :const:`False`. :obj:`None` if unsuccessful.
         """
 
+        # Always ensure that a timeout exception is raised when coming from
+        # :meth:`connect_at_port`.
+        if (
+            inspect.getouterframes(inspect.currentframe())[2].function
+            == "connect_at_port"
+        ):
+            raises_on_timeout = True
+
         # Send query
         if not self.write(msg, raises_on_timeout=raises_on_timeout):
             return (False, None)  # --> leaving
@@ -399,7 +414,7 @@ class SerialDevice:
     #   connect_at_port
     # --------------------------------------------------------------------------
 
-    def connect_at_port(self, port: str, verbose=True) -> bool:
+    def connect_at_port(self, port: str, verbose: bool = True) -> bool:
         """Open the serial port at address ``port`` and try to establish a
         connection.
 
@@ -423,19 +438,26 @@ class SerialDevice:
             True if successful, False otherwise.
         """
 
+        def print_success(success_str: str):
+            dprint(success_str, ANSI.GREEN)
+            dprint(" " * 16 + "--> %s" % self.name, ANSI.GREEN)
+
         if verbose:
+            _print_hrule(True)
             if (
                 self._ID_validation_query is None
                 or self._valid_ID_specific is None
             ):
-                print("Connecting to: %s" % self.long_name)
+                dprint("  Connecting to: %s" % self.long_name, ANSI.YELLOW)
             else:
-                print(
-                    "Connecting to: %s | `%s`"
-                    % (self.long_name, self._valid_ID_specific)
+                dprint(
+                    "  Connecting to: %s `%s`"
+                    % (self.long_name, self._valid_ID_specific),
+                    ANSI.YELLOW,
                 )
+            _print_hrule()
 
-        print("  @ %-5s: " % port, end="")
+        print("  @ %-11s " % port, end="")
         try:
             # Open the serial port
             self.ser = serial.Serial(port=port, **self.serial_settings)
@@ -448,8 +470,7 @@ class SerialDevice:
 
         if self._ID_validation_query is None:
             # Found any device
-            print("Any Success!")
-            print("  `%s`\n" % self.name)
+            print_success("Any Success!")
             self.is_alive = True
             return True
 
@@ -468,15 +489,13 @@ class SerialDevice:
 
             if self._valid_ID_specific is None:
                 # Found a matching device in a broad sense
-                print("Broad Success!")
-                print("  `%s`\n" % self.name)
+                print_success("Broad Success!")
                 self.is_alive = True
                 return True
 
             elif reply_specific == self._valid_ID_specific:
                 # Found a matching device in a specific sense
-                print("Specific Success!")
-                print("  `%s`\n" % self.name)
+                print_success("Specific Success!")
                 self.is_alive = True
                 return True
 
@@ -488,20 +507,34 @@ class SerialDevice:
     #   scan_ports
     # --------------------------------------------------------------------------
 
-    def scan_ports(self) -> bool:
+    def scan_ports(self, verbose: bool = True) -> bool:
         """Scan over all serial ports and try to establish a connection. See
         further the description at :meth:`connect_at_port`.
+
+        Args:
+            verbose (:obj:`bool`, optional):
+                Print a `"Scanning ports for: "`-message to the terminal?
+
+                Default: :const:`True`
 
         Returns:
             True if successful, False otherwise.
         """
-        if self._ID_validation_query is None or self._valid_ID_specific is None:
-            print("Scanning ports for: %s" % self.long_name)
-        else:
-            print(
-                "Scanning ports for: %s | `%s`"
-                % (self.long_name, self._valid_ID_specific)
-            )
+
+        if verbose:
+            _print_hrule(True)
+            if (
+                self._ID_validation_query is None
+                or self._valid_ID_specific is None
+            ):
+                dprint("  Scanning ports for: %s" % self.long_name, ANSI.YELLOW)
+            else:
+                dprint(
+                    "  Scanning ports for: %s `%s`"
+                    % (self.long_name, self._valid_ID_specific),
+                    ANSI.YELLOW,
+                )
+            _print_hrule()
 
         # Ports is a list of tuples
         ports = list(serial.tools.list_ports.comports())
@@ -513,7 +546,7 @@ class SerialDevice:
                 continue
 
         # Scanned over all the ports without finding a match
-        print("\n  ERROR: Device not found.")
+        dprint("\n  ERROR: Device not found.", ANSI.RED)
         return False
 
     # --------------------------------------------------------------------------
@@ -547,7 +580,7 @@ class SerialDevice:
             success = False
 
         if not success:
-            success = self.scan_ports()
+            success = self.scan_ports(verbose=False)
             if success:
                 self._store_last_known_port(path, self.ser.portstr)
 
@@ -616,3 +649,7 @@ class SerialDevice:
                 return True
 
         return False
+
+
+def _print_hrule(leading_newline=False):
+    dprint(("\n" if leading_newline else "") + "-" * 60, ANSI.YELLOW)

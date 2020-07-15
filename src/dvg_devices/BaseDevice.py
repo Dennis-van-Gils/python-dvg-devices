@@ -11,7 +11,7 @@ __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "15-07-2020"
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
@@ -34,7 +34,7 @@ class SerialDevice:
 
     The following functionality is offered:
 
-    * TODO: mention write, query and close.
+    * TODO: mention write(), query(), query_ascii_values() and close().
 
     * Scanning over all serial ports to autoconnect to the desired serial
       device, based on the device's reply to a validation query.

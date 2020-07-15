@@ -3,58 +3,41 @@
 """Provides higher-level general I/O methods for communicating with an
 Arduino(-like) board over the serial connection.
 
-
-
-Instances of this class will tie in nicely with
-:class:`dvg_qdeviceio.QDeviceIO`.
-
-
-The Arduino should be programmed to respond to a so-called 'identity' query over
-the serial connection. It must reply to ``query('id?')`` with an ASCII string
+The Arduino could be programmed to respond to a so-called 'identity' query over
+the serial connection. It must reply to ASCII command "id?" with an ASCII string
 response. Choosing a unique identity response per each Arduino in your project
-allows for auto-connecting to these Arduinos without specifying the serial port.
-
-Only ASCII based communication is supported so-far. Binary encoded communication
-will be possible as well after a few modifications to this library have been
-made (work in progress).
+allows for auto-connecting to your Arduino without having to specify the serial
+port.
 
 #### On the Arduino side
 I also provide a C++ library for the Arduino(-like) device. It provides
 listening to a serial port for commands and act upon them. This library can be
-used in conjunction (but not required) with this Python library.
-See [DvG_SerialCommand](https://github.com/Dennis-van-Gils/DvG_SerialCommand).
+used in conjunction (but not required) with this Python module.
+See https://github.com/Dennis-van-Gils/DvG_SerialCommand.
 
-Classes:
-    Arduino(...):
+    Class Arduino(...):
         Manages serial communication with an Arduino(-like) device.
 
-        Methods:
-
-
-            close():
-                Close the serial connection.
+        Most important methods:
             connect_at_port(...)
-                Try to establish a connection on this serial port.
             scan_ports(...)
-                Scan over all serial ports and try to establish a connection.
             auto_connect(...)
-                Try the last used serial port, or scan over all when it fails.
-            write(...)
-                Write a string to the serial port.
-            query(...)
-                Write a string to the serial port and return the reply.
-            query_ascii_values(...)
-                Write a string to the serial port and return the reply, parsed
-                into a list of floats.
+            close()
 
-        Important member:
-            ser: serial.Serial instance belonging to the Arduino
+            write(...)
+            query(...)
+            query_ascii_values(...)
+
+See https://python-dvg-devices.readthedocs.io/en/latest/api-serialdevice.html
+for the documentation of all the methods and attributes that are available.
+Instances of this class will tie in nicely with
+https://python-dvg-qdeviceio.readthedocs.io.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "15-07-2020"
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 
 import sys
 
@@ -71,7 +54,7 @@ class Arduino(SerialDevice):
 
         # Default serial settings
         self.serial_settings = {
-            "baudrate": 9600,
+            "baudrate": 115200,
             "timeout": 2,
             "write_timeout": 2,
         }

@@ -218,8 +218,12 @@ if __name__ == "__main__":
     app.aboutToQuit.connect(about_to_quit)
 
     # Create PyQt GUI interfaces and communication threads for the device
-    trav_horz_qdev = Compax3_servo_qdev(trav_horz, UPDATE_INTERVAL_MS)
-    trav_vert_qdev = Compax3_servo_qdev(trav_vert, UPDATE_INTERVAL_MS)
+    trav_horz_qdev = Compax3_servo_qdev(
+        dev=trav_horz, DAQ_interval_ms=UPDATE_INTERVAL_MS
+    )
+    trav_vert_qdev = Compax3_servo_qdev(
+        dev=trav_vert, DAQ_interval_ms=UPDATE_INTERVAL_MS
+    )
     travs_qdev = [trav_horz_qdev, trav_vert_qdev]
 
     # Create Compax3 single step navigator

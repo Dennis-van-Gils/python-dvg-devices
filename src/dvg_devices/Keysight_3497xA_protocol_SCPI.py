@@ -16,8 +16,8 @@ or that the previous query resulted in a communication error.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "07-07-2020"  # 0.0.1 was stamped 20-09-2018
-__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
+__date__ = "15-07-2020"
+__version__ = "0.0.6"
 # pylint: disable=try-except-raise
 
 import time
@@ -197,7 +197,7 @@ class Keysight_3497xA:
         self.device.write_termination = WRITE_TERMINATION
         self.device.read_termination = READ_TERMINATION
 
-        [success, self._idn] = self.query("*idn?")
+        success, self._idn = self.query("*idn?")
         self.wait_for_OPC()
 
         if success:
@@ -368,7 +368,7 @@ class Keysight_3497xA:
         all_success = True
 
         # Retrieve relay cycle counts of internal DMM
-        [success, DMM_cycles] = self.query_ascii_values("diag:dmm:cycl?")
+        success, DMM_cycles = self.query_ascii_values("diag:dmm:cycl?")
         all_success &= success
 
         if success:
@@ -391,7 +391,7 @@ class Keysight_3497xA:
 
         for i in range(3):
             bank = 100 * (i + 1)
-            [success, slot_ctype] = self.query("syst:ctyp? %i" % bank)
+            success, slot_ctype = self.query("syst:ctyp? %i" % bank)
             all_success &= success
 
             if success:
@@ -411,7 +411,7 @@ class Keysight_3497xA:
             if slot_ctype == "none":
                 slot_label = np.nan
             else:
-                [success, slot_label] = self.query(
+                success, slot_label = self.query(
                     "diag:peek:slot:data? %i" % bank
                 )
                 all_success &= success
@@ -421,7 +421,7 @@ class Keysight_3497xA:
 
             if N_chans > 0:
                 ch_list_SCPI = "%i:%i" % (bank + 1, bank + N_chans)
-                [success, relay_cycles] = self.query_ascii_values(
+                success, relay_cycles = self.query_ascii_values(
                     "diag:rel:cycl? (@%s)" % ch_list_SCPI
                 )
                 all_success &= success
@@ -563,7 +563,7 @@ class Keysight_3497xA:
 
         Returns: True if the query was received successfully, False otherwise.
         """
-        [success, self.state.error] = self.query("syst:err?")
+        success, self.state.error = self.query("syst:err?")
         if success:
             if self.state.error.find(STR_NO_ERROR) == 0:
                 self.state.error = None
@@ -656,7 +656,7 @@ class Keysight_3497xA:
 
         Returns: True if the query was received successfully, False otherwise.
         """
-        [success, self.state.readings] = self.query_ascii_values("fetc?")
+        success, self.state.readings = self.query_ascii_values("fetc?")
 
         return success
 
@@ -684,7 +684,7 @@ class Keysight_3497xA:
         Returns: True if the query was received successfully, False otherwise.
         """
 
-        [success, str_ans] = self.query("rout:scan?")
+        success, str_ans = self.query("rout:scan?")
         if success:
             tmp = str_ans[str_ans.find("@") + 1 :].strip(")")
             if tmp != "":

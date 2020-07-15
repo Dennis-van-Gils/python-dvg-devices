@@ -35,18 +35,18 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
-    #'sphinx_qt_documentation',
+    'sphinx_qt_documentation',
 ]
 
 intersphinx_mapping = {
-    #'PyQt5': ('https://www.riverbankcomputing.com/static/Docs/PyQt5/', None),
+    'PyQt5': ('https://www.riverbankcomputing.com/static/Docs/PyQt5/', None),
     'NumPy': ('https://numpy.org/doc/stable/', None),
     'python': ('https://docs.python.org/3', None),
     'serial': ('https://pyserial.readthedocs.io/en/latest/', None),
     'dvg_qdeviceio': ('https://python-dvg-qdeviceio.readthedocs.io/en/latest/', None),
 }
 
-#qt_documentation = 'Qt5'
+qt_documentation = 'Qt5'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

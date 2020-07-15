@@ -14,22 +14,47 @@
 
 DvG_Devices
 =============
-Collection of interfaces to communicate with laboratory devices, with support
-for multithreading in PyQt5.
+Collection of interfaces to communicate with microcontroller boards and
+laboratory devices, with optional PyQt5 multithread support and graphical
+user-interfaces.
 
-* Arduino -- microcontroller board
-* Bronkhorst -- mass flow controller
-* Compax3 -- servo controller
-* Keysight 3497xA -- digital multimeter
-* Keysight N8700 -- power supply
-* Picotech PT104 -- temperature logger
-* PolyScience PD -- recirculating bath
-* ThermoFlex -- chiller
+Supported
+---------
+    =======================    =======================
+    Arduino, or similar        microcontroller board
+    Aim TTi QL series II       power supply
+    Bronkhorst EL-FLOW         mass flow controller
+    Parker Compax3             servo controller
+    Keysight 3497xA            digital multimeter
+    Keysight N8700             power supply
+    Picotech PT104             temperature logger
+    PolyScience PD             recirculating bath
+    ThermoFisher ThermoFlex    chiller
+    =======================    =======================
 
+Highlights
+----------
+* Class SerialDevice() offering higher-level general I/O methods for
+  a serial device, such as autoconnect(), write() and query().
+
+* Class Arduino() which wraps around SerialDevice(). In combination with
+  https://github.com/Dennis-van-Gils/DvG_SerialCommand it allows for
+  automatically connecting to your Arduino(-like) device without specifying
+  the serial port.
+
+* Separate PyQt5 interfaces are provided for each of these devices
+  offering out-of-the-box multithreaded data acquisition and communication. It
+  relies on https://python-dvg-qdeviceio.readthedocs.io/en/latest.
+
+* Ready-to-run PyQt5 demos to directly control many of the supported
+  devices.
+
+Links
+-----
 - Documentation: https://python-dvg-devices.readthedocs.io
 - Github: https://github.com/Dennis-van-Gils/python-dvg-devices
 - PyPI: https://pypi.org/project/dvg-devices
 
-Installation:
-
+Installation
+------------
     ``pip install dvg-devices``

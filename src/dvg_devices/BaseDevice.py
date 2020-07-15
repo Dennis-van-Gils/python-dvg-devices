@@ -56,6 +56,8 @@ class SerialDevice:
 
             Default: `"Dev_1"`
 
+    .. rubric:: Attributes:
+
     Attributes:
         long_name (:obj:`str`):
             Long display name of the device in a general sense. E.g,

@@ -401,7 +401,7 @@ class SerialDevice:
             msg (:obj:`str`):
                 ASCII string to be sent to the serial device.
 
-            delimiter (:obj:`str`):
+            delimiter (:obj:`str`, optional):
                 Delimiter used in the device's reply.
 
                 Default: `"\\t"`

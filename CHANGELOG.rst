@@ -1,6 +1,11 @@
 Changelog
 =========
 
+0.0.6 (2020-07-16)
+------------------
+* Finished implementing BaseDevice.SerialDevice()
+* Update dependence dvg-qdeviceio==0.2.1
+
 0.0.5 (2020-07-07)
 ------------------
 * Update dependence dvg-qdeviceio==0.2.0

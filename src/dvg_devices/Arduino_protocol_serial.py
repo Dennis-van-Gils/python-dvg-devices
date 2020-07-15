@@ -48,7 +48,7 @@ Classes:
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "13-07-2020"  # 0.0.1 was stamped 15-08-2019
+__date__ = "15-07-2020"  # 0.0.1 was stamped 15-08-2019
 __version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.2
 # pylint: disable=bare-except, broad-except, try-except-raise
 
@@ -88,47 +88,13 @@ class Arduino(SerialDevice):
     # --------------------------------------------------------------------------
 
     def ID_validation_query(self) -> (str, str):
-        _success, reply = self.query("id?")
         # Expected: reply = "Arduino, [specific ID]"
-
+        _success, reply = self.query("id?")
         reply = reply.split(",")
-        reply_broad = reply[0].strip()  # Expected reply_broad = "Arduino"
+        reply_broad = reply[0].strip()  # "Arduino"
         reply_specific = reply[1].strip() if len(reply) > 1 else None
 
         return (reply_broad, reply_specific)
-
-    # --------------------------------------------------------------------------
-    #   query_ascii_values
-    # --------------------------------------------------------------------------
-
-    def query_ascii_values(self, msg_str="", separator="\t"):
-        """Send a message to the serial device and subsequently read the reply.
-        Expects a reply from the Arduino in the form of an ASCII string
-        containing a list of numeric values. These values will be parsed into a
-        list of floats and returned.
-
-        Returns:
-            success (bool):
-                True if successful, False otherwise.
-            ans_floats (list):
-                Reply received from the device and parsed into a list of floats.
-                [None] if unsuccessful.
-        """
-        [success, ans_str] = self.query(msg_str)
-
-        if success and not ans_str == "":
-            try:
-                ans_floats = list(map(float, ans_str.split(separator)))
-            except ValueError as err:
-                # Print error and struggle on
-                pft(err, 3)
-            except Exception as err:
-                pft(err, 3)
-                sys.exit(0)
-            else:
-                return [True, ans_floats]
-
-        return [False, []]
 
 
 # ------------------------------------------------------------------------------
@@ -136,16 +102,17 @@ class Arduino(SerialDevice):
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    ard = Arduino(
-        name="Ard_1",
-        # connect_to_specific_ID="Waveform generator"
-    )
+    ard = Arduino(name="Ard_1", connect_to_specific_ID="Wave generator")
 
+    ard.serial_settings["baudrate"] = 115200
     ard.auto_connect()
     # ard.scan_ports()
 
     if not ard.is_alive:
         sys.exit(0)
+
+    readings = ard.query_ascii_values("?")[1]
+    print(readings)
 
     # print(ard.query("?")[1])
     # print(ard.query("?")[1])

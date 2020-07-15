@@ -19,6 +19,7 @@ import time
 from typing import Union, Callable
 from pathlib import Path
 import inspect
+from ast import literal_eval
 
 import serial
 import serial.tools.list_ports
@@ -226,11 +227,11 @@ class SerialDevice:
                 .. code-block:: python
 
                     def my_ID_validation_query(self) -> (object, object):
-                        _success, reply = self.query("*idn?")
                         # Expected: reply = "THURLBY THANDAR, QL355TP, 279730, 1.00 – 1.00"
-
+                        _success, reply = self.query("*idn?")
                         reply_broad = ans[:19]               # "THURLBY THANDAR, QL"
                         reply_specific = ans.split(",")[2]   # "279730", i.e. serial number
+
                         return (reply_broad, reply_specific)
 
                 When ``ID_validation_query`` is set to :obj:`None`, no
@@ -385,6 +386,60 @@ class SerialDevice:
         return (True, reply)
 
     # --------------------------------------------------------------------------
+    #   query_ascii_values
+    # --------------------------------------------------------------------------
+
+    def query_ascii_values(
+        self, msg: str, delimiter="\t", raises_on_timeout: bool = False,
+    ) -> tuple:
+        r"""Send a message to the serial device and subsequently read the reply.
+        Expects a reply in the form of an ASCII string containing a list of
+        numeric values, separated by a delimiter. These values will be parsed
+        into a list and returned.
+
+        Args:
+            msg (:obj:`str`):
+                ASCII string to be sent to the serial device.
+
+            delimiter (:obj:`str`):
+                Delimiter used in the device's reply.
+
+                Default: `"\\t"`
+
+            raises_on_timeout (:obj:`bool`, optional):
+                Should an exception be raised when a write or read timeout
+                occurs?
+
+                Default: :const:`False`
+
+        Returns:
+            :obj:`tuple`:
+                - success (:obj:`bool`):
+                    True if successful, False otherwise.
+
+                - reply (:obj:`list`):
+                    Reply received from the device and parsed into a list of
+                    separate values. The list is empty if unsuccessful.
+        """
+        success, reply = self.query(
+            msg, raises_on_timeout=raises_on_timeout, returns_ascii=True
+        )
+
+        if not success:
+            return (False, ())  # --> leaving
+
+        try:
+            reply_list = list(map(literal_eval, reply.split(delimiter)))
+        except ValueError as err:
+            pft(err, 3)
+            return (False, ())  # --> leaving
+        except Exception as err:
+            pft(err, 3)
+            sys.exit(0)  # --> leaving
+
+        return (True, reply_list)
+
+    # --------------------------------------------------------------------------
     #   close
     # --------------------------------------------------------------------------
 
@@ -442,7 +497,7 @@ class SerialDevice:
 
         def print_success(success_str: str):
             dprint(success_str, ANSI.GREEN)
-            dprint(" " * 16 + "--> %s" % self.name, ANSI.GREEN)
+            dprint(" " * 16 + "--> %s\n" % self.name, ANSI.GREEN)
 
         if verbose:
             _print_hrule(True)

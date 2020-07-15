@@ -12,8 +12,8 @@ the previous query resulted in a communication error.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "07-07-2020"  # 0.0.1 was stamped 10-10-2018
-__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
+__date__ = "15-07-2020"
+__version__ = "0.0.6"
 # pylint: disable=try-except-raise
 
 import os
@@ -162,7 +162,7 @@ class Keysight_N8700:
         print("Success!")
         self.is_alive = True
 
-        [success, self._idn] = self.query("*idn?")
+        success, self._idn = self.query("*idn?")
         self.wait_for_OPC()
         if success:
             print("  %s\n" % self._idn)
@@ -407,7 +407,7 @@ class Keysight_N8700:
 
         Returns: True if the query was received successfully, False otherwise.
         """
-        [success, str_ans] = self.query("err?")
+        success, str_ans = self.query("err?")
         if success:
             if str_ans == STR_NO_ERROR:
                 self.state.error = None
@@ -446,7 +446,7 @@ class Keysight_N8700:
 
         Returns: True if the query was received successfully, False otherwise.
         """
-        [success, ans] = self.query("stat:ques:cond?")
+        success, ans = self.query("stat:ques:cond?")
         if success:
             # fmt: off
             status_code = int(ans)
@@ -474,7 +474,7 @@ class Keysight_N8700:
 
         Returns: True if the query was received successfully, False otherwise.
         """
-        [success, ans] = self.query("stat:oper:cond?")
+        success, ans = self.query("stat:oper:cond?")
         if success:
             # fmt: off
             status_code = int(ans)
@@ -546,7 +546,7 @@ class Keysight_N8700:
         """
         Returns: True if the query was received successfully, False otherwise.
         """
-        [success, self.state.ENA_OCP] = self.query("sour:curr:prot:stat?")
+        success, self.state.ENA_OCP = self.query("sour:curr:prot:stat?")
         if success:
             self.state.ENA_OCP = bool(int(self.state.ENA_OCP))
 
@@ -587,7 +587,7 @@ class Keysight_N8700:
         """
         Returns: True if the query was received successfully, False otherwise.
         """
-        [success, self.state.OVP_level] = self.query("sour:volt:prot:lev?")
+        success, self.state.OVP_level = self.query("sour:volt:prot:lev?")
         if success:
             self.state.OVP_level = float(self.state.OVP_level)
 
@@ -640,7 +640,7 @@ class Keysight_N8700:
         """
         Returns: True if the query was received successfully, False otherwise.
         """
-        [success, self.state.ENA_output] = self.query("outp?")
+        success, self.state.ENA_output = self.query("outp?")
         if success:
             self.state.ENA_output = bool(int(self.state.ENA_output))
 
@@ -680,7 +680,7 @@ class Keysight_N8700:
         """
         Returns: True if the query was received successfully, False otherwise.
         """
-        [success, self.state.I_source] = self.query("sour:curr?")
+        success, self.state.I_source = self.query("sour:curr?")
         if success:
             self.state.I_source = float(self.state.I_source)
 
@@ -692,7 +692,7 @@ class Keysight_N8700:
         """
         Returns: True if the query was received successfully, False otherwise.
         """
-        [success, self.state.V_source] = self.query("sour:volt?")
+        success, self.state.V_source = self.query("sour:volt?")
         if success:
             self.state.V_source = float(self.state.V_source)
 
@@ -704,7 +704,7 @@ class Keysight_N8700:
         """
         Returns: True if the query was received successfully, False otherwise.
         """
-        [success, self.state.I_meas] = self.query("meas:curr?")
+        success, self.state.I_meas = self.query("meas:curr?")
         if success:
             self.state.I_meas = float(self.state.I_meas)
             self.state.P_meas = self.state.I_meas * self.state.V_meas
@@ -718,7 +718,7 @@ class Keysight_N8700:
         """
         Returns: True if the query was received successfully, False otherwise.
         """
-        [success, self.state.V_meas] = self.query("meas:volt?")
+        success, self.state.V_meas = self.query("meas:volt?")
         if success:
             self.state.V_meas = float(self.state.V_meas)
             self.state.P_meas = self.state.I_meas * self.state.V_meas

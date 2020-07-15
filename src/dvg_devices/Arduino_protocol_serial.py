@@ -88,10 +88,11 @@ class Arduino(SerialDevice):
     # --------------------------------------------------------------------------
 
     def ID_validation_query(self) -> (str, str):
-        _success, reply = self.query("id?", raises_on_timeout=True)
+        _success, reply = self.query("id?")
+        # Expected: reply = "Arduino, [specific ID]"
 
-        reply = reply.split(",")  # Expected: "Arduino, [specific ID]"
-        reply_broad = reply[0].strip()  # Expected: "Arduino"
+        reply = reply.split(",")
+        reply_broad = reply[0].strip()  # Expected reply_broad = "Arduino"
         reply_specific = reply[1].strip() if len(reply) > 1 else None
 
         return (reply_broad, reply_specific)
@@ -135,7 +136,10 @@ class Arduino(SerialDevice):
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    ard = Arduino(name="Ard_1")  # , connect_to_specific_ID="Wave generator")
+    ard = Arduino(
+        name="Ard_1",
+        # connect_to_specific_ID="Waveform generator"
+    )
 
     ard.auto_connect()
     # ard.scan_ports()
@@ -143,9 +147,9 @@ if __name__ == "__main__":
     if not ard.is_alive:
         sys.exit(0)
 
-    print(ard.query("?")[1])
-    print(ard.query("?")[1])
-    print(ard.query("?")[1])
+    # print(ard.query("?")[1])
+    # print(ard.query("?")[1])
+    # print(ard.query("?")[1])
     # print(ard.query_ascii_values("?", "\t"))
 
     ard.close()

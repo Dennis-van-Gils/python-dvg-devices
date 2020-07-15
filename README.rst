@@ -26,8 +26,9 @@ Installation:
 
     ``pip install dvg-devices``
 
-Supported
----------
+Supported devices
+-----------------
+
     =======================    =======================
     Arduino, or similar        microcontroller board
     Aim TTi QL series II       power supply

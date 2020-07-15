@@ -5,8 +5,8 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "07-07-2020"  # 0.0.1 was stamped 15-09-2018
-__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
+__date__ = "15-07-2020"
+__version__ = "0.0.6"
 # pylint: disable=try-except-raise
 
 import socket
@@ -211,7 +211,7 @@ class Picotech_PT104:
         # Try up to 3 times at maximum to receive the respective response
         # UDP packet belonging to above sent UDP packet.
         for _i in range(3):
-            [success, ans_bytes] = self.UDP_recv()
+            success, ans_bytes = self.UDP_recv()
             if success:
                 if ans_bytes[: len(check_ans_bytes)] == check_ans_bytes:
                     return (True, ans_bytes)
@@ -342,7 +342,7 @@ class Picotech_PT104:
         ## Send keep alive signal. We care about the reply later.
         self.UDP_send(bytes([0x34]))
 
-        (success, ans) = self.UDP_recv()
+        success, ans = self.UDP_recv()
         while success:
             if ans[0] == 0 or ans[0] == 4 or ans[0] == 8 or ans[0] == 12:
                 # Packet containing temperature reading

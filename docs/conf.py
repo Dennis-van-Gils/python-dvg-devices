@@ -22,7 +22,7 @@ copyright = '2020, Dennis van Gils'
 author = 'Dennis van Gils'
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.5'
+release = '0.0.6'
 
 # -- General configuration ---------------------------------------------------
 

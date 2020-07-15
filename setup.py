@@ -24,7 +24,7 @@ def read(*names, **kwargs):
 
 setup(
     name="dvg-devices",
-    version="0.0.5",
+    version="0.0.6",
     license="MIT",
     description="Collection of interfaces to communicate with laboratory devices, with support for multithreading in PyQt5.",
     long_description="%s\n%s"
@@ -71,11 +71,14 @@ setup(
         "experiment",
         "PyQt5",
         "multithread",
+        "Arduino",
+        "serial",
+        "VISA",
     ],
     python_requires=">=3.6",
     install_requires=[
         "dvg-debug-functions~=2.0",
-        "dvg-qdeviceio~=0.2.0",
+        "dvg-qdeviceio~=0.2.1",
         "pyserial==3.4",
         "pyqt5~=5.12",
         "numpy~=1.15",

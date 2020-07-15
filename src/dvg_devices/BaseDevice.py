@@ -417,7 +417,7 @@ class SerialDevice:
                 - success (:obj:`bool`):
                     True if successful, False otherwise.
 
-                - reply (:obj:`list`):
+                - reply_list (:obj:`list`):
                     Reply received from the device and parsed into a list of
                     separate values. The list is empty if unsuccessful.
         """

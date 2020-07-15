@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Module to communicate with an Arduino(-like) device over a serial connection.
-* Provides automatic scanning over all serial ports for the Arduino.
-* Mimicks the [PyVISA](https://pypi.org/project/PyVISA/) library  by providing
-  ``query`` and ``query_ascii_values`` methods, which write a message to the
-  Arduino and return back its reply.
+"""Provides higher-level general I/O methods for communicating with an
+Arduino(-like) board over the serial connection.
+
+
+
+Instances of this class will tie in nicely with
+:class:`dvg_qdeviceio.QDeviceIO`.
+
 
 The Arduino should be programmed to respond to a so-called 'identity' query over
 the serial connection. It must reply to ``query('id?')`` with an ASCII string
@@ -26,6 +29,8 @@ Classes:
         Manages serial communication with an Arduino(-like) device.
 
         Methods:
+
+
             close():
                 Close the serial connection.
             connect_at_port(...)
@@ -107,12 +112,10 @@ if __name__ == "__main__":
     if not ard.is_alive:
         sys.exit(0)
 
-    readings = ard.query_ascii_values("?")[1]
+    _success, readings = ard.query_ascii_values("?")
     print(readings)
 
-    # print(ard.query("?")[1])
-    # print(ard.query("?")[1])
-    # print(ard.query("?")[1])
-    # print(ard.query_ascii_values("?", "\t"))
+    _success, reply = ard.query("?")
+    print(reply)
 
     ard.close()

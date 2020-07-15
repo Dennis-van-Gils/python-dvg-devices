@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """RS232 function library for an Aim TTi power supply unit (PSU), QL series II.
+
+! NOT FUNCTIONING YET
+! WORK IN PROGRESS
+
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"

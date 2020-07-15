@@ -26,7 +26,7 @@ setup(
     name="dvg-devices",
     version="0.0.6",
     license="MIT",
-    description="Collection of interfaces to communicate with laboratory devices, with support for multithreading in PyQt5.",
+    description="Collection of interfaces to communicate with microcontroller boards and laboratory devices, with optional PyQt5 multithread support and graphical user-interfaces.",
     long_description="%s\n%s"
     % (
         re.compile("^.. start-badges.*^.. end-badges", re.M | re.S).sub(

@@ -34,7 +34,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
-    'sphinx_qt_documentation',
+    #'sphinx_qt_documentation',
 ]
 
 intersphinx_mapping = {

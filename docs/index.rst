@@ -49,6 +49,7 @@ Highlights
    :caption: API
 
    api-serialdevice
+   api-arduinoprotocolserial
 
 
 

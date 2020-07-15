@@ -1,38 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Provides higher-level general I/O methods for communicating with an
-Arduino(-like) board over the serial connection.
-
-The Arduino could be programmed to respond to a so-called 'identity' query over
-the serial connection. It must reply to ASCII command "id?" with an ASCII string
-response. Choosing a unique identity response per each Arduino in your project
-allows for auto-connecting to your Arduino without having to specify the serial
-port.
-
-#### On the Arduino side
-I also provide a C++ library for the Arduino(-like) device. It provides
-listening to a serial port for commands and act upon them. This library can be
-used in conjunction (but not required) with this Python module.
-See https://github.com/Dennis-van-Gils/DvG_SerialCommand.
-
-    Class Arduino(...):
-        Manages serial communication with an Arduino(-like) device.
-
-        Most important methods:
-            connect_at_port(...)
-            scan_ports(...)
-            auto_connect(...)
-            close()
-
-            write(...)
-            query(...)
-            query_ascii_values(...)
-
-See https://python-dvg-devices.readthedocs.io/en/latest/api-serialdevice.html
-for the documentation of all the methods and attributes that are available.
-Instances of this class will tie in nicely with
-https://python-dvg-qdeviceio.readthedocs.io.
-"""
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
@@ -45,6 +12,37 @@ from dvg_devices.BaseDevice import SerialDevice
 
 
 class Arduino(SerialDevice):
+    """Provides higher-level general I/O methods for communicating with an
+    Arduino(-like) board over the serial connection.
+
+    The Arduino could be programmed to respond to a so-called 'identity' query over
+    the serial connection. It must reply to ASCII command "id?" with an ASCII string
+    response. Choosing a unique identity response per each Arduino in your project
+    allows for auto-connecting to your Arduino without having to specify the serial
+    port.
+
+    .. rubric:: On the Arduino side:
+
+    I also provide a C++ library for the Arduino(-like) device. It provides
+    listening to a serial port for commands and act upon them. This library can be
+    used in conjunction (but not required) with this Python module.
+    See https://github.com/Dennis-van-Gils/DvG_SerialCommand.
+
+    .. rubric:: Most important methods inherited from :class:`~dvg_devices.BaseDevice.SerialDevice`:
+
+    * :meth:`~dvg_devices.BaseDevice.SerialDevice.connect_at_port`
+    * :meth:`~dvg_devices.BaseDevice.SerialDevice.scan_ports`
+    * :meth:`~dvg_devices.BaseDevice.SerialDevice.auto_connect`
+    * :meth:`~dvg_devices.BaseDevice.SerialDevice.close`
+    * :meth:`~dvg_devices.BaseDevice.SerialDevice.write`
+    * :meth:`~dvg_devices.BaseDevice.SerialDevice.query`
+    * :meth:`~dvg_devices.BaseDevice.SerialDevice.query_ascii_values`
+
+    See :class:`~dvg_devices.BaseDevice.SerialDevice` for the documentation of
+    all the methods and attributes that are available. Instances of this class
+    will tie in nicely with :class:`~dvg_qdeviceio.QDeviceIO`.
+    """
+
     def __init__(
         self, name="Ard_1", long_name="Arduino", connect_to_specific_ID=None,
     ):

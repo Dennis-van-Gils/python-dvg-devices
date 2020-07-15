@@ -229,8 +229,8 @@ class SerialDevice:
                     def my_ID_validation_query(self) -> (object, object):
                         # Expected: reply = "THURLBY THANDAR, QL355TP, 279730, 1.00 – 1.00"
                         _success, reply = self.query("*idn?")
-                        reply_broad = ans[:19]               # "THURLBY THANDAR, QL"
-                        reply_specific = ans.split(",")[2]   # "279730", i.e. serial number
+                        reply_broad = ans[:19]                  # "THURLBY THANDAR, QL"
+                        reply_specific = ans.split(",")[2]      # "279730", i.e. serial number
 
                         return (reply_broad, reply_specific)
 

@@ -37,7 +37,7 @@ setup(
     long_description_content_type="text/x-rst",
     author="Dennis van Gils",
     author_email="vangils.dennis@gmail.com",
-    url="https://github.com/Dennis-van-Gils/python-dvg-devices",
+    url="https://python-dvg-devices.readthedocs.io",
     packages=find_namespace_packages("src"),
     package_dir={"": "src"},
     py_modules=[splitext(basename(path))[0] for path in glob("src/*.py")],

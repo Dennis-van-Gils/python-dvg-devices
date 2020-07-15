@@ -520,16 +520,16 @@ class SerialDevice:
             self.ser = serial.Serial(port=port, **self.serial_settings)
         except serial.SerialException:
             print("Could not open port.")
-            return False
+            return False  # --> leaving
         except Exception as err:
             pft(err, 3)
-            sys.exit(0)
+            sys.exit(0)  # --> leaving
 
         if self._ID_validation_query is None:
             # Found any device
             print_success("Any Success!")
             self.is_alive = True
-            return True
+            return True  # --> leaving
 
         # Optional validation query
         try:
@@ -538,7 +538,7 @@ class SerialDevice:
         except:
             print("Wrong or no device.")
             self.close(ignore_exceptions=True)
-            return False
+            return False  # --> leaving
 
         if reply_broad == self._valid_ID_broad:
             if reply_specific is not None:
@@ -548,13 +548,13 @@ class SerialDevice:
                 # Found a matching device in a broad sense
                 print_success("Broad Success!")
                 self.is_alive = True
-                return True
+                return True  # --> leaving
 
             elif reply_specific == self._valid_ID_specific:
                 # Found a matching device in a specific sense
                 print_success("Specific Success!")
                 self.is_alive = True
-                return True
+                return True  # --> leaving
 
         print("Wrong device.")
         self.close(ignore_exceptions=True)
@@ -631,17 +631,22 @@ class SerialDevice:
         path = Path(filepath_last_known_port)
         port = self._get_last_known_port(path)
 
-        if port is not None:
-            success = self.connect_at_port(port)
-        else:
-            success = False
-
-        if not success:
-            success = self.scan_ports(verbose=False)
-            if success:
+        if port is None:
+            if self.scan_ports():
                 self._store_last_known_port(path, self.ser.portstr)
-
-        return success
+                return True
+            else:
+                return False
+        else:
+            if self.connect_at_port(port):
+                self._store_last_known_port(path, self.ser.portstr)
+                return True
+            else:
+                if self.scan_ports(verbose=False):
+                    self._store_last_known_port(path, self.ser.portstr)
+                    return True
+                else:
+                    return False
 
     # -----------------------------------------------------------------------------
     #   _get_last_known_port

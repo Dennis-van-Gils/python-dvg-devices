@@ -35,7 +35,7 @@ Supported
 Highlights
 ----------
 * Class SerialDevice() offering higher-level general I/O methods for
-  a serial device, such as autoconnect(), write() and query().
+  a serial device, such as auto_connect(), write() and query().
 
 * Class Arduino() which wraps around SerialDevice(). In combination with
   https://github.com/Dennis-van-Gils/DvG_SerialCommand it allows for

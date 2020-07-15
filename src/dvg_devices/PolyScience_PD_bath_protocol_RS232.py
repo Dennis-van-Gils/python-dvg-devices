@@ -9,14 +9,11 @@ Tested on model PD15R-30‐A12E
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "13-07-2020"  # 0.0.1 was stamped 04-09-2018
-__version__ = "0.0.5"  # 0.0.1 corresponds to prototype 1.0.0
+__date__ = "15-07-2020"
+__version__ = "0.0.6"
 # pylint: disable=try-except-raise, bare-except
 
-# Ready for subclassing SerialDevice with method `query`
-
 import sys
-import serial
 import numpy as np
 
 from dvg_devices.BaseDevice import SerialDevice
@@ -46,8 +43,8 @@ class PolyScience_PD_bath(SerialDevice):
             "timeout": 0.5,
             "write_timeout": 0.5,
         }
-        self.read_term_char = "\r"
-        self.write_term_char = "\r"
+        self.set_read_termination("\r")
+        self.set_write_termination("\r")
 
         self.set_ID_validation_query(
             ID_validation_query=self.ID_validation_query,
@@ -65,8 +62,8 @@ class PolyScience_PD_bath(SerialDevice):
     def ID_validation_query(self) -> (str, str):
         # We'll use the `Disable command echo` of the PolyScience bath and check
         # for the proper reply '!'.
-        [_success, reply_str] = self.query("SE0", timeout_warning_style=2)
-        broad_reply = reply_str.strip()  # Expected: "!"
+        _success, reply = self.query("SE0")
+        broad_reply = reply.strip()  # Expected: "!"
 
         return (broad_reply, None)
 
@@ -80,13 +77,13 @@ class PolyScience_PD_bath(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query("RT")
+        success, reply = self.query("RT")
         if success:
             try:
-                num = float(ans)
-            except (TypeError, ValueError) as e:
+                num = float(reply)
+            except (TypeError, ValueError) as err:
                 print("ERROR: %s" % sys._getframe(0).f_code.co_name)
-                print(e)
+                print(err)
             else:
                 self.state.P1_temp = num
                 return True
@@ -104,13 +101,13 @@ class PolyScience_PD_bath(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query("RR")
+        success, reply = self.query("RR")
         if success:
             try:
-                num = float(ans)
-            except (TypeError, ValueError) as e:
+                num = float(reply)
+            except (TypeError, ValueError) as err:
                 print("ERROR: %s" % sys._getframe(0).f_code.co_name)
-                print(e)
+                print(err)
             else:
                 self.state.P2_temp = num
                 return True
@@ -129,14 +126,14 @@ class PolyScience_PD_bath(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query("RS")
-        # print("query_setpoint returns: %s" % ans)  # DEBUG
+        success, reply = self.query("RS")
+        # print("query_setpoint returns: %s" % reply)  # DEBUG
         if success:
             try:
-                num = float(ans)
-            except (TypeError, ValueError) as e:
+                num = float(reply)
+            except (TypeError, ValueError) as err:
                 print("ERROR: %s" % sys._getframe(0).f_code.co_name)
-                print(e)
+                print(err)
             else:
                 self.state.setpoint = num
                 return True
@@ -177,11 +174,11 @@ class PolyScience_PD_bath(SerialDevice):
                 % BATH_MAX_SETPOINT_DEG_C
             )
 
-        [success, ans] = self.query("SS%.2f" % setpoint)
-        # print("send_setpoint returns: %s" % ans)  # DEBUG
-        if success and ans == "!":  # Also check status reply
+        success, reply = self.query("SS%.2f" % setpoint)
+        # print("send_setpoint returns: %s" % reply)  # DEBUG
+        if success and reply == "!":  # Also check status reply
             return True
-        elif success and ans == "?":
+        elif success and reply == "?":
             print("WARNING @ send_setpoint")
             print("PolyScience bath might be in stand-by mode.")
             return False

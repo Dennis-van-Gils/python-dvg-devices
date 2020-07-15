@@ -18,6 +18,14 @@ Collection of interfaces to communicate with microcontroller boards and
 laboratory devices, with optional PyQt5 multithread support and graphical
 user-interfaces.
 
+- Documentation: https://python-dvg-devices.readthedocs.io
+- Github: https://github.com/Dennis-van-Gils/python-dvg-devices
+- PyPI: https://pypi.org/project/dvg-devices
+
+Installation:
+
+    ``pip install dvg-devices``
+
 Supported
 ---------
     =======================    =======================
@@ -48,13 +56,3 @@ Highlights
 
 * Ready-to-run PyQt5 demos to directly control many of the supported
   devices.
-
-Links
------
-- Documentation: https://python-dvg-devices.readthedocs.io
-- Github: https://github.com/Dennis-van-Gils/python-dvg-devices
-- PyPI: https://pypi.org/project/dvg-devices
-
-Installation
-------------
-    ``pip install dvg-devices``

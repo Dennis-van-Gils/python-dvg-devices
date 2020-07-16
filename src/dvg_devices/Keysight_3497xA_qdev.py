@@ -10,7 +10,7 @@ refer to this device as a multiplexer, or mux.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "07-07-2020"
+__date__ = "16-07-2020"
 __version__ = "0.0.6"
 # pylint: disable=broad-except
 
@@ -474,9 +474,9 @@ class Keysight_3497xA_qdev(QDeviceIO):
         if reply == QtWid.QMessageBox.Yes:
             self.qpbt_start_scan.setChecked(False)
             self.stop_MUX_scan()
-            self.add_to_send_queue(self.dev.wait_for_OPC)
-            self.add_to_send_queue(self.dev.begin)
-            self.process_send_queue()
+            self.add_to_jobs_queue(self.dev.wait_for_OPC)
+            self.add_to_jobs_queue(self.dev.begin)
+            self.process_jobs_queue()
 
     @QtCore.pyqtSlot()
     def process_qpbt_debug_test(self):

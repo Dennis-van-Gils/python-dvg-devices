@@ -6,7 +6,7 @@ acquisition for a Thermo Scientific ThermoFlex recirculating chiller.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "07-07-2020"
+__date__ = "16-07-2020"
 __version__ = "0.0.6"
 
 from PyQt5 import QtCore, QtGui
@@ -481,15 +481,15 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
 
     @QtCore.pyqtSlot()
     def process_pbtn_read_alarm_values(self):
-        self.add_to_send_queue(self.dev.query_alarm_values_and_units)
-        self.add_to_send_queue("signal_GUI_alarm_values_update")
-        self.process_send_queue()
+        self.add_to_jobs_queue(self.dev.query_alarm_values_and_units)
+        self.add_to_jobs_queue("signal_GUI_alarm_values_update")
+        self.process_jobs_queue()
 
     @QtCore.pyqtSlot()
     def process_pbtn_read_PID_values(self):
-        self.add_to_send_queue(self.dev.query_PID_values)
-        self.add_to_send_queue("signal_GUI_PID_values_update")
-        self.process_send_queue()
+        self.add_to_jobs_queue(self.dev.query_PID_values)
+        self.add_to_jobs_queue("signal_GUI_PID_values_update")
+        self.process_jobs_queue()
 
     @QtCore.pyqtSlot()
     def send_setpoint_from_textbox(self):

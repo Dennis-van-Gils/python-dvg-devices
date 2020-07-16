@@ -6,7 +6,7 @@ acquisition for a Keysight N8700 power supply (PSU).
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "07-07-2020"
+__date__ = "16-07-2020"
 __version__ = "0.0.6"
 
 import numpy as np
@@ -504,11 +504,11 @@ class Keysight_N8700_qdev(QDeviceIO):
 
         if reply == QtWid.QMessageBox.Yes:
             self.dev.read_config_file()
-            self.add_to_send_queue(self.dev.reinitialize)
-            self.add_to_send_queue(
+            self.add_to_jobs_queue(self.dev.reinitialize)
+            self.add_to_jobs_queue(
                 "signal_GUI_input_field_update", GUI_input_fields.ALL
             )
-            self.process_send_queue()
+            self.process_jobs_queue()
 
             self.dev.state.ENA_PID = False
 
@@ -560,12 +560,12 @@ class Keysight_N8700_qdev(QDeviceIO):
         if voltage < 0:
             voltage = 0
 
-        self.add_to_send_queue(self.dev.set_V_source, voltage)
-        self.add_to_send_queue(self.dev.query_V_source)
-        self.add_to_send_queue(
+        self.add_to_jobs_queue(self.dev.set_V_source, voltage)
+        self.add_to_jobs_queue(self.dev.query_V_source)
+        self.add_to_jobs_queue(
             "signal_GUI_input_field_update", GUI_input_fields.V_source
         )
-        self.process_send_queue()
+        self.process_jobs_queue()
 
     def send_I_source_from_textbox(self):
         try:
@@ -578,12 +578,12 @@ class Keysight_N8700_qdev(QDeviceIO):
         if current < 0:
             current = 0
 
-        self.add_to_send_queue(self.dev.set_I_source, current)
-        self.add_to_send_queue(self.dev.query_I_source)
-        self.add_to_send_queue(
+        self.add_to_jobs_queue(self.dev.set_I_source, current)
+        self.add_to_jobs_queue(self.dev.query_I_source)
+        self.add_to_jobs_queue(
             "signal_GUI_input_field_update", GUI_input_fields.I_source
         )
-        self.process_send_queue()
+        self.process_jobs_queue()
 
     def set_P_source_from_textbox(self):
         try:
@@ -606,12 +606,12 @@ class Keysight_N8700_qdev(QDeviceIO):
         except:
             raise
 
-        self.add_to_send_queue(self.dev.set_OVP_level, OVP_level)
-        self.add_to_send_queue(self.dev.query_OVP_level)
-        self.add_to_send_queue(
+        self.add_to_jobs_queue(self.dev.set_OVP_level, OVP_level)
+        self.add_to_jobs_queue(self.dev.query_OVP_level)
+        self.add_to_jobs_queue(
             "signal_GUI_input_field_update", GUI_input_fields.OVP_level
         )
-        self.process_send_queue()
+        self.process_jobs_queue()
 
     # --------------------------------------------------------------------------
     #   connect_signals_to_slots

@@ -6,7 +6,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "07-07-2020"
+__date__ = "16-07-2020"
 __version__ = "0.0.6"
 # pylint: disable=bare-except
 
@@ -181,7 +181,8 @@ class MainWindow(QtWid.QWidget):
         )
 
         if reply == QtWid.QMessageBox.Yes:
-            [CH.clear() for CH in self.CHs_mux]
+            for CH in self.CHs_mux:
+                CH.clear()
 
 
 # ------------------------------------------------------------------------------
@@ -199,12 +200,13 @@ def update_GUI():
     )
 
     # Update curves
-    [CH.update_curve() for CH in window.CHs_mux]
+    for CH in window.CHs_mux:
+        CH.update_curve()
 
     # Show or hide curve depending on checkbox
-    for i in range(N_channels):
-        window.CHs_mux[i].curve.setVisible(
-            window.chkbs_show_curves[i].isChecked()
+    for i_ in range(N_channels):
+        window.CHs_mux[i_].curve.setVisible(
+            window.chkbs_show_curves[i_].isChecked()
         )
 
 
@@ -270,8 +272,8 @@ def change_history_axes(time_axis_factor, time_axis_range, time_axis_label):
     window.pi_mux.setXRange(time_axis_range, 0)
     window.pi_mux.setLabel("bottom", time_axis_label)
 
-    for i in range(N_channels):
-        window.CHs_mux[i].x_axis_divisor = time_axis_factor
+    for i_ in range(N_channels):
+        window.CHs_mux[i_].x_axis_divisor = time_axis_factor
 
 
 @QtCore.pyqtSlot()
@@ -280,14 +282,14 @@ def process_qpbt_show_all_curves():
     # Second: if all curves are shown --> hide all
 
     any_hidden = False
-    for i in range(N_channels):
-        if not window.chkbs_show_curves[i].isChecked():
-            window.chkbs_show_curves[i].setChecked(True)
+    for i_ in range(N_channels):
+        if not window.chkbs_show_curves[i_].isChecked():
+            window.chkbs_show_curves[i_].setChecked(True)
             any_hidden = True
 
     if not any_hidden:
-        for i in range(N_channels):
-            window.chkbs_show_curves[i].setChecked(False)
+        for i_ in range(N_channels):
+            window.chkbs_show_curves[i_].setChecked(False)
 
 
 @QtCore.pyqtSlot()
@@ -342,16 +344,16 @@ def DAQ_postprocess_MUX_scan_function():
 
     if mux_qdev.is_MUX_scanning:
         readings = mux.state.readings
-        for i in range(N_channels):
-            if readings[i] > INFINITY_CAP:
-                readings[i] = np.nan
+        for i_ in range(N_channels):
+            if readings[i_] > INFINITY_CAP:
+                readings[i_] = np.nan
     else:
         readings = [np.nan] * N_channels
         mux.state.readings = readings
 
     # Add readings to charts
-    for i in range(N_channels):
-        window.CHs_mux[i].add_new_reading(epoch_time, readings[i])
+    for i_ in range(N_channels):
+        window.CHs_mux[i_].add_new_reading(epoch_time, readings[i_])
 
     # ----------------------------------------------------------------------
     #   Logging to file
@@ -368,9 +370,9 @@ def DAQ_postprocess_MUX_scan_function():
 
             # Header
             file_logger.write("time[s]\t")
-            for i in range(N_channels - 1):
+            for i_ in range(N_channels - 1):
                 file_logger.write(
-                    "CH%s\t" % mux.state.all_scan_list_channels[i]
+                    "CH%s\t" % mux.state.all_scan_list_channels[i_]
                 )
             file_logger.write("CH%s\n" % mux.state.all_scan_list_channels[-1])
 
@@ -385,11 +387,11 @@ def DAQ_postprocess_MUX_scan_function():
 
         # Add new data to the log
         file_logger.write("%.3f" % log_elapsed_time)
-        for i in range(N_channels):
-            if len(mux.state.readings) <= i:
+        for i_ in range(N_channels):
+            if len(mux.state.readings) <= i_:
                 file_logger.write("\t%.5e" % np.nan)
             else:
-                file_logger.write("\t%.5e" % mux.state.readings[i])
+                file_logger.write("\t%.5e" % mux.state.readings[i_])
         file_logger.write("\n")
 
 

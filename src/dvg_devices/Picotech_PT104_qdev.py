@@ -151,7 +151,7 @@ class Picotech_PT104_qdev(QDeviceIO):
             self.qled_T_ch2.setText("%.3f" % self.dev.state.ch2_T)
             self.qled_T_ch3.setText("%.3f" % self.dev.state.ch3_T)
             self.qled_T_ch4.setText("%.3f" % self.dev.state.ch4_T)
-            self.qlbl_update_counter.setText("%s" % self.DAQ_update_counter)
+            self.qlbl_update_counter.setText("%s" % self.update_counter_DAQ)
         else:
             self.qgrp.setEnabled(False)
             self.qlbl_offline.setVisible(True)

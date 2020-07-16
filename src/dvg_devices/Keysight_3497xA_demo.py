@@ -86,8 +86,8 @@ if __name__ == "__main__":
     # VISA address of the Keysight 3497xA data acquisition/switch unit
     # containing a multiplexer plug-in module. Hence, we simply call this device
     # a 'mux'.
-    # MUX_VISA_ADDRESS = "USB0::0x0957::0x2007::MY49018071::INSTR"
-    MUX_VISA_ADDRESS = "GPIB0::9::INSTR"
+    MUX_VISA_ADDRESS = "USB0::0x0957::0x2007::MY49018071::INSTR"
+    # MUX_VISA_ADDRESS = "GPIB0::9::INSTR"
 
     # A scan will be performed by the mux every N milliseconds
     MUX_SCANNING_INTERVAL_MS = 1000  # [ms]

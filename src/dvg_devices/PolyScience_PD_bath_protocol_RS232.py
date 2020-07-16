@@ -36,7 +36,7 @@ class PolyScience_PD_bath(SerialDevice):
         super().__init__(name=name, long_name=long_name)
 
         # Default serial settings
-        self.serial_init_kwargs = {
+        self.serial_settings = {
             "baudrate": 57600,
             "timeout": 0.5,
             "write_timeout": 0.5,

@@ -374,7 +374,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
             self.qled_obtained_interval_ms.setText(
                 "%.0f" % self.obtained_DAQ_interval_ms
             )
-            self.qlbl_update_counter.setText("%s" % self.DAQ_update_counter)
+            self.qlbl_update_counter.setText("%s" % self.update_counter_DAQ)
 
             for i in range(len(self.dev.state.all_scan_list_channels)):
                 if i >= len(self.dev.state.readings):

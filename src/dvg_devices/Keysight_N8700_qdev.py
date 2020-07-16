@@ -426,7 +426,7 @@ class Keysight_N8700_qdev(QDeviceIO):
             self.errors.setReadOnly(self.dev.state.all_errors != [])
             self.errors.setText("%s" % ";".join(self.dev.state.all_errors))
 
-            self.lbl_update_counter.setText("%s" % self.DAQ_update_counter)
+            self.lbl_update_counter.setText("%s" % self.update_counter_DAQ)
         else:
             self.V_meas.setText("")
             self.I_meas.setText("Offline")

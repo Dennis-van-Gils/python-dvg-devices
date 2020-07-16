@@ -383,7 +383,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         """
         if self.dev.is_alive:
             # At startup
-            if self.DAQ_update_counter == 1:
+            if self.update_counter_DAQ == 1:
                 self.update_GUI_alarm_values()
                 self.update_GUI_PID_values()
                 self.send_setpoint.setText("%.1f" % self.dev.state.setpoint)
@@ -440,7 +440,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
             self.SB_phase_monitor.setChecked(SBs.phase_monitor_fault)
             self.SB_sense_5V.setChecked(SBs.sense_5V_fault)
 
-            self.lbl_update_counter.setText("%s" % self.DAQ_update_counter)
+            self.lbl_update_counter.setText("%s" % self.update_counter_DAQ)
         else:
             self.grpb_alarms.setEnabled(False)
             self.grpb_PID.setEnabled(False)

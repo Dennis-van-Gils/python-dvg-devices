@@ -211,7 +211,7 @@ class Compax3_servo_qdev(QDeviceIO):
         """
         if self.dev.is_alive:
             # At startup
-            if self.DAQ_update_counter == 1:
+            if self.update_counter_DAQ == 1:
                 self.qled_new_pos.setText("%.2f" % self.dev.state.cur_pos)
 
             if self.dev.status_word_1.powerless:
@@ -245,7 +245,7 @@ class Compax3_servo_qdev(QDeviceIO):
             self.sw1_pos_reached.setChecked(self.dev.status_word_1.pos_reached)
             self.qled_cur_pos.setText("%.2f" % self.dev.state.cur_pos)
 
-            self.lbl_update_counter.setText("%s" % self.DAQ_update_counter)
+            self.lbl_update_counter.setText("%s" % self.update_counter_DAQ)
         else:
             self.qgrp.setEnabled(False)
 

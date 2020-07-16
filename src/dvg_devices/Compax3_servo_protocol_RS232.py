@@ -69,7 +69,7 @@ class Compax3_servo(SerialDevice):
         super().__init__(name=name, long_name=long_name)
 
         # Default serial settings
-        self.serial_init_kwargs = {
+        self.serial_settings = {
             "baudrate": 115200,
             "timeout": 0.4,
             "write_timeout": 0.4,

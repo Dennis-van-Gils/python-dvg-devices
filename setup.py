@@ -79,6 +79,7 @@ setup(
     install_requires=[
         "dvg-debug-functions~=2.0",
         "dvg-qdeviceio~=0.2.1",
+        "dvg-pid-controller~=2.0",
         "pyserial==3.4",
         "pyqt5~=5.12",
         "numpy~=1.15",

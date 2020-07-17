@@ -77,7 +77,7 @@ setup(
     ],
     python_requires=">=3.6",
     install_requires=[
-        "dvg-debug-functions~=2.0",
+        "dvg-debug-functions~=2.1",
         "dvg-qdeviceio~=0.2.1",
         "dvg-pid-controller~=2.0",
         "pyserial==3.4",

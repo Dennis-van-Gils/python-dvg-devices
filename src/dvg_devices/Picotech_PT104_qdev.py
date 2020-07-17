@@ -7,7 +7,7 @@ __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "07-07-2020"
-__version__ = "0.0.6"
+__version__ = "0.0.7"
 
 import numpy as np
 

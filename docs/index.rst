@@ -1,6 +1,6 @@
 DvG_Devices
 =============
-*Collection of interfaces to communicate with microcontroller boards and
+*Collection of I/O interfaces to communicate with microcontroller boards and
 laboratory devices, with optional PyQt5 multithread support and graphical
 user-interfaces.*
 

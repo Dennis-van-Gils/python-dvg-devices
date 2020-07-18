@@ -607,7 +607,7 @@ class SerialDevice:
                 continue
 
         # Scanned over all the ports without finding a match
-        dprint("\n  ERROR: Device not found.", ANSI.RED)
+        dprint("  Error: Device not found.\n", ANSI.RED)
         return False
 
     # --------------------------------------------------------------------------

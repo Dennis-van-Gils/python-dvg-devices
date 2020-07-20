@@ -12,8 +12,8 @@ the previous query resulted in a communication error.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "15-07-2020"
-__version__ = "0.0.7"
+__date__ = "20-07-2020"
+__version__ = "0.0.8"
 # pylint: disable=try-except-raise
 
 import os
@@ -546,9 +546,9 @@ class Keysight_N8700:
         """
         Returns: True if the query was received successfully, False otherwise.
         """
-        success, self.state.ENA_OCP = self.query("sour:curr:prot:stat?")
+        success, reply = self.query("sour:curr:prot:stat?")
         if success:
-            self.state.ENA_OCP = bool(int(self.state.ENA_OCP))
+            self.state.ENA_OCP = bool(int(reply))
 
             if verbose:  # DEBUG INFO
                 print(self.state.ENA_OCP)
@@ -587,9 +587,9 @@ class Keysight_N8700:
         """
         Returns: True if the query was received successfully, False otherwise.
         """
-        success, self.state.OVP_level = self.query("sour:volt:prot:lev?")
+        success, reply = self.query("sour:volt:prot:lev?")
         if success:
-            self.state.OVP_level = float(self.state.OVP_level)
+            self.state.OVP_level = float(reply)
 
             if verbose:  # DEBUG INFO
                 print(self.state.OVP_level)
@@ -640,9 +640,9 @@ class Keysight_N8700:
         """
         Returns: True if the query was received successfully, False otherwise.
         """
-        success, self.state.ENA_output = self.query("outp?")
+        success, reply = self.query("outp?")
         if success:
-            self.state.ENA_output = bool(int(self.state.ENA_output))
+            self.state.ENA_output = bool(int(reply))
 
             if verbose:  # DEBUG INFO
                 print(self.state.ENA_output)
@@ -680,9 +680,9 @@ class Keysight_N8700:
         """
         Returns: True if the query was received successfully, False otherwise.
         """
-        success, self.state.I_source = self.query("sour:curr?")
+        success, reply = self.query("sour:curr?")
         if success:
-            self.state.I_source = float(self.state.I_source)
+            self.state.I_source = float(reply)
 
             if verbose:  # DEBUG INFO
                 print(self.state.I_source)
@@ -692,9 +692,9 @@ class Keysight_N8700:
         """
         Returns: True if the query was received successfully, False otherwise.
         """
-        success, self.state.V_source = self.query("sour:volt?")
+        success, reply = self.query("sour:volt?")
         if success:
-            self.state.V_source = float(self.state.V_source)
+            self.state.V_source = float(reply)
 
             if verbose:  # DEBUG INFO
                 print(self.state.V_source)
@@ -704,9 +704,9 @@ class Keysight_N8700:
         """
         Returns: True if the query was received successfully, False otherwise.
         """
-        success, self.state.I_meas = self.query("meas:curr?")
+        success, reply = self.query("meas:curr?")
         if success:
-            self.state.I_meas = float(self.state.I_meas)
+            self.state.I_meas = float(reply)
             self.state.P_meas = self.state.I_meas * self.state.V_meas
 
             if verbose:  # DEBUG INFO
@@ -718,9 +718,9 @@ class Keysight_N8700:
         """
         Returns: True if the query was received successfully, False otherwise.
         """
-        success, self.state.V_meas = self.query("meas:volt?")
+        success, reply = self.query("meas:volt?")
         if success:
-            self.state.V_meas = float(self.state.V_meas)
+            self.state.V_meas = float(reply)
             self.state.P_meas = self.state.I_meas * self.state.V_meas
 
             if verbose:  # DEBUG INFO

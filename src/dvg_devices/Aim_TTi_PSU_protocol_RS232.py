@@ -9,25 +9,18 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "08-07-2020"
-__version__ = "0.0.5"
+__date__ = "20-07-2020"
+__version__ = "0.0.7"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
-from pathlib import Path
-
-import serial
-import serial.tools.list_ports
 import numpy as np
 
 from dvg_debug_functions import print_fancy_traceback as pft
-
-# Serial settings
-RS232_TIMEOUT = 0.1  # [sec]
-TERM_CHAR = "\r\n"
+from dvg_devices.BaseDevice import SerialDevice
 
 
-class Aim_TTi_PSU:
+class Aim_TTi_PSU(SerialDevice):
     class State:
         """Container for the process and measurement variables.
         [numpy.nan] values indicate that the parameter is not initialized or
@@ -36,7 +29,7 @@ class Aim_TTi_PSU:
 
         # fmt: off
         V_source = 0        # Voltage to be sourced [V]
-        I_source = 0        # Current to be sourced [A]
+        I_limit = 0         # Current limit         [A]
         P_source = 0        # Power to be sourced, when PID controller is on [W]
         ENA_PID = False     # Is the PID controller on the power ouput enabled?
 
@@ -45,7 +38,7 @@ class Aim_TTi_PSU:
         P_meas = np.nan         # Derived output power    [W]
 
         OVP_level  = np.nan     # Over-voltage protection level [V]
-        ENA_OCP    = False      # Is over-current protection enabled?
+        OCP_level  = np.nan     # Over-current protection level [A]
         ENA_output = False      # Is power output enabled (by software)?
         # fmt: on
 
@@ -77,200 +70,55 @@ class Aim_TTi_PSU:
 
     class Config:
         # fmt: off
-        V_source  = 120         # Voltage to be sourced [V]
-        I_source  = 1           # Current to be sourced [A]
+        V_source  = 10          # Voltage to be sourced [V]
+        I_limit   = 0.5         # Current limit         [A]
         P_source  = 0           # Power   to be sourced [W]
-        OVP_level = 126         # Over-voltage protection level [V]
-        ENA_OCP   = True        # Is over-current protection enabled?
+        OVP_level = 12          # Over-voltage protection level [V]
+        OCP_level = 1           # Over-current protection level [A]
         # fmt: on
 
     # --------------------------------------------------------------------------
     #   __init__
     # --------------------------------------------------------------------------
 
-    def __init__(self, name="PSU"):
-        self.ser = None  # serial.Serial device instance
-        self.name = name
-        self.idn = None  # The identity of the device ("*IDN?")
-        self.serial_str = None  # Serial number of the device
-        self.model_str = None  # Model of the device
+    def __init__(
+        self,
+        name="PSU",
+        long_name="Aim TTi power supply",
+        connect_to_serial_number=None,
+    ):
+        super().__init__(name=name, long_name=long_name)
 
-        # Is the connection to the device alive?
-        self.is_alive = False
+        # Default serial settings
+        self.serial_settings = {
+            "baudrate": 9600,  # baudrate gets ignored
+            "timeout": 0.1,
+            "write_timeout": 0.1,
+        }
+        self.set_read_termination("\r\n")
+        self.set_write_termination("\r\n")
+
+        self.set_ID_validation_query(
+            ID_validation_query=self.ID_validation_query,
+            valid_ID_broad=True,
+            valid_ID_specific=connect_to_serial_number,
+        )
 
         # Container for the process and measurement variables
         self.state = self.State()
         self.config = self.Config()
 
-    # --------------------------------------------------------------------------
-    #   close
-    # --------------------------------------------------------------------------
-
-    def close(self, ignore_exceptions=False):
-        """Close the serial port
-        """
-        if self.ser is not None:
-            try:
-                self.ser.close()
-            except:
-                if ignore_exceptions:
-                    pass
-                else:
-                    raise
-
-        self.is_alive = False
+        self.idn_str = None  # Identity response of the device
+        self.serial_str = None  # Serial number of the device
+        self.model_str = None  # Model of the device
 
     # --------------------------------------------------------------------------
-    #   connect_at_port
+    #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def connect_at_port(
-        self, port_str, match_serial_str=None, print_trying_message=True
-    ):
-        """Open the port at address 'port_str' and try to establish a
-        connection. A query for the serial number is send over the port. If it
-        gives the proper response (and optionally has a matching serial number)
-        it must be the Aim TTi PSU we're looking for.
-
-        Args:
-            port_str (str): Serial port address to open
-            match_serial_str (str, optional): Serial string of the device to
-                establish a connection to. When empty or None then any Aim TTi
-                PSU is accepted. Defaults to None.
-            print_trying_message (bool, optional): When True then a 'trying to
-                open' message is printed to the terminal. Defaults to True.
-
-        Returns: True if successful, False otherwise.
-        """
-        self.is_alive = False
-
-        if match_serial_str == "":
-            match_serial_str = None
-        if print_trying_message:
-            if match_serial_str is None:
-                print("Connect to: Aim TTi PSU")
-            else:
-                print("Connect to: Aim TTi PSU, serial %s" % match_serial_str)
-
-        print("  @ %-5s: " % port_str, end="")
-        try:
-            # Open the serial port
-            self.ser = serial.Serial(
-                port=port_str,
-                baudrate=9600,  # baudrate gets ignored
-                timeout=RS232_TIMEOUT,
-                write_timeout=RS232_TIMEOUT,
-            )
-        except serial.SerialException:
-            print("Could not open port")
-            return False
-        except:
-            raise
-
-        try:
-            # Query the serial number string.
-            # NOTE: this function can finish okay and return False as indication
-            # that the device on the serial port gives /a/ reply but it is not a
-            # proper reply you would except from a Aim TTi PSU. In other
-            # words: the device replies but it is not a Aim TTi PSU.
-            self.is_alive = True
-            success = self.query_serial_str()
-        except:
-            print("Communication error")
-            if self.ser is not None:
-                self.ser.close()
-            self.is_alive = False
-            return False
-
-        if success:
-            print("serial %s: " % self.serial_str, end="")
-            if match_serial_str is None:
-                # Found any Aim TTi device
-                print("Success!\n")
-                self.is_alive = True
-                return True
-            elif self.serial_str.lower() == match_serial_str.lower():
-                # Found the Aim TTi device with matching serial
-                print("Success!\n")
-                self.is_alive = True
-                return True
-
-        print("Wrong or no device")
-        if self.ser is not None:
-            self.ser.close()
-        self.is_alive = False
-        return False
-
-    # --------------------------------------------------------------------------
-    #   scan_ports
-    # --------------------------------------------------------------------------
-
-    def scan_ports(self, match_serial_str=None):
-        """Scan over all serial ports and try to establish a connection. A query
-        for the device serial number is send over all ports. The port that gives
-        the proper response (and optionally has a matching serial number) must
-        be the Aim TTi PSU we're looking for.
-
-        Args:
-            match_serial_str (str, optional): Serial string of the Aim TTi PSU
-                to establish a connection to. When empty or None then any
-                Aim TTi PSU is accepted. Defaults to None.
-
-        Returns: True if successful, False otherwise.
-        """
-        if match_serial_str == "":
-            match_serial_str = None
-        if match_serial_str is None:
-            print("Scanning ports for any Aim TTi PSU")
-        else:
-            print(
-                ("Scanning ports for a Aim TTi PSU with\n" "serial number '%s'")
-                % match_serial_str
-            )
-
-        # Ports is a list of tuples
-        ports = list(serial.tools.list_ports.comports())
-        for p in ports:
-            port_str = p[0]
-            if self.connect_at_port(port_str, match_serial_str, False):
-                return True
-            else:
-                continue
-
-        # Scanned over all the ports without finding a match
-        print("\n  ERROR: Device not found")
-        return False
-
-    # --------------------------------------------------------------------------
-    #   auto_connect
-    # --------------------------------------------------------------------------
-
-    def auto_connect(self, path_config, match_serial_str=None):
-        """TO DO: write explaination
-        """
-        # Try to open the config file containing the port to open. Do not panic
-        # if the file does not exist or cannot be read. We will then scan over
-        # all ports as alternative.
-        port_str = read_port_config_file(path_config)
-
-        # If the config file was read successfully then we can try to open the
-        # port listed in the config file and connect to the device.
-        if port_str is not None:
-            success = self.connect_at_port(port_str, match_serial_str)
-        else:
-            success = False
-
-        # Check if we failed establishing a connection
-        if not success:
-            # Now scan over all ports and try to connect to the device
-            success = self.scan_ports(match_serial_str)
-            if success:
-                # Store the result of a successful connection after a port scan
-                # in the config file. Do not panic if we cannot create the
-                # config file.
-                write_port_config_file(path_config, self.ser.portstr)
-
-        return success
+    def ID_validation_query(self) -> (bool, str):
+        success = self.query_idn()
+        return (success, self.serial_str)
 
     # --------------------------------------------------------------------------
     #   begin
@@ -282,141 +130,295 @@ class Aim_TTi_PSU:
 
         Returns: True if successful, False otherwise.
         """
-        success = False
+        # Clear errors
+        self.state.error = None
+        self.state.all_errors = []
+
+        if not self.is_alive:
+            print("ERROR: Device is not connected yet or already closed.")
+            return False
+
+        # Set the appropiate status bits to enable reporting of 'limits'
+        # and 'trips':
+        #   bit 7: aux output trip
+        #   bit 6: aux output current limit
+        #   bit 5: output sense trip
+        #   bit 4: output thermal trip
+        #   bit 3: output over-current trip
+        #   bit 2: output over-voltage trip
+        #   bit 1: output enters CC mode
+        #   bit 0: output enters CV mode           <--- We'll ignore this one
+        success = self.set_LSE(1, 254)
+        success = self.set_LSE(2, 254)
+
+        success &= self.query_V_source()
+        success &= self.query_I_limit()
+        success &= self.query_OVP_level()
+        success &= self.query_OCP_level()
+        # success &= self.query_status_QC()
+        # success &= self.query_status_OC()
+
+        # self.query_all_errors_in_queue()
+
+        # self.wait_for_OPC_indefinitely()         # COMMENTED OUT: .stb fails intermittently, perhaps due to the USB isolator
+        # self.wait_for_OPC()
 
         return success
 
     # --------------------------------------------------------------------------
-    #   query
+    #   query_idn
     # --------------------------------------------------------------------------
 
-    def query(self, msg_str):
-        """Send a command to the serial device and subsequently read the reply.
-
-        Args:
-            msg_str (str): Message to be sent to the serial device.
-
-        Returns:
-            success (bool): True if successful, False otherwise.
-            ans_str (str): Reply received from the device. None if unsuccessful.
-        """
-        success = False
-        ans_str = None
-
-        if not self.is_alive:
-            pft("Device is not connected yet or already closed.", 3)
-            return [success, ans_str]
-
-        try:
-            # Send command string to the device as bytes
-            self.ser.write((msg_str + TERM_CHAR).encode())
-        except (serial.SerialTimeoutException, serial.SerialException,) as err:
-            # Print error and struggle on
-            pft(err, 3)
-        except Exception as err:
-            pft(err, 3)
-            sys.exit(0)
-        else:
-            try:
-                ans_bytes = self.ser.read_until(TERM_CHAR.encode())
-            except (
-                serial.SerialTimeoutException,
-                serial.SerialException,
-            ) as err:
-                pft(err, 3)
-            except Exception as err:
-                pft(err, 3)
-                sys.exit(0)
-            else:
-                # Convert bytes into string and remove termination chars and
-                # spaces
-                ans_str = ans_bytes.decode().strip()
-                success = True
-
-        return [success, ans_str]
-
-    # --------------------------------------------------------------------------
-    #   query_serial_str
-    # --------------------------------------------------------------------------
-
-    def query_serial_str(self):
-        """Query the serial number and store it in the class member 'serial_str'
+    def query_idn(self) -> bool:
+        """Query the identity, serial and model number and store it in the class
+        members.
 
         Returns: True if successful, False otherwise.
         """
-        [success, ans] = self.query("*idn?")
-        if success and ans[:19] == "THURLBY THANDAR, QL":
-            self.idn = ans
-            self.serial_str = ans.split(",")[2].strip()
-            self.model_str = ans.split(",")[1].strip()
+        success, reply = self.query("*idn?")
+        if success and reply[:19] == "THURLBY THANDAR, QL":
+            self.idn_str = reply
+            self.serial_str = reply.split(",")[2].strip()
+            self.model_str = reply.split(",")[1].strip()
             return True
         else:
-            self.idn = None
+            self.idn_str = None
             self.serial_str = None
             self.model_str = None
             return False
 
+    # --------------------------------------------------------------------------
+    #   System status related
+    # --------------------------------------------------------------------------
 
-# -----------------------------------------------------------------------------
-#   read_port_config_file
-# -----------------------------------------------------------------------------
+    def set_LSE(self, value: int, channel: int = 1) -> bool:
+        """Set the value of the Limit Status Enable (LSE) register.
 
+        Returns:
+            True if successful, False otherwise.
+        """
+        return self.write("LSE%d %d")
 
-def read_port_config_file(filepath):
-    """Try to open the config textfile containing the port to open. Do not panic
-    if the file does not exist or cannot be read.
+    # --------------------------------------------------------------------------
+    #   Protection related
+    # --------------------------------------------------------------------------
 
-    Args:
-        filepath (pathlib.Path): path to the config file,
-            e.g. Path("config/port.txt")
+    def reset_trip(self) -> bool:
+        """Attempt to clear all trip conditions from all outputs.
 
-    Returns: The port name string when the config file is read out successfully,
-        None otherwise.
-    """
-    if isinstance(filepath, Path):
-        if filepath.is_file():
-            try:
-                with filepath.open() as f:
-                    port_str = f.readline().strip()
-                return port_str
-            except:
-                pass  # Do not panic and remain silent
+        Returns:
+            True if successful, False otherwise.
+        """
+        return self.write("TRIPRST")
 
-    return None
-
-
-# -----------------------------------------------------------------------------
-#   write_port_config_file
-# -----------------------------------------------------------------------------
-
-
-def write_port_config_file(filepath, port_str):
-    """Try to write the port name string to the config textfile. Do not panic if
-    the file cannot be created.
-
-    Args:
-        filepath (pathlib.Path): path to the config file,
-            e.g. Path("config/port.txt")
-        port_str (string): COM port string to save to file
-    Returns: True when successful, False otherwise.
-    """
-    if isinstance(filepath, Path):
-        if not filepath.parent.is_dir():
-            # Subfolder does not exists yet. Create.
-            try:
-                filepath.parent.mkdir()
-            except:
-                pass  # Do not panic and remain silent
-
+    def set_OVP_level(self, voltage_V, channel: int = 1) -> bool:
+        """
+        Returns:
+            True if the message was sent successfully, False otherwise.
+        """
         try:
-            # Write the config file
-            filepath.write_text(port_str)
+            voltage_V = float(voltage_V)
+        except (ValueError, TypeError):
+            voltage_V = 0.0
         except:
-            pass  # Do not panic and remain silent
-        else:
+            raise
+
+        self.state.OVP_level = voltage_V
+        return self.write("OVP%d %f" % (channel, voltage_V))
+
+    def query_OVP_level(self, channel: int = 1) -> bool:
+        """
+        Returns:
+            True if successful, False otherwise.
+        """
+        success, reply = self.query("OVP%d?" % channel)
+        if success & (reply[:3] == "VP%d" % channel):
+            self.state.OVP_level = float(reply[4:])
             return True
 
-    return False
+        return False
+
+    def set_OCP_level(self, current_A, channel: int = 1) -> bool:
+        """
+        Returns:
+            True if the message was sent successfully, False otherwise.
+        """
+        try:
+            current_A = float(current_A)
+        except (ValueError, TypeError):
+            current_A = 0.0
+        except:
+            raise
+
+        self.state.OCP_level = current_A
+        return self.write("OCP%d %f" % (channel, current_A))
+
+    def query_OCP_level(self, channel: int = 1) -> bool:
+        """
+        Returns:
+            True if successful, False otherwise.
+        """
+        success, reply = self.query("OCP%d?" % channel)
+        if success & (reply[:3] == "CP%d" % channel):
+            self.state.OCP_level = float(reply[4:])
+            return True
+
+        return False
+
+    # --------------------------------------------------------------------------
+    #   Output related
+    # --------------------------------------------------------------------------
+
+    def turn_on(self, channel: int = 1) -> bool:
+        """
+        Returns: True if the message was sent successfully, False otherwise.
+        """
+        return self.set_ENA_output(ENA=True, channel=channel)
+
+    def turn_off(self, channel: int = 1) -> bool:
+        """
+        Returns: True if the message was sent successfully, False otherwise.
+        """
+        return self.set_ENA_output(ENA=False, channel=channel)
+
+    def set_ENA_output(self, ENA: bool, channel: int = 1) -> bool:
+        """
+        Returns: True if the message was sent successfully, False otherwise.
+        """
+        success = self.write("OP%d %d" % (channel, ENA))
+        if success:
+            self.state.ENA_output = ENA
+
+        return success
+
+    def query_ENA_output(self, channel: int = 1) -> bool:
+        """
+        Returns: True if the query was received successfully, False otherwise.
+        """
+        success, reply = self.query("OP%d?" % channel)
+        if success:
+            self.state.ENA_output = bool(int(reply))
+        return success
+
+    def set_V_source(self, voltage_V, channel: int = 1) -> bool:
+        """
+        Returns: True if the message was sent successfully, False otherwise.
+        """
+        try:
+            voltage_V = float(voltage_V)
+        except (ValueError, TypeError):
+            voltage_V = 0.0
+        except:
+            raise
+
+        self.state.V_source = voltage_V
+        return self.write("V%d %.3f" % (channel, voltage_V))
+
+    def query_V_source(self, channel: int = 1) -> bool:
+        """
+        Returns: True if the query was received successfully, False otherwise.
+        """
+        success, reply = self.query("V%d?" % channel)
+        if success & (reply[:2] == "V%d" % channel):
+            self.state.V_source = float(reply[3:])
+            return True
+
+        return False
+
+    def query_V_meas(self, channel: int = 1) -> bool:
+        """
+        Returns: True if the query was received successfully, False otherwise.
+        """
+        success, reply = self.query("V%dO?" % channel)
+        if success & (reply[-1:] == "V"):
+            self.state.V_meas = float(reply[:-1])
+            self.state.P_meas = self.state.I_meas * self.state.V_meas
+            return True
+
+        return False
+
+    def set_I_limit(self, current_A, channel: int = 1) -> bool:
+        """
+        Returns: True if the message was sent successfully, False otherwise.
+        """
+        try:
+            current_A = float(current_A)
+        except (ValueError, TypeError):
+            current_A = 0.0
+        except:
+            raise
+
+        self.state.I_limit = current_A
+        return self.write("I%d %.4f" % (channel, current_A))
+
+    def query_I_limit(self, channel: int = 1) -> bool:
+        """
+        Returns: True if the query was received successfully, False otherwise.
+        """
+        success, reply = self.query("I%d?" % channel)
+        if success & (reply[:2] == "I%d" % channel):
+            self.state.I_limit = float(reply[3:])
+            return True
+
+        return False
+
+    def query_I_meas(self, channel: int = 1) -> bool:
+        """
+        Returns: True if the query was received successfully, False otherwise.
+        """
+        success, reply = self.query("I%dO?" % channel)
+        if success & (reply[-1:] == "A"):
+            self.state.I_meas = float(reply[:-1])
+            self.state.P_meas = self.state.I_meas * self.state.V_meas
+            return True
+
+        return False
+
+    # --------------------------------------------------------------------------
+    #   report
+    # --------------------------------------------------------------------------
+
+    def report(self, channel: int = 1):
+        """Report to the terminal.
+        """
+        # print("\nQuestionable condition")
+        # print(chr(0x2015) * 26)
+        # self.query_status_QC(True)
+
+        # print("\nOperation condition")
+        # print(chr(0x2014) * 26)
+        # self.query_status_OC(True)
+
+        # print("\nError")
+        # print(chr(0x2014) * 26)
+        # self.query_error(True)
+        # while not self.state.error is None:
+        #    self.query_error(True)
+
+        self.query_ENA_output(channel=channel)
+        self.query_OVP_level(channel=channel)
+        self.query_OCP_level(channel=channel)
+        self.query_V_source(channel=channel)
+        self.query_I_limit(channel=channel)
+        self.query_V_meas(channel=channel)
+        self.query_I_meas(channel=channel)
+
+        print("\n  Ouput enabled?: %s" % self.state.ENA_output)
+        print("  " + chr(0x2014) * 50)
+        print(
+            "  OVP level: %4.1f   [V]      OCP level: %4.2f   [A]"
+            % (self.state.OVP_level, self.state.OCP_level)
+        )
+        print(
+            "  V source : %6.3f [V]      I limit  : %6.4f [A]"
+            % (self.state.V_source, self.state.I_limit)
+        )
+        print("  " + chr(0x2014) * 50)
+        print(
+            "  V meas   : %6.3f [V]      I meas   : %6.4f [A]"
+            % (self.state.V_meas, self.state.I_meas)
+        )
+        print("  P meas   : %6.3f [W]" % self.state.P_meas)
 
 
 # ------------------------------------------------------------------------------
@@ -430,15 +432,16 @@ if __name__ == "__main__":
     SERIAL_PSU = None
 
     # Path to the config textfile containing the (last used) RS232 port
-    PATH_CONFIG = Path("config/port_Aim_TTi_PSU.txt")
+    PATH_CONFIG = "config/port_Aim_TTi_PSU.txt"
 
     # Create connection to Aim TTi PSU over RS232
-    psu = Aim_TTi_PSU()
+    psu = Aim_TTi_PSU(connect_to_serial_number=SERIAL_PSU)
 
-    if psu.auto_connect(PATH_CONFIG, SERIAL_PSU):
-        # mfc.begin()  # Retrieve necessary parameters
-        print("  Serial: %s" % psu.serial_str)
-        print("  Model : %s" % psu.model_str)
-        psu.close()
+    if psu.auto_connect(PATH_CONFIG):
+        psu.begin()  # Retrieve necessary parameters
+        print("  IDN: %s" % psu.idn_str)
+
+    psu.report()
+    psu.close()
 
     sys.exit(0)

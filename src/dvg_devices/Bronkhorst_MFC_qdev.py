@@ -6,7 +6,7 @@ acquisition for a Bronkhorst mass flow controller (MFC).
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "15-07-2020"
+__date__ = "23-07-2020"
 __version__ = "0.0.7"
 
 
@@ -75,7 +75,6 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
         DAQ_interval_ms=200,
         DAQ_timer_type=QtCore.Qt.CoarseTimer,
         critical_not_alive_count=1,
-        calc_DAQ_rate_every_N_iter=5,
         valve_auto_close_deadtime_period_ms=3000,
         debug=False,
         **kwargs,
@@ -88,7 +87,6 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
             DAQ_interval_ms=DAQ_interval_ms,
             DAQ_timer_type=DAQ_timer_type,
             critical_not_alive_count=critical_not_alive_count,
-            calc_DAQ_rate_every_N_iter=calc_DAQ_rate_every_N_iter,
             debug=debug,
         )
 

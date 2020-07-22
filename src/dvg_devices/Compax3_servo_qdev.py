@@ -6,7 +6,7 @@ acquisition for a Compax3 traverse controller.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "06-07-2020"
+__date__ = "23-07-2020"
 __version__ = "0.0.7"
 # pylint: disable=try-except-raise
 
@@ -56,7 +56,6 @@ class Compax3_servo_qdev(QDeviceIO):
         DAQ_interval_ms=250,
         critical_not_alive_count=1,
         DAQ_timer_type=QtCore.Qt.CoarseTimer,
-        calc_DAQ_rate_every_N_iter=4,
         debug=False,
         **kwargs,
     ):
@@ -68,7 +67,6 @@ class Compax3_servo_qdev(QDeviceIO):
             DAQ_interval_ms=DAQ_interval_ms,
             DAQ_timer_type=DAQ_timer_type,
             critical_not_alive_count=critical_not_alive_count,
-            calc_DAQ_rate_every_N_iter=calc_DAQ_rate_every_N_iter,
             debug=debug,
         )
 

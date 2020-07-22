@@ -14,9 +14,9 @@
 
 DvG_Devices
 =============
-Collection of I/O interfaces to communicate with microcontroller boards and
+*Collection of I/O interfaces to communicate with microcontroller boards and
 laboratory devices, with optional PyQt5 multithread support and graphical
-user-interfaces.
+user-interfaces.*
 
 - Documentation: https://python-dvg-devices.readthedocs.io
 - Github: https://github.com/Dennis-van-Gils/python-dvg-devices

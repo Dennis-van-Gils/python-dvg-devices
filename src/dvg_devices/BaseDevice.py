@@ -10,15 +10,14 @@ class.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "15-07-2020"
-__version__ = "0.0.7"
+__date__ = "23-07-2020"
+__version__ = "0.0.8"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
 import time
 from typing import Union, Callable
 from pathlib import Path
-import inspect
 from ast import literal_eval
 
 import serial
@@ -110,6 +109,12 @@ class SerialDevice:
         self._ID_validation_query = None
         self._valid_ID_broad = None
         self._valid_ID_specific = None
+        # Whenever `connect_at_port()` is performing the user-supplied
+        # ID_validation_query, any query inside of it /must/ raise an exception
+        # on timeout. Instead of relying on the user to set the argument
+        # `raises_on_timeout=True` when invoking `query()`, we will use below
+        # flag instead to enforce the raise.
+        self._force_query_to_raise_on_timeout = False
 
         self.ser = None
         self.is_alive = False
@@ -335,14 +340,7 @@ class SerialDevice:
 
         # Always ensure that a timeout exception is raised when coming from
         # :meth:`connect_at_port`.
-        if (
-            inspect.getouterframes(inspect.currentframe())[2].function
-            == "connect_at_port"
-            or inspect.getouterframes(inspect.currentframe())[3].function
-            == "connect_at_port"
-            or inspect.getouterframes(inspect.currentframe())[4].function
-            == "connect_at_port"
-        ):
+        if self._force_query_to_raise_on_timeout:
             raises_on_timeout = True
 
         # Send query
@@ -537,12 +535,15 @@ class SerialDevice:
 
         # Optional validation query
         try:
+            self._force_query_to_raise_on_timeout = True
             self.is_alive = True  # We must assume communication is possible
             reply_broad, reply_specific = self._ID_validation_query()
         except:
             print("Wrong or no device.")
             self.close(ignore_exceptions=True)
             return False  # --> leaving
+        finally:
+            self._force_query_to_raise_on_timeout = False
 
         if reply_broad == self._valid_ID_broad:
             if reply_specific is not None:

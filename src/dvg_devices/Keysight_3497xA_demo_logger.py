@@ -462,26 +462,22 @@ if __name__ == "__main__":
     window = MainWindow()
 
     # --------------------------------------------------------------------------
-    #   Create pens and chart histories depending on the number of scan channels
+    #   Create history charts depending on the number of scan channels
     # --------------------------------------------------------------------------
 
     N_channels = len(mux.state.all_scan_list_channels)
 
-    # Pen styles for plotting
-    PENS = [None] * N_channels
+    # Create thread-safe `HistoryChartCurve`s, aka `tscurves`
     cm = plt.get_cmap("gist_rainbow")
-    params = {"width": 2}
     for i in range(N_channels):
         color = cm(1.0 * i / N_channels)  # color will now be an RGBA tuple
         color = np.array(color) * 255
-        PENS[i] = pg.mkPen(color=color, **params)
+        pen = pg.mkPen(color=color, width=2)
 
-    # Create thread-safe `HistoryChartCurve`s, aka `tscurves`
-    for i in range(N_channels):
         window.tscurves_mux.append(
             HistoryChartCurve(
                 capacity=CH_SAMPLES_MUX,
-                linked_curve=window.pi_mux.plot(pen=PENS[i]),
+                linked_curve=window.pi_mux.plot(pen=pen),
             )
         )
 

@@ -6,8 +6,8 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "16-07-2020"
-__version__ = "0.1.0"
+__date__ = "30-07-2020"
+__version__ = "0.1.1"
 # pylint: disable=bare-except
 
 import sys
@@ -20,12 +20,12 @@ from PyQt5 import QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
 import pyqtgraph as pg
 
+from dvg_pyqtgraph_threadsafe import HistoryChartCurve
 from dvg_utils.dvg_pyqt_controls import (
     create_Toggle_button,
     SS_TEXTBOX_READ_ONLY,
     SS_GROUP,
 )
-from dvg_utils.dvg_pyqt_charthistory import ChartHistory
 from dvg_utils.dvg_pyqt_filelogger import FileLogger
 
 from dvg_devices.Keysight_3497xA_protocol_SCPI import Keysight_3497xA
@@ -56,6 +56,7 @@ class MainWindow(QtWid.QWidget):
             "Click to start recording to file", minimumHeight=40
         )
         self.qpbt_record.setMinimumWidth(400)
+        self.qpbt_record.clicked.connect(self.process_qpbt_record)
 
         self.qpbt_exit = QtWid.QPushButton("Exit")
         self.qpbt_exit.clicked.connect(self.close)
@@ -79,7 +80,6 @@ class MainWindow(QtWid.QWidget):
         self.gw_mux = pg.GraphicsWindow()
         self.gw_mux.setBackground([20, 20, 20])
 
-        # PlotItem
         self.pi_mux = self.gw_mux.addPlot()
         self.pi_mux.setTitle('<span style="font-size:12pt">Mux readings</span>')
         self.pi_mux.setLabel(
@@ -93,6 +93,10 @@ class MainWindow(QtWid.QWidget):
         self.pi_mux.enableAutoRange(axis=pg.ViewBox.XAxis, enable=False)
         self.pi_mux.enableAutoRange(axis=pg.ViewBox.YAxis, enable=True)
         self.pi_mux.setAutoVisible(y=True)
+
+        # Placeholder to be populated depending on the number of scan channels
+        self.tscurves_mux = []  # List of `HistoryChartCurve`
+        self.chkbs_show_curves = []  # List of `QCheckBox`
 
         # Viewbox properties for the legend
         vb = self.gw_mux.addViewBox(enableMenu=False)
@@ -126,6 +130,12 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_history_4 = QtWid.QPushButton("05:00", **p)
         self.qpbt_history_5 = QtWid.QPushButton("10:00", **p)
         self.qpbt_history_6 = QtWid.QPushButton("30:00", **p)
+        self.qpbt_history_1.clicked.connect(self.process_qpbt_history_1)
+        self.qpbt_history_2.clicked.connect(self.process_qpbt_history_2)
+        self.qpbt_history_3.clicked.connect(self.process_qpbt_history_3)
+        self.qpbt_history_4.clicked.connect(self.process_qpbt_history_4)
+        self.qpbt_history_5.clicked.connect(self.process_qpbt_history_5)
+        self.qpbt_history_6.clicked.connect(self.process_qpbt_history_6)
 
         self.qpbt_history_clear = QtWid.QPushButton("clear", **p)
         self.qpbt_history_clear.clicked.connect(self.clear_all_charts)
@@ -169,6 +179,93 @@ class MainWindow(QtWid.QWidget):
         vbox.addLayout(hbox1)
         vbox.addStretch(1)
 
+    # --------------------------------------------------------------------------
+    #   Handle controls
+    # --------------------------------------------------------------------------
+
+    @QtCore.pyqtSlot()
+    def process_qpbt_history_1(self):
+        self.change_history_axes(
+            time_axis_factor=1e3,  # transform [msec] to [sec]
+            time_axis_range=-30,  # [sec]
+            time_axis_label='<span style="font-size:12pt">history (sec)</span>',
+        )
+
+    @QtCore.pyqtSlot()
+    def process_qpbt_history_2(self):
+        self.change_history_axes(
+            time_axis_factor=1e3,  # transform [msec] to [sec]
+            time_axis_range=-60,  # [sec]
+            time_axis_label='<span style="font-size:12pt">history (sec)</span>',
+        )
+
+    @QtCore.pyqtSlot()
+    def process_qpbt_history_3(self):
+        self.change_history_axes(
+            time_axis_factor=60e3,  # transform [msec] to [min]
+            time_axis_range=-3,  # [min]
+            time_axis_label='<span style="font-size:12pt">history (min)</span>',
+        )
+
+    @QtCore.pyqtSlot()
+    def process_qpbt_history_4(self):
+        self.change_history_axes(
+            time_axis_factor=60e3,  # transform [msec] to [min]
+            time_axis_range=-5,  # [min]
+            time_axis_label='<span style="font-size:12pt">history (min)</span>',
+        )
+
+    @QtCore.pyqtSlot()
+    def process_qpbt_history_5(self):
+        self.change_history_axes(
+            time_axis_factor=60e3,  # transform [msec] to [min]
+            time_axis_range=-10,  # [min]
+            time_axis_label='<span style="font-size:12pt">history (min)</span>',
+        )
+
+    @QtCore.pyqtSlot()
+    def process_qpbt_history_6(self):
+        self.change_history_axes(
+            time_axis_factor=60e3,  # transform [msec] to [min]
+            time_axis_range=-30,  # [min]
+            time_axis_label='<span style="font-size:12pt">history (min)</span>',
+        )
+
+    def change_history_axes(
+        self, time_axis_factor, time_axis_range, time_axis_label
+    ):
+        self.pi_mux.setXRange(time_axis_range, 0)
+        self.pi_mux.setLabel("bottom", time_axis_label)
+
+        for i_ in range(N_channels):
+            self.tscurves_mux[i_].x_axis_divisor = time_axis_factor
+
+    @QtCore.pyqtSlot()
+    def process_qpbt_show_all_curves(self):
+        # First: if any curve is hidden --> show all
+        # Second: if all curves are shown --> hide all
+
+        any_hidden = False
+        for i_ in range(N_channels):
+            if not self.chkbs_show_curves[i_].isChecked():
+                self.chkbs_show_curves[i_].setChecked(True)
+                any_hidden = True
+
+        if not any_hidden:
+            for i_ in range(N_channels):
+                self.chkbs_show_curves[i_].setChecked(False)
+
+    @QtCore.pyqtSlot()
+    def process_qpbt_record(self):
+        if self.qpbt_record.isChecked():
+            file_logger.starting = True
+        else:
+            file_logger.stopping = True
+
+    @QtCore.pyqtSlot(str)
+    def set_text_qpbt_record(self, text_str):
+        self.qpbt_record.setText(text_str)
+
     @QtCore.pyqtSlot()
     def clear_all_charts(self):
         str_msg = "Are you sure you want to clear all charts?"
@@ -181,128 +278,22 @@ class MainWindow(QtWid.QWidget):
         )
 
         if reply == QtWid.QMessageBox.Yes:
-            for CH in self.CHs_mux:
-                CH.clear()
+            for tscurve in self.tscurves_mux:
+                tscurve.clear()
 
-
-# ------------------------------------------------------------------------------
-#   update_GUI
-# ------------------------------------------------------------------------------
-
-
-@QtCore.pyqtSlot()
-def update_GUI():
-    cur_date_time = QDateTime.currentDateTime()
-    window.qlbl_cur_date_time.setText(
-        cur_date_time.toString("dd-MM-yyyy")
-        + "    "
-        + cur_date_time.toString("HH:mm:ss")
-    )
-
-    # Update curves
-    for CH in window.CHs_mux:
-        CH.update_curve()
-
-    # Show or hide curve depending on checkbox
-    for i_ in range(N_channels):
-        window.CHs_mux[i_].curve.setVisible(
-            window.chkbs_show_curves[i_].isChecked()
+    @QtCore.pyqtSlot()
+    def update_GUI(self):
+        cur_date_time = QDateTime.currentDateTime()
+        self.qlbl_cur_date_time.setText(
+            cur_date_time.toString("dd-MM-yyyy")
+            + "    "
+            + cur_date_time.toString("HH:mm:ss")
         )
 
-
-# ------------------------------------------------------------------------------
-# ------------------------------------------------------------------------------
-
-
-@QtCore.pyqtSlot()
-def process_qpbt_history_1():
-    change_history_axes(
-        time_axis_factor=1e3,  # transform [msec] to [sec]
-        time_axis_range=-30,  # [sec]
-        time_axis_label='<span style="font-size:12pt">history (sec)</span>',
-    )
-
-
-@QtCore.pyqtSlot()
-def process_qpbt_history_2():
-    change_history_axes(
-        time_axis_factor=1e3,  # transform [msec] to [sec]
-        time_axis_range=-60,  # [sec]
-        time_axis_label='<span style="font-size:12pt">history (sec)</span>',
-    )
-
-
-@QtCore.pyqtSlot()
-def process_qpbt_history_3():
-    change_history_axes(
-        time_axis_factor=60e3,  # transform [msec] to [min]
-        time_axis_range=-3,  # [min]
-        time_axis_label='<span style="font-size:12pt">history (min)</span>',
-    )
-
-
-@QtCore.pyqtSlot()
-def process_qpbt_history_4():
-    change_history_axes(
-        time_axis_factor=60e3,  # transform [msec] to [min]
-        time_axis_range=-5,  # [min]
-        time_axis_label='<span style="font-size:12pt">history (min)</span>',
-    )
-
-
-@QtCore.pyqtSlot()
-def process_qpbt_history_5():
-    change_history_axes(
-        time_axis_factor=60e3,  # transform [msec] to [min]
-        time_axis_range=-10,  # [min]
-        time_axis_label='<span style="font-size:12pt">history (min)</span>',
-    )
-
-
-@QtCore.pyqtSlot()
-def process_qpbt_history_6():
-    change_history_axes(
-        time_axis_factor=60e3,  # transform [msec] to [min]
-        time_axis_range=-30,  # [min]
-        time_axis_label='<span style="font-size:12pt">history (min)</span>',
-    )
-
-
-def change_history_axes(time_axis_factor, time_axis_range, time_axis_label):
-    window.pi_mux.setXRange(time_axis_range, 0)
-    window.pi_mux.setLabel("bottom", time_axis_label)
-
-    for i_ in range(N_channels):
-        window.CHs_mux[i_].x_axis_divisor = time_axis_factor
-
-
-@QtCore.pyqtSlot()
-def process_qpbt_show_all_curves():
-    # First: if any curve is hidden --> show all
-    # Second: if all curves are shown --> hide all
-
-    any_hidden = False
-    for i_ in range(N_channels):
-        if not window.chkbs_show_curves[i_].isChecked():
-            window.chkbs_show_curves[i_].setChecked(True)
-            any_hidden = True
-
-    if not any_hidden:
-        for i_ in range(N_channels):
-            window.chkbs_show_curves[i_].setChecked(False)
-
-
-@QtCore.pyqtSlot()
-def process_qpbt_record():
-    if window.qpbt_record.isChecked():
-        file_logger.starting = True
-    else:
-        file_logger.stopping = True
-
-
-@QtCore.pyqtSlot(str)
-def set_text_qpbt_record(text_str):
-    window.qpbt_record.setText(text_str)
+        # Update curves
+        for idx, tscurve_mux in enumerate(self.tscurves_mux):
+            tscurve_mux.update()
+            tscurve_mux.set_visible(self.chkbs_show_curves[idx].isChecked())
 
 
 # ------------------------------------------------------------------------------
@@ -352,8 +343,8 @@ def DAQ_postprocess_MUX_scan_function():
         mux.state.readings = readings
 
     # Add readings to charts
-    for i_ in range(N_channels):
-        window.CHs_mux[i_].add_new_reading(epoch_time, readings[i_])
+    for i_ in range(N_channels):  # TODO: use `enumerate` instead
+        window.tscurves_mux[i_].append_data(epoch_time, readings[i_])
 
     # ----------------------------------------------------------------------
     #   Logging to file
@@ -485,30 +476,37 @@ if __name__ == "__main__":
         color = np.array(color) * 255
         PENS[i] = pg.mkPen(color=color, **params)
 
-    # Create Chart Histories (CH) and PlotDataItems and link them together
-    # Also add legend entries
-    window.CHs_mux = [None] * N_channels
-    window.chkbs_show_curves = [None] * N_channels
+    # Create thread-safe `HistoryChartCurve`s, aka `tscurves`
     for i in range(N_channels):
-        window.CHs_mux[i] = ChartHistory(
-            CH_SAMPLES_MUX, window.pi_mux.plot(pen=PENS[i])
-        )
-        window.legend.addItem(
-            window.CHs_mux[i].curve, name=mux.state.all_scan_list_channels[i]
+        window.tscurves_mux.append(
+            HistoryChartCurve(
+                capacity=CH_SAMPLES_MUX,
+                linked_curve=window.pi_mux.plot(pen=PENS[i]),
+            )
         )
 
-        # Add checkboxes for showing the curves
-        window.chkbs_show_curves[i] = QtWid.QCheckBox(
-            parent=window,
-            text=mux.state.all_scan_list_channels[i],
-            checked=True,
+        # Also add legend entries
+        window.legend.addItem(
+            window.tscurves_mux[i].curve,
+            name=mux.state.all_scan_list_channels[i],
+        )
+
+        # Also add checkboxes for showing the curves
+        window.chkbs_show_curves.append(
+            QtWid.QCheckBox(
+                parent=window,
+                text=mux.state.all_scan_list_channels[i],
+                checked=True,
+            )
         )
         window.grid_show_curves.addWidget(window.chkbs_show_curves[i], i, 0)
 
     window.qpbt_show_all_curves = QtWid.QPushButton("toggle", maximumWidth=70)
-    window.qpbt_show_all_curves.clicked.connect(process_qpbt_show_all_curves)
     window.grid_show_curves.addWidget(
         window.qpbt_show_all_curves, N_channels, 0
+    )
+    window.qpbt_show_all_curves.clicked.connect(
+        window.process_qpbt_show_all_curves
     )
 
     # --------------------------------------------------------------------------
@@ -516,7 +514,7 @@ if __name__ == "__main__":
     # --------------------------------------------------------------------------
 
     file_logger = FileLogger()
-    file_logger.signal_set_recording_text.connect(set_text_qpbt_record)
+    file_logger.signal_set_recording_text.connect(window.set_text_qpbt_record)
 
     # --------------------------------------------------------------------------
     #   Start threads
@@ -525,23 +523,11 @@ if __name__ == "__main__":
     mux_qdev.start(DAQ_priority=QtCore.QThread.TimeCriticalPriority)
 
     # --------------------------------------------------------------------------
-    #   Connect remaining signals from GUI
-    # --------------------------------------------------------------------------
-
-    window.qpbt_history_1.clicked.connect(process_qpbt_history_1)
-    window.qpbt_history_2.clicked.connect(process_qpbt_history_2)
-    window.qpbt_history_3.clicked.connect(process_qpbt_history_3)
-    window.qpbt_history_4.clicked.connect(process_qpbt_history_4)
-    window.qpbt_history_5.clicked.connect(process_qpbt_history_5)
-    window.qpbt_history_6.clicked.connect(process_qpbt_history_6)
-    window.qpbt_record.clicked.connect(process_qpbt_record)
-
-    # --------------------------------------------------------------------------
     #   Set up timers
     # --------------------------------------------------------------------------
 
     timer_GUI = QtCore.QTimer()
-    timer_GUI.timeout.connect(update_GUI)
+    timer_GUI.timeout.connect(window.update_GUI)
     timer_GUI.start(UPDATE_INTERVAL_GUI)
 
     # --------------------------------------------------------------------------
@@ -549,7 +535,7 @@ if __name__ == "__main__":
     # --------------------------------------------------------------------------
 
     # Init the time axis of the strip charts
-    process_qpbt_history_3()
+    window.process_qpbt_history_3()
 
     window.show()
     sys.exit(app.exec_())

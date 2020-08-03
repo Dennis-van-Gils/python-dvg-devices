@@ -6,8 +6,8 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "30-07-2020"
-__version__ = "0.1.1"
+__date__ = "03-08-2020"
+__version__ = "0.1.2"
 # pylint: disable=bare-except
 
 import sys
@@ -20,7 +20,7 @@ from PyQt5 import QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
 import pyqtgraph as pg
 
-from dvg_pyqtgraph_threadsafe import HistoryChartCurve
+from dvg_pyqtgraph_threadsafe import HistoryChartCurve, LegendSelect
 from dvg_utils.dvg_pyqt_controls import (
     create_Toggle_button,
     SS_TEXTBOX_READ_ONLY,
@@ -76,10 +76,8 @@ class MainWindow(QtWid.QWidget):
         #   Chart: Mux readings
         # ----------------------------------------------------------------------
 
-        # GraphicsWindow
-        self.gw_mux = pg.GraphicsWindow()
-        self.gw_mux.setBackground([20, 20, 20])
-
+        # GraphicsLayoutWidget
+        self.gw_mux = pg.GraphicsLayoutWidget()
         self.pi_mux = self.gw_mux.addPlot()
         self.pi_mux.setTitle('<span style="font-size:12pt">Mux readings</span>')
         self.pi_mux.setLabel(
@@ -95,29 +93,14 @@ class MainWindow(QtWid.QWidget):
         self.pi_mux.setAutoVisible(y=True)
 
         # Placeholder to be populated depending on the number of scan channels
-        self.tscurves_mux = []  # List of `HistoryChartCurve`
-        self.chkbs_show_curves = []  # List of `QCheckBox`
-
-        # Viewbox properties for the legend
-        vb = self.gw_mux.addViewBox(enableMenu=False)
-        vb.setMaximumWidth(80)
-
-        # Legend
-        self.legend = pg.LegendItem()
-        self.legend.setParentItem(vb)
-        self.legend.anchor((0, 0), (0, 0), offset=(1, 10))
-        self.legend.setFixedWidth(75)
-        self.legend.setScale(1)
+        self.tscurves_mux = list()  # List of `HistoryChartCurve`
 
         # ----------------------------------------------------------------------
-        #   Show curves selection
+        #   Legend
         # ----------------------------------------------------------------------
 
-        qgrp_show_curves = QtWid.QGroupBox("Show")
-        qgrp_show_curves.setStyleSheet(SS_GROUP)
-        self.grid_show_curves = QtWid.QGridLayout()
-        self.grid_show_curves.setVerticalSpacing(0)
-        qgrp_show_curves.setLayout(self.grid_show_curves)
+        self.qgrp_legend = QtWid.QGroupBox("Legend")
+        self.qgrp_legend.setStyleSheet(SS_GROUP)
 
         # ----------------------------------------------------------------------
         #   Chart history time range selection
@@ -160,7 +143,7 @@ class MainWindow(QtWid.QWidget):
 
         vbox1 = QtWid.QVBoxLayout()
         vbox1.addWidget(
-            qgrp_show_curves, stretch=0, alignment=QtCore.Qt.AlignTop
+            self.qgrp_legend, stretch=0, alignment=QtCore.Qt.AlignTop
         )
         vbox1.addWidget(qgrp_history, stretch=0, alignment=QtCore.Qt.AlignTop)
         vbox1.addStretch(1)
@@ -237,23 +220,8 @@ class MainWindow(QtWid.QWidget):
         self.pi_mux.setXRange(time_axis_range, 0)
         self.pi_mux.setLabel("bottom", time_axis_label)
 
-        for i_ in range(N_channels):
-            self.tscurves_mux[i_].x_axis_divisor = time_axis_factor
-
-    @QtCore.pyqtSlot()
-    def process_qpbt_show_all_curves(self):
-        # First: if any curve is hidden --> show all
-        # Second: if all curves are shown --> hide all
-
-        any_hidden = False
-        for i_ in range(N_channels):
-            if not self.chkbs_show_curves[i_].isChecked():
-                self.chkbs_show_curves[i_].setChecked(True)
-                any_hidden = True
-
-        if not any_hidden:
-            for i_ in range(N_channels):
-                self.chkbs_show_curves[i_].setChecked(False)
+        for tscurve in self.tscurves_mux:
+            tscurve.x_axis_divisor = time_axis_factor
 
     @QtCore.pyqtSlot()
     def process_qpbt_record(self):
@@ -291,9 +259,8 @@ class MainWindow(QtWid.QWidget):
         )
 
         # Update curves
-        for idx, tscurve_mux in enumerate(self.tscurves_mux):
-            tscurve_mux.update()
-            tscurve_mux.set_visible(self.chkbs_show_curves[idx].isChecked())
+        for tscurve in self.tscurves_mux:
+            tscurve.update()
 
 
 # ------------------------------------------------------------------------------
@@ -335,16 +302,16 @@ def DAQ_postprocess_MUX_scan_function():
 
     if mux_qdev.is_MUX_scanning:
         readings = mux.state.readings
-        for i_ in range(N_channels):
-            if readings[i_] > INFINITY_CAP:
-                readings[i_] = np.nan
+        for idx in range(N_channels):
+            if readings[idx] > INFINITY_CAP:
+                readings[idx] = np.nan
     else:
         readings = [np.nan] * N_channels
         mux.state.readings = readings
 
     # Add readings to charts
-    for i_ in range(N_channels):  # TODO: use `enumerate` instead
-        window.tscurves_mux[i_].append_data(epoch_time, readings[i_])
+    for idx, tscurve in enumerate(window.tscurves_mux):
+        tscurve.appendData(epoch_time, readings[idx])
 
     # ----------------------------------------------------------------------
     #   Logging to file
@@ -394,8 +361,8 @@ if __name__ == "__main__":
     # VISA address of the Keysight 3497xA data acquisition/switch unit
     # containing a multiplexer plug-in module. Hence, we simply call this device
     # a 'mux'.
-    # MUX_VISA_ADDRESS = "USB0::0x0957::0x2007::MY49018071::INSTR"
-    MUX_VISA_ADDRESS = "GPIB0::9::INSTR"
+    MUX_VISA_ADDRESS = "USB0::0x0957::0x2007::MY49018071::INSTR"
+    # MUX_VISA_ADDRESS = "GPIB0::9::INSTR"
 
     # A scan will be performed by the mux every N milliseconds
     MUX_SCANNING_INTERVAL_MS = 1000  # [ms]
@@ -409,16 +376,18 @@ if __name__ == "__main__":
     UPDATE_INTERVAL_GUI = 1000  # [ms]
 
     # SCPI commands to be send to the 3497xA to set up the scan cycle.
-    """
+    # """
     scan_list = "(@301:310)"
     MUX_SCPI_COMMANDS = [
-                "rout:open %s" % scan_list,
-                "conf:temp TC,J,%s" % scan_list,
-                "unit:temp C,%s" % scan_list,
-                "sens:temp:tran:tc:rjun:type INT,%s" % scan_list,
-                "sens:temp:tran:tc:check ON,%s" % scan_list,
-                "sens:temp:nplc 1,%s" % scan_list,
-                "rout:scan %s" % scan_list]
+        "rout:open %s" % scan_list,
+        "conf:temp TC,J,%s" % scan_list,
+        "unit:temp C,%s" % scan_list,
+        "sens:temp:tran:tc:rjun:type INT,%s" % scan_list,
+        "sens:temp:tran:tc:check ON,%s" % scan_list,
+        "sens:temp:nplc 1,%s" % scan_list,
+        "rout:scan %s" % scan_list,
+    ]
+    # """
     """
     scan_list = "(@101)"
     MUX_SCPI_COMMANDS = [
@@ -427,6 +396,7 @@ if __name__ == "__main__":
         "sens:res:nplc 1,%s" % scan_list,
         "rout:scan %s" % scan_list,
     ]
+    """
 
     # --------------------------------------------------------------------------
     #   Connect to Keysight 3497xA (mux)
@@ -477,33 +447,15 @@ if __name__ == "__main__":
         window.tscurves_mux.append(
             HistoryChartCurve(
                 capacity=CH_SAMPLES_MUX,
-                linked_curve=window.pi_mux.plot(pen=pen),
+                linked_curve=window.pi_mux.plot(
+                    pen=pen, name=mux.state.all_scan_list_channels[i]
+                ),
             )
         )
 
-        # Also add legend entries
-        window.legend.addItem(
-            window.tscurves_mux[i].curve,
-            name=mux.state.all_scan_list_channels[i],
-        )
-
-        # Also add checkboxes for showing the curves
-        window.chkbs_show_curves.append(
-            QtWid.QCheckBox(
-                parent=window,
-                text=mux.state.all_scan_list_channels[i],
-                checked=True,
-            )
-        )
-        window.grid_show_curves.addWidget(window.chkbs_show_curves[i], i, 0)
-
-    window.qpbt_show_all_curves = QtWid.QPushButton("toggle", maximumWidth=70)
-    window.grid_show_curves.addWidget(
-        window.qpbt_show_all_curves, N_channels, 0
-    )
-    window.qpbt_show_all_curves.clicked.connect(
-        window.process_qpbt_show_all_curves
-    )
+    legend = LegendSelect(curves=window.tscurves_mux)
+    legend.grid.setVerticalSpacing(0)
+    window.qgrp_legend.setLayout(legend.grid)
 
     # --------------------------------------------------------------------------
     #   File logger

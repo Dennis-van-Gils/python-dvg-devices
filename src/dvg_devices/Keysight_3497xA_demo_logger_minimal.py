@@ -13,6 +13,7 @@ __version__ = "0.1.2"
 import sys
 import visa
 import numpy as np
+import time
 
 from PyQt5 import QtCore, QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
@@ -84,8 +85,6 @@ def DAQ_postprocess_MUX_scan_function():
     performed. We use it to parse out the scan readings into separate variables
     and log it to file.
     """
-    cur_date_time = QDateTime.currentDateTime()
-    epoch_time = cur_date_time.toMSecsSinceEpoch()
 
     if mux_qdev.is_MUX_scanning:
         readings = mux.state.readings
@@ -98,7 +97,7 @@ def DAQ_postprocess_MUX_scan_function():
 
     # Add readings to charts
     for idx, tscurve in enumerate(window.tscurves_mux):
-        tscurve.appendData(epoch_time, readings[idx])
+        tscurve.appendData(time.perf_counter(), readings[idx])
 
 
 # ------------------------------------------------------------------------------

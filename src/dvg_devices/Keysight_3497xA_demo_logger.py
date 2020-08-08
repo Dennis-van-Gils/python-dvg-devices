@@ -35,7 +35,7 @@ from dvg_utils.dvg_pyqt_filelogger import FileLogger
 from dvg_devices.Keysight_3497xA_protocol_SCPI import Keysight_3497xA
 from dvg_devices.Keysight_3497xA_qdev import Keysight_3497xA_qdev, INFINITY_CAP
 
-TRY_USING_OPENGL = False
+TRY_USING_OPENGL = True
 if TRY_USING_OPENGL:
     try:
         import OpenGL.GL as gl  # pylint: disable=unused-import

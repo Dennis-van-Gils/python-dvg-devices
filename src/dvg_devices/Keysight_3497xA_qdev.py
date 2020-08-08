@@ -335,7 +335,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
         self.qtbl_readings.setFont(FONT_MONOSPACE_SMALL)
         # self.qtbl_readings.setMinimumHeight(600)
         self.qtbl_readings.setFixedWidth(180)
-        self.qtbl_readings.setColumnWidth(0, 100)
+        self.qtbl_readings.setColumnWidth(0, 110)
 
         grid.addWidget(self.qtbl_readings, 0, 2, i, 1)
 

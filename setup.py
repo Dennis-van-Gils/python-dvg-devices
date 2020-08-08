@@ -79,7 +79,6 @@ setup(
     install_requires=[
         "dvg-debug-functions~=2.1",
         "dvg-pid-controller~=2.0",
-        "dvg-pyqt-controls~=1.0",
         "dvg-pyqtgraph-threadsafe~=3.0",
         "dvg-qdeviceio~=0.3.0",
         "matplotlib~=3.1",

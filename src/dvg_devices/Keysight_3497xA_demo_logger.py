@@ -35,6 +35,24 @@ from dvg_utils.dvg_pyqt_filelogger import FileLogger
 from dvg_devices.Keysight_3497xA_protocol_SCPI import Keysight_3497xA
 from dvg_devices.Keysight_3497xA_qdev import Keysight_3497xA_qdev, INFINITY_CAP
 
+TRY_USING_OPENGL = False
+if TRY_USING_OPENGL:
+    try:
+        import OpenGL.GL as gl  # pylint: disable=unused-import
+    except:  # pylint: disable=bare-except
+        print("OpenGL acceleration: Disabled")
+        print("To install: `conda install pyopengl` or `pip install pyopengl`")
+    else:
+        print("OpenGL acceleration: Enabled")
+        pg.setConfigOptions(useOpenGL=True)
+        pg.setConfigOptions(antialias=True)
+        pg.setConfigOptions(enableExperimental=True)
+
+# Global pyqtgraph configuration
+# pg.setConfigOptions(leftButtonPan=False)
+pg.setConfigOption("foreground", "#EEE")
+
+
 # ------------------------------------------------------------------------------
 #   MainWindow
 # ------------------------------------------------------------------------------
@@ -44,8 +62,9 @@ class MainWindow(QtWid.QWidget):
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
-        self.setGeometry(600, 120, 1200, 600)
         self.setWindowTitle("Keysight 3497xA control")
+        self.setGeometry(600, 120, 1200, 600)
+        self.setStyleSheet(SS_TEXTBOX_READ_ONLY + SS_GROUP)
 
         # ----------------------------------------------------------------------
         #   Top grid
@@ -103,7 +122,6 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
 
         self.qgrp_legend = QtWid.QGroupBox("Legend")
-        self.qgrp_legend.setStyleSheet(SS_GROUP)
 
         # ----------------------------------------------------------------------
         #   Chart history time range selection
@@ -158,7 +176,6 @@ class MainWindow(QtWid.QWidget):
         self.plot_manager.add_clear_button(linked_curves=self.tscurves_mux)
 
         qgrp_history = QtWid.QGroupBox("History")
-        qgrp_history.setStyleSheet(SS_GROUP)
         qgrp_history.setLayout(self.plot_manager.grid)
 
         # ----------------------------------------------------------------------
@@ -365,10 +382,8 @@ if __name__ == "__main__":
     # --------------------------------------------------------------------------
     QtCore.QThread.currentThread().setObjectName("MAIN")  # For DEBUG info
 
-    app = 0  # Work-around for kernel crash when using Spyder IDE
     app = QtWid.QApplication(sys.argv)
     app.setFont(QtGui.QFont("Arial", 9))
-    app.setStyleSheet(SS_TEXTBOX_READ_ONLY)
     app.aboutToQuit.connect(about_to_quit)
 
     # Create PyQt GUI interfaces and communication threads per 3497xA

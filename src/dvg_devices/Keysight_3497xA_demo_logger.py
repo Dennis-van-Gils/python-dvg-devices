@@ -6,7 +6,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "03-08-2020"
+__date__ = "08-08-2020"
 __version__ = "0.1.2"
 # pylint: disable=bare-except
 
@@ -20,7 +20,11 @@ from PyQt5 import QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
 import pyqtgraph as pg
 
-from dvg_pyqtgraph_threadsafe import HistoryChartCurve, LegendSelect
+from dvg_pyqtgraph_threadsafe import (
+    HistoryChartCurve,
+    LegendSelect,
+    PlotManager,
+)
 from dvg_utils.dvg_pyqt_controls import (
     create_Toggle_button,
     SS_TEXTBOX_READ_ONLY,
@@ -78,15 +82,14 @@ class MainWindow(QtWid.QWidget):
 
         # GraphicsLayoutWidget
         self.gw_mux = pg.GraphicsLayoutWidget()
+
+        p = {"color": "#EEE", "font-size": "12pt"}
         self.pi_mux = self.gw_mux.addPlot()
-        self.pi_mux.setTitle('<span style="font-size:12pt">Mux readings</span>')
-        self.pi_mux.setLabel(
-            "bottom", '<span style="font-size:12pt">history (min)</span>'
-        )
-        self.pi_mux.setLabel(
-            "left", '<span style="font-size:12pt">misc. units</span>'
-        )
+        self.pi_mux.setClipToView(True)
         self.pi_mux.showGrid(x=1, y=1)
+        self.pi_mux.setTitle("Mux readings", **p)
+        self.pi_mux.setLabel("bottom", "history (min)", **p)
+        self.pi_mux.setLabel("left", "misc. units", **p)
         self.pi_mux.setMenuEnabled(True)
         self.pi_mux.enableAutoRange(axis=pg.ViewBox.XAxis, enable=False)
         self.pi_mux.enableAutoRange(axis=pg.ViewBox.YAxis, enable=True)
@@ -106,36 +109,57 @@ class MainWindow(QtWid.QWidget):
         #   Chart history time range selection
         # ----------------------------------------------------------------------
 
-        p = {"maximumWidth": 70}
-        self.qpbt_history_1 = QtWid.QPushButton("00:30", **p)
-        self.qpbt_history_2 = QtWid.QPushButton("01:00", **p)
-        self.qpbt_history_3 = QtWid.QPushButton("03:00", **p)
-        self.qpbt_history_4 = QtWid.QPushButton("05:00", **p)
-        self.qpbt_history_5 = QtWid.QPushButton("10:00", **p)
-        self.qpbt_history_6 = QtWid.QPushButton("30:00", **p)
-        self.qpbt_history_1.clicked.connect(self.process_qpbt_history_1)
-        self.qpbt_history_2.clicked.connect(self.process_qpbt_history_2)
-        self.qpbt_history_3.clicked.connect(self.process_qpbt_history_3)
-        self.qpbt_history_4.clicked.connect(self.process_qpbt_history_4)
-        self.qpbt_history_5.clicked.connect(self.process_qpbt_history_5)
-        self.qpbt_history_6.clicked.connect(self.process_qpbt_history_6)
-
-        self.qpbt_history_clear = QtWid.QPushButton("clear", **p)
-        self.qpbt_history_clear.clicked.connect(self.clear_all_charts)
-
-        grid = QtWid.QGridLayout()
-        grid.setVerticalSpacing(0)
-        grid.addWidget(self.qpbt_history_1, 0, 0)
-        grid.addWidget(self.qpbt_history_2, 1, 0)
-        grid.addWidget(self.qpbt_history_3, 2, 0)
-        grid.addWidget(self.qpbt_history_4, 3, 0)
-        grid.addWidget(self.qpbt_history_5, 4, 0)
-        grid.addWidget(self.qpbt_history_6, 5, 0)
-        grid.addWidget(self.qpbt_history_clear, 6, 0)
+        # `PlotManager`
+        # p = {"maximumWidth": 70}
+        self.plot_manager = PlotManager(parent=self)
+        self.plot_manager.add_autorange_buttons(linked_plots=self.pi_mux)
+        self.plot_manager.add_preset_buttons(
+            linked_plots=self.pi_mux,
+            linked_curves=self.tscurves_mux,
+            presets=[
+                {
+                    "button_label": "0:30",
+                    "x_axis_label": "history (sec)",
+                    "x_axis_divisor": 1e3,
+                    "x_axis_range": (-30, 0),
+                },
+                {
+                    "button_label": "01:00",
+                    "x_axis_label": "history (sec)",
+                    "x_axis_divisor": 1e3,
+                    "x_axis_range": (-60, 0),
+                },
+                {
+                    "button_label": "03:00",
+                    "x_axis_label": "history (min)",
+                    "x_axis_divisor": 60e3,
+                    "x_axis_range": (-3, 0),
+                },
+                {
+                    "button_label": "05:00",
+                    "x_axis_label": "history (min)",
+                    "x_axis_divisor": 60e3,
+                    "x_axis_range": (-5, 0),
+                },
+                {
+                    "button_label": "10:00",
+                    "x_axis_label": "history (min)",
+                    "x_axis_divisor": 60e3,
+                    "x_axis_range": (-10, 0),
+                },
+                {
+                    "button_label": "30:00",
+                    "x_axis_label": "history (min)",
+                    "x_axis_divisor": 60e3,
+                    "x_axis_range": (-30, 0),
+                },
+            ],
+        )
+        self.plot_manager.add_clear_button(linked_curves=self.tscurves_mux)
 
         qgrp_history = QtWid.QGroupBox("History")
         qgrp_history.setStyleSheet(SS_GROUP)
-        qgrp_history.setLayout(grid)
+        qgrp_history.setLayout(self.plot_manager.grid)
 
         # ----------------------------------------------------------------------
         #   Bottom grid
@@ -167,63 +191,6 @@ class MainWindow(QtWid.QWidget):
     # --------------------------------------------------------------------------
 
     @QtCore.pyqtSlot()
-    def process_qpbt_history_1(self):
-        self.change_history_axes(
-            time_axis_factor=1e3,  # transform [msec] to [sec]
-            time_axis_range=-30,  # [sec]
-            time_axis_label='<span style="font-size:12pt">history (sec)</span>',
-        )
-
-    @QtCore.pyqtSlot()
-    def process_qpbt_history_2(self):
-        self.change_history_axes(
-            time_axis_factor=1e3,  # transform [msec] to [sec]
-            time_axis_range=-60,  # [sec]
-            time_axis_label='<span style="font-size:12pt">history (sec)</span>',
-        )
-
-    @QtCore.pyqtSlot()
-    def process_qpbt_history_3(self):
-        self.change_history_axes(
-            time_axis_factor=60e3,  # transform [msec] to [min]
-            time_axis_range=-3,  # [min]
-            time_axis_label='<span style="font-size:12pt">history (min)</span>',
-        )
-
-    @QtCore.pyqtSlot()
-    def process_qpbt_history_4(self):
-        self.change_history_axes(
-            time_axis_factor=60e3,  # transform [msec] to [min]
-            time_axis_range=-5,  # [min]
-            time_axis_label='<span style="font-size:12pt">history (min)</span>',
-        )
-
-    @QtCore.pyqtSlot()
-    def process_qpbt_history_5(self):
-        self.change_history_axes(
-            time_axis_factor=60e3,  # transform [msec] to [min]
-            time_axis_range=-10,  # [min]
-            time_axis_label='<span style="font-size:12pt">history (min)</span>',
-        )
-
-    @QtCore.pyqtSlot()
-    def process_qpbt_history_6(self):
-        self.change_history_axes(
-            time_axis_factor=60e3,  # transform [msec] to [min]
-            time_axis_range=-30,  # [min]
-            time_axis_label='<span style="font-size:12pt">history (min)</span>',
-        )
-
-    def change_history_axes(
-        self, time_axis_factor, time_axis_range, time_axis_label
-    ):
-        self.pi_mux.setXRange(time_axis_range, 0)
-        self.pi_mux.setLabel("bottom", time_axis_label)
-
-        for tscurve in self.tscurves_mux:
-            tscurve.x_axis_divisor = time_axis_factor
-
-    @QtCore.pyqtSlot()
     def process_qpbt_record(self):
         if self.qpbt_record.isChecked():
             file_logger.starting = True
@@ -233,21 +200,6 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot(str)
     def set_text_qpbt_record(self, text_str):
         self.qpbt_record.setText(text_str)
-
-    @QtCore.pyqtSlot()
-    def clear_all_charts(self):
-        str_msg = "Are you sure you want to clear all charts?"
-        reply = QtWid.QMessageBox.warning(
-            self,
-            "Clear charts",
-            str_msg,
-            QtWid.QMessageBox.Yes | QtWid.QMessageBox.No,
-            QtWid.QMessageBox.No,
-        )
-
-        if reply == QtWid.QMessageBox.Yes:
-            for tscurve in self.tscurves_mux:
-                tscurve.clear()
 
     @QtCore.pyqtSlot()
     def update_GUI(self):
@@ -453,7 +405,7 @@ if __name__ == "__main__":
             )
         )
 
-    legend = LegendSelect(curves=window.tscurves_mux)
+    legend = LegendSelect(linked_curves=window.tscurves_mux)
     legend.grid.setVerticalSpacing(0)
     window.qgrp_legend.setLayout(legend.grid)
 
@@ -483,7 +435,7 @@ if __name__ == "__main__":
     # --------------------------------------------------------------------------
 
     # Init the time axis of the strip charts
-    window.process_qpbt_history_3()
+    window.plot_manager.perform_preset(2)
 
     window.show()
     sys.exit(app.exec_())

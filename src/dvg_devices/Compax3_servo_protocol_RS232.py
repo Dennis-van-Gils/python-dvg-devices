@@ -16,7 +16,7 @@ __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "15-07-2020"
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 # pylint: disable=bare-except, broad-except, try-except-raise, pointless-string-statement
 
 import sys

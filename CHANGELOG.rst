@@ -3,13 +3,14 @@ Changelog
 
 0.2.0 (2020-08-11)
 ------------------
+* Added dependence ``dvg-pyqt-controls~=1.0``
 * Added dependence ``dvg-pyqt-filelogger~=1.0``
-* Added dependence ``dvg-pyqtgraph-threadsafe~=3.0``,
+* Added dependence ``dvg-pyqtgraph-threadsafe~=3.0``
 
-0.1.0 (2020-07-23)
+0.2.0 (2020-07-23)
 ------------------
 * Fixed bug in ``BaseDevice.py`` where ``inspect.getouterframes()`` would
-  momentarily suspend the thread. Solved by ditching inspect. The new 
+  momentarily suspend the thread. Solved by ditching inspect. The new
   ``ID_validation_query`` mechanism now relies on a simple boolean flag that
   gets set to force ``query()`` to raise on timeout.
 * Update dependence ``dvg-qdeviceio==0.3.0``

@@ -1,6 +1,11 @@
 Changelog
 =========
 
+0.2.0 (2020-08-11)
+------------------
+* Added dependence ``dvg-pyqt-filelogger~=1.0``
+* Added dependence ``dvg-pyqtgraph-threadsafe~=3.0``,
+
 0.1.0 (2020-07-23)
 ------------------
 * Fixed bug in ``BaseDevice.py`` where ``inspect.getouterframes()`` would

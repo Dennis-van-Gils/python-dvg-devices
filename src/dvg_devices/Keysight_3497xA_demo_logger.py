@@ -6,11 +6,13 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "08-08-2020"
-__version__ = "0.1.2"
+__date__ = "11-08-2020"
+__version__ = "0.2.0"
 # pylint: disable=bare-except
 
 import sys
+import time
+
 import visa
 import matplotlib.pyplot as plt
 import numpy as np
@@ -79,7 +81,9 @@ class MainWindow(QtWid.QWidget):
             "Click to start recording to file", minimumHeight=40
         )
         self.qpbt_record.setMinimumWidth(400)
-        self.qpbt_record.clicked.connect(self.process_qpbt_record)
+        # fmt: off
+        self.qpbt_record.clicked.connect(lambda state: log.record(state))  # pylint: disable=unnecessary-lambda
+        # fmt: on
 
         self.qpbt_exit = QtWid.QPushButton("Exit")
         self.qpbt_exit.clicked.connect(self.close)
@@ -124,11 +128,9 @@ class MainWindow(QtWid.QWidget):
         self.qgrp_legend = QtWid.QGroupBox("Legend")
 
         # ----------------------------------------------------------------------
-        #   Chart history time range selection
+        #   PlotManager
         # ----------------------------------------------------------------------
 
-        # `PlotManager`
-        # p = {"maximumWidth": 70}
         self.plot_manager = PlotManager(parent=self)
         self.plot_manager.add_autorange_buttons(linked_plots=self.pi_mux)
         self.plot_manager.add_preset_buttons(
@@ -179,7 +181,7 @@ class MainWindow(QtWid.QWidget):
         qgrp_history.setLayout(self.plot_manager.grid)
 
         # ----------------------------------------------------------------------
-        #   Bottom grid
+        #   Right-panel grid
         # ----------------------------------------------------------------------
 
         vbox1 = QtWid.QVBoxLayout()
@@ -189,14 +191,14 @@ class MainWindow(QtWid.QWidget):
         vbox1.addWidget(qgrp_history, stretch=0, alignment=QtCore.Qt.AlignTop)
         vbox1.addStretch(1)
 
+        # ----------------------------------------------------------------------
+        #   Round up full window
+        # ----------------------------------------------------------------------
+
         hbox1 = QtWid.QHBoxLayout()
         hbox1.addWidget(mux_qdev.qgrp, stretch=0, alignment=QtCore.Qt.AlignTop)
         hbox1.addWidget(self.gw_mux, stretch=1)
         hbox1.addLayout(vbox1)
-
-        # ----------------------------------------------------------------------
-        #   Round up full window
-        # ----------------------------------------------------------------------
 
         vbox = QtWid.QVBoxLayout(self)
         vbox.addLayout(grid_top)
@@ -206,17 +208,6 @@ class MainWindow(QtWid.QWidget):
     # --------------------------------------------------------------------------
     #   Handle controls
     # --------------------------------------------------------------------------
-
-    @QtCore.pyqtSlot()
-    def process_qpbt_record(self):
-        if self.qpbt_record.isChecked():
-            file_logger.starting = True
-        else:
-            file_logger.stopping = True
-
-    @QtCore.pyqtSlot(str)
-    def set_text_qpbt_record(self, text_str):
-        self.qpbt_record.setText(text_str)
 
     @QtCore.pyqtSlot()
     def update_GUI(self):
@@ -241,7 +232,7 @@ def about_to_quit():
     print("About to quit")
     app.processEvents()
     mux_qdev.quit()
-    file_logger.close_log()
+    log.close()
 
     try:
         mux.close()
@@ -264,7 +255,7 @@ def DAQ_postprocess_MUX_scan_function():
     and log it to file.
     """
     cur_date_time = QDateTime.currentDateTime()
-    epoch_time = cur_date_time.toMSecsSinceEpoch()
+    now = time.perf_counter()
 
     # DEBUG info
     # dprint("thread: %s" % QtCore.QThread.currentThread().objectName())
@@ -280,46 +271,35 @@ def DAQ_postprocess_MUX_scan_function():
 
     # Add readings to charts
     for idx, tscurve in enumerate(window.tscurves_mux):
-        tscurve.appendData(epoch_time, readings[idx])
+        tscurve.appendData(now, readings[idx])
 
-    # ----------------------------------------------------------------------
-    #   Logging to file
-    # ----------------------------------------------------------------------
+    # Log data to file
+    log.update(
+        filepath="d:/data/mux_%s.txt" % cur_date_time.toString("yyMMdd_HHmmss"),
+        mode="w",
+    )
 
-    if file_logger.starting:
-        fn_log = (
-            "d:/data/mux_" + cur_date_time.toString("yyMMdd_HHmmss") + ".txt"
-        )
-        if file_logger.create_log(epoch_time, fn_log, mode="w"):
-            file_logger.signal_set_recording_text.emit(
-                "Recording to file: " + fn_log
-            )
 
-            # Header
-            file_logger.write("time[s]\t")
-            for i_ in range(N_channels - 1):
-                file_logger.write(
-                    "CH%s\t" % mux.state.all_scan_list_channels[i_]
-                )
-            file_logger.write("CH%s\n" % mux.state.all_scan_list_channels[-1])
+# ------------------------------------------------------------------------------
+#   File logging
+# ------------------------------------------------------------------------------
 
-    if file_logger.stopping:
-        file_logger.signal_set_recording_text.emit(
-            "Click to start recording to file"
-        )
-        file_logger.close_log()
 
-    if file_logger.is_recording:
-        log_elapsed_time = (epoch_time - file_logger.start_time) / 1e3  # [sec]
+def write_header_to_log():
+    log.write("time [s]\t")
+    for i_ in range(N_channels - 1):
+        log.write("CH%s\t" % mux.state.all_scan_list_channels[i_])
+    log.write("CH%s\n" % mux.state.all_scan_list_channels[-1])
 
-        # Add new data to the log
-        file_logger.write("%.3f" % log_elapsed_time)
-        for i_ in range(N_channels):
-            if len(mux.state.readings) <= i_:
-                file_logger.write("\t%.5e" % np.nan)
-            else:
-                file_logger.write("\t%.5e" % mux.state.readings[i_])
-        file_logger.write("\n")
+
+def write_data_to_log():
+    log.write("%.3f" % log.elapsed())
+    for i_ in range(N_channels):
+        if len(mux.state.readings) <= i_:
+            log.write("\t%.5e" % np.nan)
+        else:
+            log.write("\t%.5e" % mux.state.readings[i_])
+    log.write("\n")
 
 
 # ------------------------------------------------------------------------------
@@ -407,7 +387,7 @@ if __name__ == "__main__":
     # Create thread-safe `HistoryChartCurve`s, aka `tscurves`
     cm = plt.get_cmap("gist_rainbow")
     for i in range(N_channels):
-        color = cm(1.0 * i / N_channels)  # color will now be an RGBA tuple
+        color = cm(1.0 * i / N_channels)  # Color will now be an RGBA tuple
         color = np.array(color) * 255
         pen = pg.mkPen(color=color, width=2)
 
@@ -428,8 +408,18 @@ if __name__ == "__main__":
     #   File logger
     # --------------------------------------------------------------------------
 
-    file_logger = FileLogger()
-    file_logger.signal_set_recording_text.connect(window.set_text_qpbt_record)
+    log = FileLogger(
+        write_header_function=write_header_to_log,
+        write_data_function=write_data_to_log,
+    )
+    log.signal_recording_started.connect(
+        lambda filepath: window.qpbt_record.setText(
+            "Recording to file: %s" % filepath
+        )
+    )
+    log.signal_recording_stopped.connect(
+        lambda: window.qpbt_record.setText("Click to start recording to file")
+    )
 
     # --------------------------------------------------------------------------
     #   Start threads
@@ -449,8 +439,6 @@ if __name__ == "__main__":
     #   Start the main GUI event loop
     # --------------------------------------------------------------------------
 
-    # Init the time axis of the strip charts
-    window.plot_manager.perform_preset(2)
-
+    window.plot_manager.perform_preset(2)  # Init time axis of the history chart
     window.show()
     sys.exit(app.exec_())

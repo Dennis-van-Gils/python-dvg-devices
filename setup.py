@@ -79,6 +79,7 @@ setup(
     install_requires=[
         "dvg-debug-functions~=2.1",
         "dvg-pid-controller~=2.0",
+        "dvg-pyqt-filelogger~=1.0",
         "dvg-pyqtgraph-threadsafe~=3.0",
         "dvg-qdeviceio~=0.3.0",
         "matplotlib~=3.1",
@@ -86,8 +87,7 @@ setup(
         "pyqt5~=5.12",
         "pyserial==3.4",
         "pyvisa~=1.9",
-        # "dvg_pyqt_controls",
-        # "dvg_pyqt_filelogger",
+        # "dvg-pyqt-controls",
     ],
     extras_require={},
 )

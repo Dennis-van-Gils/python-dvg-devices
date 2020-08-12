@@ -7,7 +7,7 @@ __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "23-07-2020"
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid

@@ -1,17 +1,18 @@
 Changelog
 =========
 
-0.3.1 (2020-08-12)
+0.2.1 (2020-08-12)
 ------------------
-* Fix wrong import statement ``dvg-pyqt-controls~=1.0``
+* Fix wrong import statement ``dvg-pyqt-controls``
+* Fix wrong import statement ``dvg-pyqt-filelogger``
 
-0.3.0 (2020-08-11)
+0.2.0 (2020-08-11)
 ------------------
 * Added dependence ``dvg-pyqt-controls~=1.0``
 * Added dependence ``dvg-pyqt-filelogger~=1.0``
 * Added dependence ``dvg-pyqtgraph-threadsafe~=3.0``
 
-0.2.0 (2020-07-23)
+0.1.0 (2020-07-23)
 ------------------
 * Fixed bug in ``BaseDevice.py`` where ``inspect.getouterframes()`` would
   momentarily suspend the thread. Solved by ditching inspect. The new

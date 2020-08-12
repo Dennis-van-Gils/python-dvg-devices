@@ -18,7 +18,7 @@ from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 
 from dvg_debug_functions import ANSI, dprint
-from dvg_utils.dvg_pyqt_controls import SS_TEXTBOX_READ_ONLY
+from dvg_pyqt_controls import SS_TEXTBOX_READ_ONLY
 
 from dvg_devices.Keysight_N8700_protocol_SCPI import Keysight_N8700
 from dvg_devices.Keysight_N8700_qdev import Keysight_N8700_qdev

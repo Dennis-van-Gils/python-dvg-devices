@@ -14,7 +14,7 @@ import numpy as np
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 
-from dvg_utils.dvg_pyqt_controls import SS_GROUP
+from dvg_pyqt_controls import SS_GROUP
 
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 from dvg_devices.Picotech_PT104_protocol_UDP import Picotech_PT104

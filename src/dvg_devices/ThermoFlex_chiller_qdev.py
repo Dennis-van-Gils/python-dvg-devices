@@ -12,7 +12,7 @@ __version__ = "0.2.0"
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 
-from dvg_utils.dvg_pyqt_controls import (
+from dvg_pyqt_controls import (
     create_Toggle_button,
     create_error_LED,
     create_tiny_error_LED,

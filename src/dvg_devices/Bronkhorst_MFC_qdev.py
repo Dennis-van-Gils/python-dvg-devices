@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
 
-from dvg_utils.dvg_pyqt_controls import SS_GROUP, SS_TEXTBOX_READ_ONLY
+from dvg_pyqt_controls import SS_GROUP, SS_TEXTBOX_READ_ONLY
 from dvg_debug_functions import print_fancy_traceback as pft
 
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER

@@ -27,12 +27,12 @@ from dvg_pyqtgraph_threadsafe import (
     LegendSelect,
     PlotManager,
 )
-from dvg_utils.dvg_pyqt_controls import (
+from dvg_pyqt_controls import (
     create_Toggle_button,
     SS_TEXTBOX_READ_ONLY,
     SS_GROUP,
 )
-from dvg_utils.dvg_pyqt_filelogger import FileLogger
+from dvg_pyqt_filelogger import FileLogger
 
 from dvg_devices.Keysight_3497xA_protocol_SCPI import Keysight_3497xA
 from dvg_devices.Keysight_3497xA_qdev import Keysight_3497xA_qdev, INFINITY_CAP

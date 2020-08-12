@@ -1,7 +1,11 @@
 Changelog
 =========
 
-0.2.0 (2020-08-11)
+0.3.1 (2020-08-12)
+------------------
+* Fix wrong import statement ``dvg-pyqt-controls~=1.0``
+
+0.3.0 (2020-08-11)
 ------------------
 * Added dependence ``dvg-pyqt-controls~=1.0``
 * Added dependence ``dvg-pyqt-filelogger~=1.0``

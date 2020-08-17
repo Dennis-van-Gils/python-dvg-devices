@@ -8,6 +8,9 @@ as opposed to terminating the program completely.
 
 State variables that read numpy.nan indicate that they are uninitialized or that
 the previous query resulted in a communication error.
+
+TODO: This module could be improved. See `Aim_TTi_PSU_protocol_RS232` which
+also uses the SCPI protocol.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
@@ -137,7 +140,7 @@ class Keysight_N8700:
 
     def connect(self, rm):
         """Try to connect to the PSU over VISA at the given address. When
-        succesful the VISA device instance will be stored in member 'device'
+        successful the VISA device instance will be stored in member 'device'
         and its identity is queried and stored in '_idn'.
 
         Args:
@@ -358,7 +361,7 @@ class Keysight_N8700:
         Will wait for all device operations to complete or until a timeout is
         triggered. Blocking.
 
-        Returns True when succesful, False otherwise.
+        Returns True if successful, False otherwise.
         """
         # Returns an ASCII "+1" when all pending overlapped operations have been
         # completed.
@@ -817,7 +820,7 @@ class Keysight_N8700:
 
         Do not panic if the file does not exist or cannot be read.
 
-        Returns: True when successful, False otherwise.
+        Returns: True if successful, False otherwise.
         """
         if isinstance(self.path_config, Path):
             if self.path_config.is_file():
@@ -851,7 +854,7 @@ class Keysight_N8700:
 
         Do not panic if the file does not exist or cannot be read.
 
-        Returns: True when successful, False otherwise.
+        Returns: True if successful, False otherwise.
         """
         if isinstance(self.path_config, Path):
             if not self.path_config.parent.is_dir():

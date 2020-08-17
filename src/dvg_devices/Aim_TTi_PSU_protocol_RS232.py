@@ -38,8 +38,8 @@ class Aim_TTi_PSU(SerialDevice):
         """
 
         # fmt: off
-        V_source = 0        # Voltage to be sourced [V]
-        I_limit = 0         # Current limit         [A]
+        V_source = 0        # Voltage to be sourced         [V]
+        I_source = 0        # Current to be sourced (limit) [A]
         P_source = 0        # Power to be sourced, when PID controller is on [W]
         ENA_PID = False     # Is the PID controller on the power ouput enabled?
 
@@ -79,9 +79,9 @@ class Aim_TTi_PSU(SerialDevice):
 
     class Config:
         # fmt: off
-        V_source  = 10   # Voltage to be sourced [V]
-        I_limit   = 0.5  # Current limit         [A]
-        P_source  = 0    # Power   to be sourced [W]
+        V_source  = 10   # Voltage to be sourced         [V]
+        I_source  = 0.5  # Current to be sourced (limit) [A]
+        P_source  = 0    # Power   to be sourced         [W]
         OVP_level = 12   # Over-voltage protection level [V]
         OCP_level = 1    # Over-current protection level [A]
         # fmt: on
@@ -168,7 +168,7 @@ class Aim_TTi_PSU(SerialDevice):
         success &= self.query_OVP_level()
         success &= self.query_OCP_level()
         success &= self.query_V_source()
-        success &= self.query_I_limit()
+        success &= self.query_I_source()
         success &= self.query_LSR()
         # self.query_all_errors_in_queue()
 
@@ -200,14 +200,14 @@ class Aim_TTi_PSU(SerialDevice):
         success &= self.set_OVP_level(self.config.OVP_level)
         success &= self.set_OCP_level(self.config.OCP_level)
         success &= self.set_V_source(self.config.V_source)
-        success &= self.set_I_limit(self.config.I_limit)
+        success &= self.set_I_source(self.config.I_source)
         self.state.P_source = self.config.P_source
         self.state.ENA_PID = False
 
         success &= self.query_OVP_level()
         success &= self.query_OCP_level()
         success &= self.query_V_source()
-        success &= self.query_I_limit()
+        success &= self.query_I_source()
         success &= self.query_LSR()
         # self.query_all_errors_in_queue()
 
@@ -298,6 +298,10 @@ class Aim_TTi_PSU(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
+        # We will ignore the first read-out, because it apparently always lags
+        # one behind.
+        self.query("LSR%d?" % channel)
+
         success, reply = self.query("LSR%d?" % channel)
         if success:
             # fmt: off
@@ -432,7 +436,7 @@ class Aim_TTi_PSU(SerialDevice):
 
         return False
 
-    def set_I_limit(self, current_A, channel: int = 1) -> bool:
+    def set_I_source(self, current_A, channel: int = 1) -> bool:
         """Returns: True if the message was sent successfully, False otherwise.
         """
         try:
@@ -443,7 +447,7 @@ class Aim_TTi_PSU(SerialDevice):
             raise
 
         if self.write_and_wait_for_opc("I%d %.4f" % (channel, current_A)):
-            self.state.I_limit = current_A
+            self.state.I_source = current_A
             return True
 
         return False
@@ -484,13 +488,13 @@ class Aim_TTi_PSU(SerialDevice):
 
         return False
 
-    def query_I_limit(self, channel: int = 1) -> bool:
+    def query_I_source(self, channel: int = 1) -> bool:
         """Returns: True if the query was received successfully, False otherwise.
         """
         success, reply = self.query("I%d?" % channel)
         if success:
             if reply[:2] == "I%d" % channel:
-                self.state.I_limit = float(reply[3:])
+                self.state.I_source = float(reply[3:])
                 return True
 
             pft("Received incorrect reply: %s" % reply)
@@ -562,34 +566,35 @@ class Aim_TTi_PSU(SerialDevice):
         # while not self.state.error is None:
         #    self.query_error(True)
 
-        print("\nLimit Event Status")
-        print(chr(0x2015) * 26)
         self.query_LSR(verbose=True, channel=channel)
-
         self.query_ENA_output(channel=channel)
         self.query_OVP_level(channel=channel)
         self.query_OCP_level(channel=channel)
         self.query_V_source(channel=channel)
-        self.query_I_limit(channel=channel)
+        self.query_I_source(channel=channel)
         self.query_V_meas(channel=channel)
         self.query_I_meas(channel=channel)
 
-        print("\nOutput enabled?: %s" % self.state.ENA_output)
-        print(chr(0x2014) * 52)
+        print("")
         print(
-            "  OVP level: %4.1f   [V]      OCP level: %4.2f   [A]"
-            % (self.state.OVP_level, self.state.OCP_level)
+            "  %-3s         %4.1f OVP     %4.2f OCP"
+            % (
+                ("ON" if self.state.ENA_output else "OFF"),
+                self.state.OVP_level,
+                self.state.OCP_level,
+            )
         )
+        print("  " + chr(0x2014) * 46)
+
         print(
-            "  V source : %6.3f [V]      I limit  : %6.4f [A]"
-            % (self.state.V_source, self.state.I_limit)
+            "  Source      %6.3f V     %6.4f A"
+            % (self.state.V_source, self.state.I_source)
         )
-        print("  " + chr(0x2014) * 50)
+        print("  " + chr(0x2014) * 46)
         print(
-            "  V meas   : %6.3f [V]      I meas   : %6.4f [A]"
-            % (self.state.V_meas, self.state.I_meas)
+            "  Measure     %6.3f V     %6.4f A     %6.3f W"
+            % (self.state.V_meas, self.state.I_meas, self.state.P_meas)
         )
-        print("  P meas   : %6.3f [W]" % self.state.P_meas)
 
 
 # ------------------------------------------------------------------------------

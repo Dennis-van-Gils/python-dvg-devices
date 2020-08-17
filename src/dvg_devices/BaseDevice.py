@@ -10,13 +10,13 @@ class.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "23-07-2020"
+__date__ = "17-08-2020"
 __version__ = "0.2.1"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
 import time
-from typing import Union, Callable
+from typing import AnyStr, Callable
 from pathlib import Path
 from ast import literal_eval
 
@@ -124,7 +124,7 @@ class SerialDevice:
     # --------------------------------------------------------------------------
 
     def set_read_termination(
-        self, termination: Union[str, bytes], query_wait_time: float = 0.1,
+        self, termination: AnyStr, query_wait_time: float = 0.1,
     ):
         """Set the termination character(s) for serial read.
 
@@ -155,7 +155,7 @@ class SerialDevice:
     #   set_write_termination
     # --------------------------------------------------------------------------
 
-    def set_write_termination(self, termination: Union[str, bytes, None]):
+    def set_write_termination(self, termination: AnyStr):
         """Set the termination character(s) for serial write.
 
         Args:
@@ -263,7 +263,7 @@ class SerialDevice:
     #   write
     # --------------------------------------------------------------------------
 
-    def write(self, msg, raises_on_timeout: bool = False) -> bool:
+    def write(self, msg: AnyStr, raises_on_timeout: bool = False) -> bool:
         """Send a message to the serial device.
 
         Args:
@@ -305,7 +305,7 @@ class SerialDevice:
 
     def query(
         self,
-        msg: Union[str, bytes],
+        msg: AnyStr,
         raises_on_timeout: bool = False,
         returns_ascii: bool = True,
     ) -> tuple:

@@ -49,7 +49,7 @@ class Keysight_N8700:
         V_source = 0        # Voltage to be sourced [V]
         I_source = 0        # Current to be sourced [A]
         P_source = 0        # Power to be sourced, when PID controller is on [W]
-        ENA_PID = False     # Is the PID controller on the power ouput enabled?
+        ENA_PID = False     # Is the PID controller on the power output enabled?
 
         V_meas = np.nan         # Measured output voltage [V]
         I_meas = np.nan         # Measured output current [A]

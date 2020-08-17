@@ -13,9 +13,11 @@ __date__ = "17-08-2020"
 __version__ = "0.2.1"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
+import os
 import sys
 import time
 from typing import AnyStr
+from pathlib import Path
 
 import numpy as np
 
@@ -83,8 +85,9 @@ class Aim_TTi_PSU(SerialDevice):
 
     def __init__(
         self,
-        name="PSU",
-        long_name="Aim TTi power supply",
+        name: str = "PSU",
+        long_name: str = "Aim TTi power supply",
+        path_config: str = (os.getcwd() + "/config/settings_Aim_TTi_PSU.txt"),
         connect_to_serial_number=None,
     ):
         super().__init__(name=name, long_name=long_name)
@@ -111,6 +114,9 @@ class Aim_TTi_PSU(SerialDevice):
         self.idn_str = None  # Identity response of the device
         self.serial_str = None  # Serial number of the device
         self.model_str = None  # Model of the device
+
+        # Location of the configuration file
+        self.path_config = Path(path_config)
 
     # --------------------------------------------------------------------------
     #   write_and_wait_for_opc
@@ -587,6 +593,82 @@ class Aim_TTi_PSU(SerialDevice):
             % (self.state.V_meas, self.state.I_meas, self.state.P_meas)
         )
 
+    # --------------------------------------------------------------------------
+    #   read_config_file
+    # --------------------------------------------------------------------------
+
+    def read_config_file(self):
+        """Try to open the config textfile containing:
+
+             V_source       # Voltage to be sourced [V]
+             I_source       # Current to be sourced [A]
+             P_source       # Power   to be sourced [W]
+             OVP_level      # Over-voltage protection level [V]
+             OCP_level      # Over-current protection level [A]
+
+        Do not panic if the file does not exist or cannot be read.
+
+        Returns: True if successful, False otherwise.
+        """
+        if self.path_config.is_file():
+            try:
+                with self.path_config.open() as f:
+                    self.config.V_source = float(f.readline().strip())
+                    self.config.I_source = float(f.readline().strip())
+                    self.config.P_source = float(f.readline().strip())
+                    self.config.OVP_level = float(f.readline().strip())
+                    self.config.OCP_level = float(f.readline().strip())
+
+                return True
+            except:
+                pass  # Do not panic and remain silent
+
+        return False
+
+    # --------------------------------------------------------------------------
+    #   write_config_file
+    # --------------------------------------------------------------------------
+
+    def write_config_file(self):
+        """Try to write the config textfile containing:
+
+             V_source       # Voltage to be sourced [V]
+             I_source       # Current to be sourced [A]
+             P_source       # Power   to be sourced [W]
+             OVP_level      # Over-voltage protection level [V]
+             OCP_level      # Over-current protection level [A]
+
+        Do not panic if the file does not exist or cannot be read.
+
+        Returns: True if successful, False otherwise.
+        """
+
+        if not self.path_config.parent.is_dir():
+            # Subfolder does not exists yet. Create.
+            try:
+                self.path_config.parent.mkdir()
+            except:
+                pass  # Do not panic and remain silent
+
+        try:
+            # Write the config file
+            self.path_config.write_text(
+                "%.3f\n%.3f\n%.3f\n%.1f\n%.2f"
+                % (
+                    self.state.V_source,
+                    self.state.I_source,
+                    self.state.P_source,
+                    self.state.OVP_level,
+                    self.state.OCP_level,
+                )
+            )
+        except:
+            pass  # Do not panic and remain silent
+        else:
+            return True
+
+        return False
+
 
 # ------------------------------------------------------------------------------
 #   Main: Will show a demo when run from the terminal
@@ -598,17 +680,17 @@ if __name__ == "__main__":
     # SERIAL_PSU = "527254"
     SERIAL_PSU = None
 
-    # Path to the config textfile containing the (last used) RS232 port
-    PATH_CONFIG = "config/port_Aim_TTi_PSU.txt"
+    # Path to the textfile containing the (last used) RS232 port
+    PATH_PORT = "config/port_Aim_TTi_PSU.txt"
 
     # Create connection to Aim TTi PSU over RS232
     psu = Aim_TTi_PSU(connect_to_serial_number=SERIAL_PSU)
 
-    if psu.auto_connect(PATH_CONFIG):
+    if psu.auto_connect(PATH_PORT):
         psu.begin()  # Retrieve necessary parameters
         print("  IDN: %s" % psu.idn_str)
 
-    psu.report()
-    psu.close()
+        psu.report()
+        psu.close()
 
     sys.exit(0)

@@ -143,7 +143,7 @@ class Aim_TTi_PSU(SerialDevice):
     # --------------------------------------------------------------------------
 
     def ID_validation_query(self) -> (bool, str):
-        success = self.query_idn()
+        success = self.query_IDN()
         return (success, self.serial_str)
 
     # --------------------------------------------------------------------------
@@ -214,10 +214,10 @@ class Aim_TTi_PSU(SerialDevice):
         return success
 
     # --------------------------------------------------------------------------
-    #   query_idn
+    #   query_IDN
     # --------------------------------------------------------------------------
 
-    def query_idn(self) -> bool:
+    def query_IDN(self) -> bool:
         """Query the identity, serial and model number and store it in the class
         members.
 

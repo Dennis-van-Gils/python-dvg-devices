@@ -2,13 +2,9 @@
 # -*- coding: utf-8 -*-
 """RS232 function library for an Aim TTi power supply unit (PSU), QL series II.
 
-! NOT FUNCTIONING YET
-! WORK IN PROGRESS
-
 Note:
-    * Only one channel (channel 1) implemented
+    * Only one channel implemented (channel 1)
     * Limited error reporting
-
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
@@ -26,22 +22,17 @@ import numpy as np
 from dvg_debug_functions import print_fancy_traceback as pft
 from dvg_devices.BaseDevice import SerialDevice
 
-# Show debug information in terminal?
-DEBUG = True
-
 
 class Aim_TTi_PSU(SerialDevice):
     class State:
         """Container for the process and measurement variables.
-        [numpy.nan] values indicate that the parameter is not initialized or
-        that the last query was unsuccessful in communication.
         """
 
         # fmt: off
         V_source = 0        # Voltage to be sourced         [V]
         I_source = 0        # Current to be sourced (limit) [A]
         P_source = 0        # Power to be sourced, when PID controller is on [W]
-        ENA_PID = False     # Is the PID controller on the power ouput enabled?
+        ENA_PID = False     # Is the PID controller on the power output enabled?
 
         V_meas = np.nan         # Measured output voltage [V]
         I_meas = np.nan         # Measured output current [A]

@@ -232,13 +232,15 @@ class Keysight_N8700_qdev(QDeviceIO):
         self.V_source = QtWid.QLineEdit("0.00", **p)
         self.I_source = QtWid.QLineEdit("0.000", **p)
         self.P_source = QtWid.QLineEdit("0.00", **p)
-        self.pbtn_ENA_PID = create_Toggle_button("OFF", minimumHeight=24)
-        self.pbtn_ENA_PID.setMinimumWidth(60)
+        self.pbtn_ENA_PID = create_Toggle_button(
+            "OFF", minimumHeight=28, minimumWidth=60
+        )
 
         # Protection
         self.OVP_level = QtWid.QLineEdit("0.000", **p)
-        self.pbtn_ENA_OCP = create_Toggle_button("OFF", minimumHeight=24)
-        self.pbtn_ENA_OCP.setMinimumWidth(60)
+        self.pbtn_ENA_OCP = create_Toggle_button(
+            "OFF", minimumHeight=28, minimumWidth=60
+        )
 
         # Questionable condition status registers
         self.status_QC_OV = create_tiny_error_LED()

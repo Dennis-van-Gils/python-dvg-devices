@@ -1,6 +1,19 @@
 Changelog
 =========
 
+0.2.3 (2020-08-27)
+------------------
+* Fixed bug in ``Aim_TTi_PSU_protocol_RS232`` where the power supply
+  occasionally will skew the serial input and output stream, such that the reply
+  matches the second-previous query statement. Fixed by forcefully flushing the
+  serial input and output buffers whenever a wrong reply is received. Hopefully,
+  this will fix the skew when the next ``query()`` operation gets executed.
+  
+The use of ``ast.literal_eval`` got
+  removed because it chokes on ``nan``. Everything is now interpreted as a
+  ``float`` instead.
+
+
 0.2.2 (2020-08-27)
 ------------------
 * Fixed bug in ``BaseDevice.query_ascii()``. The use of ``ast.literal_eval`` got

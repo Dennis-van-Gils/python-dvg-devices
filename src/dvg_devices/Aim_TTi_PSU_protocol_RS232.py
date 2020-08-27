@@ -9,8 +9,8 @@ Note:
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "18-08-2020"
-__version__ = "0.2.2"
+__date__ = "27-08-2020"
+__version__ = "0.2.3"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
 import os
@@ -164,7 +164,7 @@ class Aim_TTi_PSU(SerialDevice):
             print("ERROR: Device is not connected yet or already closed.")
             return False
 
-        # Clear device's input and output buffers
+        # Flush the serial input and output buffers
         self.ser.flushInput()
         self.ser.flushOutput()
 
@@ -445,7 +445,12 @@ class Aim_TTi_PSU(SerialDevice):
         """
         success, reply = self.query("OP%d?" % channel)
         if success:
-            self.state.ENA_output = bool(int(reply))
+            try:
+                self.state.ENA_output = bool(int(reply))
+            except Exception as err:
+                pft("Received incorrect reply: %s" % reply)
+                self.ser.flushOutput()
+                self.ser.flushInput()
 
         return success
 
@@ -459,6 +464,8 @@ class Aim_TTi_PSU(SerialDevice):
                 return True
 
             pft("Received incorrect reply: %s" % reply)
+            self.ser.flushOutput()
+            self.ser.flushInput()
 
         return False
 
@@ -473,6 +480,8 @@ class Aim_TTi_PSU(SerialDevice):
                 return True
 
             pft("Received incorrect reply: %s" % reply)
+            self.ser.flushOutput()
+            self.ser.flushInput()
 
         return False
 
@@ -486,6 +495,8 @@ class Aim_TTi_PSU(SerialDevice):
                 return True
 
             pft("Received incorrect reply: %s" % reply)
+            self.ser.flushOutput()
+            self.ser.flushInput()
 
         return False
 
@@ -500,6 +511,8 @@ class Aim_TTi_PSU(SerialDevice):
                 return True
 
             pft("Received incorrect reply: %s" % reply)
+            self.ser.flushOutput()
+            self.ser.flushInput()
 
         return False
 

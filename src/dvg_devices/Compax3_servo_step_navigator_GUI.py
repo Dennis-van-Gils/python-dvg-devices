@@ -15,7 +15,7 @@ __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "06-07-2020"
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 # pylint: disable=try-except-raise
 
 import sys

@@ -6,8 +6,8 @@ acquisition for an Aim TTi power supply unit (PSU), QL series II.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "18-08-2020"
-__version__ = "0.2.2"
+__date__ = "27-08-2020"
+__version__ = "0.2.3"
 
 import time
 
@@ -64,7 +64,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
         DAQ_trigger=DAQ_TRIGGER.INTERNAL_TIMER,
         DAQ_interval_ms=200,
         DAQ_timer_type=QtCore.Qt.CoarseTimer,
-        critical_not_alive_count=1,
+        critical_not_alive_count=3,
         debug=False,
         **kwargs,
     ):

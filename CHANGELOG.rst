@@ -4,8 +4,8 @@ Changelog
 0.2.2 (2020-08-27)
 ------------------
 * Fixed bug in ``BaseDevice.query_ascii()``. The use of ``ast.literal_eval`` got
-removed because it chokes on ``nan``. Everything is now interpreted as a
-``float`` instead.
+  removed because it chokes on ``nan``. Everything is now interpreted as a
+  ``float`` instead.
 
 0.2.1 (2020-08-12)
 ------------------

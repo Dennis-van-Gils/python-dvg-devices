@@ -10,15 +10,17 @@ class.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "17-08-2020"
-__version__ = "0.2.1"
+__date__ = "27-08-2020"
+__version__ = "0.2.2"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
 import time
 from typing import AnyStr, Callable
 from pathlib import Path
-from ast import literal_eval
+
+# Use of `ast.literal_eval` got removed in v0.2.2 because it chokes on `nan`
+# from ast import literal_eval
 
 import serial
 import serial.tools.list_ports
@@ -431,7 +433,10 @@ class SerialDevice:
             return (False, ())  # --> leaving
 
         try:
-            reply_list = list(map(literal_eval, reply.split(delimiter)))
+            # NOTE: `ast.literal_eval` chokes when it receives 'nan' so we ditch
+            # it and just interpret everything as `float` instead.
+            # reply_list = list(map(literal_eval, reply.split(delimiter)))
+            reply_list = list(map(float, reply.split(delimiter)))
         except ValueError as err:
             pft(err, 3)
             return (False, ())  # --> leaving

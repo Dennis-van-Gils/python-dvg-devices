@@ -23,7 +23,7 @@ from dvg_debug_functions import print_fancy_traceback as pft
 from dvg_devices.BaseDevice import SerialDevice
 
 
-class Julabo_FP_circulator(SerialDevice):
+class Julabo_circulator(SerialDevice):
     class State:
         # Container for the process and measurement variables
         # fmt: off
@@ -46,7 +46,7 @@ class Julabo_FP_circulator(SerialDevice):
         safe_temp = np.nan  # Screw-set excess temperature protection    ['C]
         # fmt: on
 
-    def __init__(self, name="Julabo", long_name="Julabo FP circulator"):
+    def __init__(self, name="Julabo", long_name="Julabo circulator"):
         super().__init__(name=name, long_name=long_name)
 
         # Default serial settings
@@ -74,8 +74,12 @@ class Julabo_FP_circulator(SerialDevice):
     # --------------------------------------------------------------------------
 
     def ID_validation_query(self) -> (str, str):
-        # We'll use the `Disable command echo` of the PolyScience bath and check
-        # for the proper reply '!'.
+        # Strange Julabo quirk: The first query always times out
+        try:
+            self.query("VERSION")
+        except:
+            pass  # Ignore the first time-out
+
         _success, reply = self.query("VERSION")
         broad_reply = reply[:6]  # Expected: "JULABO"
         reply_specific = reply[7:]

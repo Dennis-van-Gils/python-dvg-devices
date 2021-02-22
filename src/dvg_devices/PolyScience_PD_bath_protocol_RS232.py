@@ -5,6 +5,10 @@ Supported models:
     PD07R-20, PD07R-40, PD7LR-20, PD15R-30, PD15R-40, PD20R-30, PD28R-30,
     PD45R-20, PD07H200, PD15H200, PD20H200, PD28H200, PD15RCAL, PD15HCAL.
 Tested on model PD15R-30‐A12E
+
+TODO:
+- Make use of `dvg_debug_functions.print_fancy_traceback()` in place of
+`sys._getframe(0)...`.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"

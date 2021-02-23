@@ -22,6 +22,12 @@ import serial
 from dvg_debug_functions import print_fancy_traceback as pft
 from dvg_devices.BaseDevice import SerialDevice
 
+# This will be tested against the setting in the Julabo. When mismatched, this
+# module will throw an error and exit.
+# TODO: This settings is obsolete when the GUI is programmed correctly to
+# reflect the unit obtained from the Julabo
+EXPECTED_TEMP_UNIT = "C"  # Either "C" or "F"
+
 
 class Julabo_circulator(SerialDevice):
     class State:
@@ -30,20 +36,21 @@ class Julabo_circulator(SerialDevice):
         version = ""        # Version of the Julabo firmware         (string)
                             # (FP51-SL: `JULABO HIGHTECH FL HL/SL VERSION 4.0`)
         status = np.nan     # Status or error message of the Julabo  (string)
-        temp_unit = np.nan  # Temperature unit used by the Julabo  ["C"; "F"]
+        has_error = np.nan  # True when status is a negative number    (bool)
+        temp_unit = np.nan  # Temperature unit used by the Julabo  ("C"; "F")
         running = np.nan    # Is the circulator running?               (bool)
 
-        setpoint = np.nan   # Read-out temperature setpoint #1 (SP_00)   ['C]
-        bath_temp = np.nan  # Current bath temperature                   ['C]
+        setpoint = np.nan   # Read-out temperature setpoint #1 (SP_00) [C; F]
+        bath_temp = np.nan  # Current bath temperature                 [C; F]
 
-        over_temp = np.nan  # High-temperature warning limit             ['C]
-        sub_temp = np.nan   # Low-temperature warning limit              ['C]
+        over_temp = np.nan  # High-temperature warning limit           [C; F]
+        sub_temp = np.nan   # Low-temperature warning limit            [C; F]
 
         # The Julabo has an independent temperature safety circuit. When the
         # safety sensor reading `SafeSens` is above the screw-set excess
         # temperature protection `SafeTemp`, the circulator will switch off.
-        safe_sens = np.nan  # Safety sensor temperature reading          ['C]
-        safe_temp = np.nan  # Screw-set excess temperature protection    ['C]
+        safe_sens = np.nan  # Safety sensor temperature reading        [C; F]
+        safe_temp = np.nan  # Screw-set excess temperature protection  [C; F]
         # fmt: on
 
     def __init__(self, name="Julabo", long_name="Julabo circulator"):
@@ -70,13 +77,44 @@ class Julabo_circulator(SerialDevice):
         self.state = self.State()
 
     # --------------------------------------------------------------------------
+    #   begin
+    # --------------------------------------------------------------------------
+
+    def begin(self):
+        """This function should run directly after having established a
+        connection to a Julabo.
+
+        Returns: True if all messages were sent and received successfully,
+            False otherwise.
+        """
+
+        success = True
+
+        success &= self.query_version()
+        success &= self.query_temp_unit()
+        success &= self.query_over_temp()
+        success &= self.query_sub_temp()
+        success &= self.query_safe_temp()
+        success &= self.query_safe_sens()
+
+        success &= self.query_running()
+        success &= self.query_setpoint()
+        success &= self.query_bath_temp()
+
+        success &= self.query_status()
+
+        return success
+
+    # --------------------------------------------------------------------------
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
     def ID_validation_query(self) -> (str, str):
         # Strange Julabo quirk: The first query always times out
         try:
-            self.query("VERSION")
+            self.query(
+                "VERSION"
+            )  # TODO: test if can be smaller send instruction, perhaps just '\n'
         except:
             pass  # Ignore the first time-out
 
@@ -117,9 +155,22 @@ class Julabo_circulator(SerialDevice):
         success, reply = self.query("STATUS")
         if success:
             self.state.status = reply
+
+            try:
+                status_number = int(self.state.status[:3])
+            except (TypeError, ValueError) as err:
+                self.state.has_error = np.nan
+                pft(err)
+            else:
+                if status_number < 0:
+                    self.state.has_error = True
+                else:
+                    self.state.has_error = False
+
             return True
 
         self.state.status = np.nan
+        self.state.has_error = np.nan
         return False
 
     # --------------------------------------------------------------------------
@@ -306,6 +357,59 @@ class Julabo_circulator(SerialDevice):
 
         self.state.safe_temp = np.nan
         return False
+
+    # --------------------------------------------------------------------------
+    #   send_setpoint
+    # --------------------------------------------------------------------------
+
+    def send_setpoint(self, temp_deg_C):
+        # TODO: think on implement check 'setpoint 1' is the working temp
+        # Either send after send_setpoint, or up front during `begin` but danger
+        # is then switch
+
+        """Send a new temperature setpoint in [deg C.] to the chiller.
+        Subsequently, the chiller replies with the currently set setpoint and
+        this value will be stored in the class member 'state'.
+
+        Args:
+            temp_deg_C (float): temperature in [deg C].
+
+        Returns: True if successful, False otherwise.
+        """
+        try:
+            temp_deg_C = float(temp_deg_C)
+        except (TypeError, ValueError):
+            # Invalid number
+            print("WARNING: Received illegal setpoint value")
+            print("Setpoint not updated")
+            return False
+
+        if temp_deg_C < self.min_setpoint_degC:
+            temp_deg_C = self.min_setpoint_degC
+            print(
+                "WARNING: setpoint is capped\nto the lower limit of %.1f 'C"
+                % self.min_setpoint_degC
+            )
+        elif temp_deg_C > self.max_setpoint_degC:
+            temp_deg_C = self.max_setpoint_degC
+            print(
+                "WARNING: setpoint is capped\nto the upper limit of %.1f 'C"
+                % self.max_setpoint_degC
+            )
+
+        # Transform temperature to bytes
+        pom = 0.1  # precision of measurement, fixed to 0.1
+        temp_bytes = int(np.round(temp_deg_C / pom)).to_bytes(
+            2, byteorder="big"
+        )
+        msg = RS232_START + [0xF0, 0x02] + [temp_bytes[0], temp_bytes[1]]
+        self.add_checksum(msg)
+        msg_bytes = bytes(msg)
+
+        # Send setpoint to chiller and receive the set setpoint
+        success, value, _units = self.query_data_as_float_and_uom(msg_bytes)
+        self.state.setpoint = value
+        return success
 
     """
     # --------------------------------------------------------------------------

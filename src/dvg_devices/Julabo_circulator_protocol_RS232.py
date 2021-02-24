@@ -5,15 +5,24 @@ Tested on model FP51-SL.
 
 The circulator allows for three different setpoints (#1, #2, #3), but we will
 only use #1 for remote control by this module.
+
+NOTE:
+The manual states that
+- OUT commands should have a time gap > 250 ms. These are 'send' operations.
+- IN commands should have a time gap > 10 ms. These are 'query' operations.
+This module will not enforce nor check for these time gaps. You should add these
+yourself.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "24-02-2021"
 __version__ = "0.2.4"
-# pylint: disable=try-except-raise, bare-except
+# pylint: disable=try-except-raise, bare-except, bad-string-format-type
 
 import sys
+import time
+from typing import AnyStr
 import numpy as np
 import serial
 
@@ -77,6 +86,24 @@ class Julabo_circulator(SerialDevice):
         self.state = self.State()
 
     # --------------------------------------------------------------------------
+    #   OVERRIDE: query
+    # --------------------------------------------------------------------------
+
+    def query(
+        self,
+        msg: AnyStr,
+        raises_on_timeout: bool = False,
+        returns_ascii: bool = True,
+    ) -> tuple:
+        success, reply = super().query(msg, raises_on_timeout, returns_ascii)
+
+        # The manual states a time gap > 10 ms between IN commands, i.e.
+        # queries. Enforce this.
+        time.sleep(0.01)
+
+        return (success, reply)
+
+    # --------------------------------------------------------------------------
     #   begin
     # --------------------------------------------------------------------------
 
@@ -114,9 +141,7 @@ class Julabo_circulator(SerialDevice):
     def ID_validation_query(self) -> (str, str):
         # Strange Julabo quirk: The first query always times out
         try:
-            self.query(
-                "VERSION"
-            )  # TODO: test if can be smaller send instruction, perhaps just '\n'
+            self.query("VERSION")
         except:
             pass  # Ignore the first time-out
 

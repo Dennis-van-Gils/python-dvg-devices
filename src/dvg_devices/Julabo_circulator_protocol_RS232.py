@@ -332,7 +332,7 @@ class Julabo_circulator(SerialDevice):
             except (TypeError, ValueError) as err:
                 pft(err)
             else:
-                self.state.selected_setpoint = num
+                self.state.selected_setpoint = num + 1
                 return True
 
         self.state.selected_setpoint = np.nan
@@ -427,10 +427,10 @@ class Julabo_circulator(SerialDevice):
         print("%-*s: #%-*s" % (w1, "Sel. setp.", w2, C.selected_setpoint))
         print("%-*s: %-*.2f" % (w1, "Sub temp.", w2, C.sub_temp), end="")
         print("%-*s: %-*.2f" % (w1, "Over temp.", w2, C.over_temp))
-        print("%-*s: %-*s" % (w1, "", w2, ""), end="")
+        print("%-*s  %-*s" % (w1, "", w2, ""), end="")
         print("%-*s: %-*.2f" % (w1, "Safe temp.", w2, C.safe_temp))
         print()
-        print("%s" % ("Running" if C.running else "Idle"))
+        print("%s" % ("RUNNING" if C.running else "IDLE"))
         print("%-*s: %-*.2f" % (w1, "Setpoint", w2, C.setpoint_1), end="")
         print("%-*s: %-*.2f" % (w1, "Bath temp.", w2, C.bath_temp))
         print("%-*s: %-*.2f" % (w1, "Safe sens", w2, C.safe_sens), end="")

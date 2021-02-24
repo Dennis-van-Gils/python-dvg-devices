@@ -5,13 +5,6 @@ Tested on model FP51-SL.
 
 The circulator allows for three different setpoints (#1, #2, #3), but we will
 only use #1 for remote control by this module.
-
-NOTE:
-The manual states that
-- OUT commands should have a time gap > 250 ms. These are 'send' operations.
-- IN commands should have a time gap > 10 ms. These are 'query' operations.
-This module will not enforce nor check for these time gaps. You should add these
-yourself.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
@@ -35,6 +28,10 @@ from dvg_devices.BaseDevice import SerialDevice
 # reflect the unit obtained from the Julabo
 EXPECTED_TEMP_UNIT = "C"  # Either "C" or "F"
 
+# The manual states that
+# - OUT commands should have a time gap > 250 ms. These are 'send' operations.
+# - IN commands should have a time gap > 10 ms. These are 'query' operations.
+# This module will enforce these time gaps.
 DELAY_COMMAND_IN = 0.01  # [ms]
 DELAY_COMMAND_OUT = 0.25  # [ms]
 
@@ -65,9 +62,8 @@ class Julabo_circulator(SerialDevice):
         safe_temp = np.nan   # Screw-set excess temperature protection  [C; F]
 
         # Time keeping to slow down communication per manual specs
-        t_prev_out = np.nan  # [s]
-        t_prev_in = np.nan   # [s]
-
+        t_prev_out = np.nan  # Timestamp of previous OUT command [s]
+        t_prev_in = np.nan   # Timestamp of previous IN command [s]
         # fmt: on
 
     def __init__(self, name="Julabo", long_name="Julabo circulator"):
@@ -94,27 +90,55 @@ class Julabo_circulator(SerialDevice):
         self.state = self.State()
 
     # --------------------------------------------------------------------------
-    #   OVERRIDE: query
+    #   query_
     # --------------------------------------------------------------------------
 
-    def query(
+    def query_(
         self,
         msg: AnyStr,
         raises_on_timeout: bool = False,
         returns_ascii: bool = True,
     ) -> tuple:
+        """Wrapper for :meth:`dvg_qdevices.query` that enforces time gaps
+        between commands as per the Julabo manual.
+        """
 
-        # The manual states a time gap > 10 ms between IN commands, i.e.
-        # queries. Enforce this.
-        while time.perf_counter() - self.state.t_prev_in < DELAY_COMMAND_IN:
+        # fmt: off
+        now = time.perf_counter()
+        while (
+            (now - self.state.t_prev_in < DELAY_COMMAND_IN) or
+            (now - self.state.t_prev_out < DELAY_COMMAND_OUT)
+        ):
             pass
+        # fmt: on
 
-        success, reply = super().query(msg, raises_on_timeout, returns_ascii)
+        success, reply = self.query(msg, raises_on_timeout, returns_ascii)
         self.state.t_prev_in = time.perf_counter()
 
-        # time.sleep(0.01)
-
         return (success, reply)
+
+    # --------------------------------------------------------------------------
+    #   write_
+    # --------------------------------------------------------------------------
+
+    def write_(self, msg: AnyStr, raises_on_timeout: bool = False) -> bool:
+        """Wrapper for :meth:`dvg_qdevices.write` that enforces time gaps
+        between commands as per the Julabo manual.
+        """
+
+        # fmt: off
+        now = time.perf_counter()
+        while (
+            (now - self.state.t_prev_in < DELAY_COMMAND_IN) or
+            (now - self.state.t_prev_out < DELAY_COMMAND_OUT)
+        ):
+            pass
+        # fmt: on
+
+        success = self.write(msg, raises_on_timeout)
+        self.state.t_prev_out = time.perf_counter()
+
+        return success
 
     # --------------------------------------------------------------------------
     #   begin
@@ -174,7 +198,7 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query("VERSION")
+        success, reply = self.query_("VERSION")
         if success:
             self.state.version = reply
             return True
@@ -192,7 +216,7 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query("STATUS")
+        success, reply = self.query_("STATUS")
         if success:
             self.state.status = reply
 
@@ -224,7 +248,7 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query("IN_SP_06")
+        success, reply = self.query_("IN_SP_06")
         if success:
             try:
                 num = int(reply)
@@ -247,7 +271,7 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query("IN_MODE_05")
+        success, reply = self.query_("IN_MODE_05")
         if success:
             try:
                 ans = bool(int(reply))
@@ -270,7 +294,7 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query("IN_SP_04")
+        success, reply = self.query_("IN_SP_04")
         if success:
             try:
                 num = float(reply)
@@ -293,7 +317,7 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query("IN_SP_03")
+        success, reply = self.query_("IN_SP_03")
         if success:
             try:
                 num = float(reply)
@@ -316,7 +340,7 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query("IN_PV_04")
+        success, reply = self.query_("IN_PV_04")
         if success:
             try:
                 num = float(reply)
@@ -339,7 +363,7 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query("IN_PV_03")
+        success, reply = self.query_("IN_PV_03")
         if success:
             try:
                 num = float(reply)
@@ -363,7 +387,7 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query("IN_MODE_01")
+        success, reply = self.query_("IN_MODE_01")
         if success:
             try:
                 num = int(reply)
@@ -386,7 +410,7 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query("IN_SP_00")
+        success, reply = self.query_("IN_SP_00")
         if success:
             try:
                 num = float(reply)
@@ -409,7 +433,7 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query("IN_PV_00")
+        success, reply = self.query_("IN_PV_00")
         if success:
             try:
                 num = float(reply)
@@ -433,7 +457,7 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query("IN_PV_02")
+        success, reply = self.query_("IN_PV_02")
         if success:
             if reply == "---.--":  # Not connected
                 self.state.pt100_temp = np.nan

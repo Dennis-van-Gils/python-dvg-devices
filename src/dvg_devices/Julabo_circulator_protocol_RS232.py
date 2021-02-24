@@ -35,6 +35,9 @@ from dvg_devices.BaseDevice import SerialDevice
 # reflect the unit obtained from the Julabo
 EXPECTED_TEMP_UNIT = "C"  # Either "C" or "F"
 
+DELAY_COMMAND_IN = 0.01  # [ms]
+DELAY_COMMAND_OUT = 0.25  # [ms]
+
 
 class Julabo_circulator(SerialDevice):
     class State:
@@ -60,6 +63,11 @@ class Julabo_circulator(SerialDevice):
         # temperature protection `SafeTemp`, the circulator will switch off.
         safe_sens = np.nan   # Safety sensor temperature reading        [C; F]
         safe_temp = np.nan   # Screw-set excess temperature protection  [C; F]
+
+        # Time keeping to slow down communication per manual specs
+        t_prev_out = np.nan  # [s]
+        t_prev_in = np.nan   # [s]
+
         # fmt: on
 
     def __init__(self, name="Julabo", long_name="Julabo circulator"):
@@ -95,11 +103,16 @@ class Julabo_circulator(SerialDevice):
         raises_on_timeout: bool = False,
         returns_ascii: bool = True,
     ) -> tuple:
-        success, reply = super().query(msg, raises_on_timeout, returns_ascii)
 
         # The manual states a time gap > 10 ms between IN commands, i.e.
         # queries. Enforce this.
-        time.sleep(0.01)
+        while time.perf_counter() - self.state.t_prev_in < DELAY_COMMAND_IN:
+            pass
+
+        success, reply = super().query(msg, raises_on_timeout, returns_ascii)
+        self.state.t_prev_in = time.perf_counter()
+
+        # time.sleep(0.01)
 
         return (success, reply)
 

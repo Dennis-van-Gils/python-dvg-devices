@@ -3,15 +3,13 @@
 """RS232 function library for Julabo circulators.
 Tested on model FP51-SL.
 
-The circulator allows for three different setpoints (SP_00, SP_01 and SP_02),
-but we will only use SP_00 for remote control by this module.
-
-The temperature unit is expected to be in ['C] and will be checked for.
+The circulator allows for three different setpoints (#1, #2, #3), but we will
+only use #1 for remote control by this module.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "22-02-2021"
+__date__ = "24-02-2021"
 __version__ = "0.2.4"
 # pylint: disable=try-except-raise, bare-except
 
@@ -33,24 +31,26 @@ class Julabo_circulator(SerialDevice):
     class State:
         # Container for the process and measurement variables
         # fmt: off
-        version = ""        # Version of the Julabo firmware         (string)
-                            # (FP51-SL: `JULABO HIGHTECH FL HL/SL VERSION 4.0`)
-        status = np.nan     # Status or error message of the Julabo  (string)
-        has_error = np.nan  # True when status is a negative number    (bool)
-        temp_unit = np.nan  # Temperature unit used by the Julabo  ("C"; "F")
-        running = np.nan    # Is the circulator running?               (bool)
+        version = ""         # Version of the Julabo firmware         (string)
+                             # FP51-SL: "JULABO HIGHTECH FL HL/SL VERSION 4.0"
+        status = np.nan      # Status or error message of the Julabo  (string)
+        has_error = np.nan   # True when status is a negative number    (bool)
+        temp_unit = np.nan   # Temperature unit used by the Julabo  ("C"; "F")
+        running = np.nan     # Is the circulator running?               (bool)
 
-        setpoint = np.nan   # Read-out temperature setpoint #1 (SP_00) [C; F]
-        bath_temp = np.nan  # Current bath temperature                 [C; F]
+        selected_setpoint = np.nan  # Setpoint used by the Julabo    (1; 2; 3)
+        setpoint_1 = np.nan  # Read-out temperature setpoint #1         [C; F]
+        bath_temp = np.nan   # Current bath temperature                 [C; F]
+        pt100_temp = np.nan  # Current external Pt100 temperature       [C; F]
 
-        over_temp = np.nan  # High-temperature warning limit           [C; F]
-        sub_temp = np.nan   # Low-temperature warning limit            [C; F]
+        over_temp = np.nan   # High-temperature warning limit           [C; F]
+        sub_temp = np.nan    # Low-temperature warning limit            [C; F]
 
         # The Julabo has an independent temperature safety circuit. When the
         # safety sensor reading `SafeSens` is above the screw-set excess
         # temperature protection `SafeTemp`, the circulator will switch off.
-        safe_sens = np.nan  # Safety sensor temperature reading        [C; F]
-        safe_temp = np.nan  # Screw-set excess temperature protection  [C; F]
+        safe_sens = np.nan   # Safety sensor temperature reading        [C; F]
+        safe_temp = np.nan   # Screw-set excess temperature protection  [C; F]
         # fmt: on
 
     def __init__(self, name="Julabo", long_name="Julabo circulator"):
@@ -92,15 +92,17 @@ class Julabo_circulator(SerialDevice):
 
         success &= self.query_version()
         success &= self.query_temp_unit()
-        success &= self.query_over_temp()
         success &= self.query_sub_temp()
+        success &= self.query_over_temp()
         success &= self.query_safe_temp()
-        success &= self.query_safe_sens()
 
         success &= self.query_running()
-        success &= self.query_setpoint()
-        success &= self.query_bath_temp()
+        success &= self.query_selected_setpoint()
+        success &= self.query_setpoint_1()
 
+        success &= self.query_bath_temp()
+        success &= self.query_pt100_temp()
+        success &= self.query_safe_sens()
         success &= self.query_status()
 
         return success
@@ -221,49 +223,26 @@ class Julabo_circulator(SerialDevice):
         return False
 
     # --------------------------------------------------------------------------
-    #   query_bath_temp
+    #   query_sub_temp
     # --------------------------------------------------------------------------
 
-    def query_bath_temp(self):
-        """Query the current bath temperature and store it in the class member
-        'state'. Will be set to numpy.nan if unsuccessful.
+    def query_sub_temp(self):
+        """Query the low-temperature warning limit and store it in the class
+        member 'state'. Will be set to numpy.nan if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query("IN_PV_00")
+        success, reply = self.query("IN_SP_04")
         if success:
             try:
                 num = float(reply)
             except (TypeError, ValueError) as err:
                 pft(err)
             else:
-                self.state.bath_temp = num
+                self.state.sub_temp = num
                 return True
 
-        self.state.bath_temp = np.nan
-        return False
-
-    # --------------------------------------------------------------------------
-    #   query_setpoint
-    # --------------------------------------------------------------------------
-
-    def query_setpoint(self):
-        """Query the temperature setpoint #1 and store it in the class member
-        'state'. Will be set to numpy.nan if unsuccessful.
-
-        Returns: True if successful, False otherwise.
-        """
-        success, reply = self.query("IN_SP_00")
-        if success:
-            try:
-                num = float(reply)
-            except (TypeError, ValueError) as err:
-                pft(err)
-            else:
-                self.state.setpoint = num
-                return True
-
-        self.state.setpoint = np.nan
+        self.state.sub_temp = np.nan
         return False
 
     # --------------------------------------------------------------------------
@@ -290,26 +269,26 @@ class Julabo_circulator(SerialDevice):
         return False
 
     # --------------------------------------------------------------------------
-    #   query_sub_temp
+    #   query_safe_temp
     # --------------------------------------------------------------------------
 
-    def query_sub_temp(self):
-        """Query the low-temperature warning limit and store it in the class
-        member 'state'. Will be set to numpy.nan if unsuccessful.
+    def query_safe_temp(self):
+        """Query the screw-set excess temperature protection and store it in the
+        class member 'state'. Will be set to numpy.nan if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query("IN_SP_04")
+        success, reply = self.query("IN_PV_04")
         if success:
             try:
                 num = float(reply)
             except (TypeError, ValueError) as err:
                 pft(err)
             else:
-                self.state.sub_temp = num
+                self.state.safe_temp = num
                 return True
 
-        self.state.sub_temp = np.nan
+        self.state.safe_temp = np.nan
         return False
 
     # --------------------------------------------------------------------------
@@ -336,28 +315,130 @@ class Julabo_circulator(SerialDevice):
         return False
 
     # --------------------------------------------------------------------------
-    #   query_safe_temp
+    #   query_selected_setpoint
     # --------------------------------------------------------------------------
 
-    def query_safe_temp(self):
-        """Query the screw-set excess temperature protection and store it in the
-        class member 'state'. Will be set to numpy.nan if unsuccessful.
+    def query_selected_setpoint(self):
+        """Query the selected setpoint used by the Julabo (either 1, 2 or 3)
+        and store it in the class member 'state'. Will be set to numpy.nan if
+        unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query("IN_PV_04")
+        success, reply = self.query("IN_MODE_01")
+        if success:
+            try:
+                num = int(reply)
+            except (TypeError, ValueError) as err:
+                pft(err)
+            else:
+                self.state.selected_setpoint = num
+                return True
+
+        self.state.selected_setpoint = np.nan
+        return False
+
+    # --------------------------------------------------------------------------
+    #   query_setpoint_1
+    # --------------------------------------------------------------------------
+
+    def query_setpoint_1(self):
+        """Query the temperature setpoint #1 and store it in the class member
+        'state'. Will be set to numpy.nan if unsuccessful.
+
+        Returns: True if successful, False otherwise.
+        """
+        success, reply = self.query("IN_SP_00")
         if success:
             try:
                 num = float(reply)
             except (TypeError, ValueError) as err:
                 pft(err)
             else:
-                self.state.safe_temp = num
+                self.state.setpoint_1 = num
                 return True
 
-        self.state.safe_temp = np.nan
+        self.state.setpoint_1 = np.nan
         return False
 
+    # --------------------------------------------------------------------------
+    #   query_bath_temp
+    # --------------------------------------------------------------------------
+
+    def query_bath_temp(self):
+        """Query the current bath temperature and store it in the class member
+        'state'. Will be set to numpy.nan if unsuccessful.
+
+        Returns: True if successful, False otherwise.
+        """
+        success, reply = self.query("IN_PV_00")
+        if success:
+            try:
+                num = float(reply)
+            except (TypeError, ValueError) as err:
+                pft(err)
+            else:
+                self.state.bath_temp = num
+                return True
+
+        self.state.bath_temp = np.nan
+        return False
+
+    # --------------------------------------------------------------------------
+    #   query_pt100_temp
+    # --------------------------------------------------------------------------
+
+    def query_pt100_temp(self):
+        """Query the current external Pt100 temperature sensor and store it in
+        the class member 'state'. Will be set to numpy.nan if no external sensor
+        is connected or when communication is unsuccessful.
+
+        Returns: True if successful, False otherwise.
+        """
+        success, reply = self.query("IN_PV_02")
+        if success:
+            if reply == "---.--":  # Not connected
+                self.state.pt100_temp = np.nan
+                return True
+
+            try:
+                num = float(reply)
+            except (TypeError, ValueError) as err:
+                pft(err)
+            else:
+                self.state.pt100_temp = num
+                return True
+
+        self.state.pt100_temp = np.nan
+        return False
+
+    # --------------------------------------------------------------------------
+    #   report
+    # --------------------------------------------------------------------------
+
+    def report(self):
+        # Print info to command line interface, useful for debugging
+        C = self.state  # Shorthand notation
+        w1 = 10  # Label width
+        w2 = 8  # Value width
+
+        print(self.state.version)
+        print("%-*s: %-*s" % (w1, "Temp. unit", w2, C.temp_unit), end="")
+        print("%-*s: #%-*s" % (w1, "Sel. setp.", w2, C.selected_setpoint))
+        print("%-*s: %-*.2f" % (w1, "Sub temp.", w2, C.sub_temp), end="")
+        print("%-*s: %-*.2f" % (w1, "Over temp.", w2, C.over_temp))
+        print("%-*s: %-*s" % (w1, "", w2, ""), end="")
+        print("%-*s: %-*.2f" % (w1, "Safe temp.", w2, C.safe_temp))
+        print()
+        print("%s" % ("Running" if C.running else "Idle"))
+        print("%-*s: %-*.2f" % (w1, "Setpoint", w2, C.setpoint_1), end="")
+        print("%-*s: %-*.2f" % (w1, "Bath temp.", w2, C.bath_temp))
+        print("%-*s: %-*.2f" % (w1, "Safe sens", w2, C.safe_sens), end="")
+        print("%-*s: %-*.2f" % (w1, "Pt100", w2, C.pt100_temp))
+        print()
+        print("Status msg: %s" % C.status)
+
+    """
     # --------------------------------------------------------------------------
     #   send_setpoint
     # --------------------------------------------------------------------------
@@ -367,7 +448,7 @@ class Julabo_circulator(SerialDevice):
         # Either send after send_setpoint, or up front during `begin` but danger
         # is then switch
 
-        """Send a new temperature setpoint in [deg C.] to the chiller.
+        ""Send a new temperature setpoint in [deg C.] to the chiller.
         Subsequently, the chiller replies with the currently set setpoint and
         this value will be stored in the class member 'state'.
 
@@ -375,7 +456,7 @@ class Julabo_circulator(SerialDevice):
             temp_deg_C (float): temperature in [deg C].
 
         Returns: True if successful, False otherwise.
-        """
+        ""
         try:
             temp_deg_C = float(temp_deg_C)
         except (TypeError, ValueError):
@@ -410,51 +491,6 @@ class Julabo_circulator(SerialDevice):
         success, value, _units = self.query_data_as_float_and_uom(msg_bytes)
         self.state.setpoint = value
         return success
-
-    """
-    # --------------------------------------------------------------------------
-    #   send_setpoint
-    # --------------------------------------------------------------------------
-
-    def send_setpoint(self, setpoint):
-        ""Send a new temperature setpoint in [deg C] to the PolyScience bath.
-
-        Args:
-            setpoint (float): temperature in [deg C].
-
-        Returns: True if successful, False otherwise.
-        ""
-        try:
-            setpoint = float(setpoint)
-        except (TypeError, ValueError):
-            # Invalid number
-            print("WARNING: Received illegal setpoint value")
-            print("Setpoint not updated")
-            return False
-
-        if setpoint < MIN_SETPOINT_DEG_C:
-            setpoint = MIN_SETPOINT_DEG_C
-            print(
-                "WARNING: setpoint is capped\nto the lower limit of %.2f 'C"
-                % MIN_SETPOINT_DEG_C
-            )
-        elif setpoint > MAX_SETPOINT_DEG_C:
-            setpoint = MAX_SETPOINT_DEG_C
-            print(
-                "WARNING: setpoint is capped\nto the upper limit of %.2f 'C"
-                % MAX_SETPOINT_DEG_C
-            )
-
-        success, reply = self.query("SS%.2f" % setpoint)
-        # print("send_setpoint returns: %s" % reply)  # DEBUG
-        if success and reply == "!":  # Also check status reply
-            return True
-        elif success and reply == "?":
-            print("WARNING @ send_setpoint")
-            print("PolyScience bath might be in stand-by mode.")
-            return False
-        else:
-            return False
 
 
 # ------------------------------------------------------------------------------

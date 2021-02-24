@@ -104,10 +104,9 @@ class Julabo_circulator(SerialDevice):
         """
 
         # fmt: off
-        now = time.perf_counter()
         while (
-            (now - self.state.t_prev_in < DELAY_COMMAND_IN) or
-            (now - self.state.t_prev_out < DELAY_COMMAND_OUT)
+            (time.perf_counter() - self.state.t_prev_in < DELAY_COMMAND_IN) or
+            (time.perf_counter() - self.state.t_prev_out < DELAY_COMMAND_OUT)
         ):
             pass
         # fmt: on
@@ -127,10 +126,9 @@ class Julabo_circulator(SerialDevice):
         """
 
         # fmt: off
-        now = time.perf_counter()
         while (
-            (now - self.state.t_prev_in < DELAY_COMMAND_IN) or
-            (now - self.state.t_prev_out < DELAY_COMMAND_OUT)
+            (time.perf_counter() - self.state.t_prev_in < DELAY_COMMAND_IN) or
+            (time.perf_counter() - self.state.t_prev_out < DELAY_COMMAND_OUT)
         ):
             pass
         # fmt: on

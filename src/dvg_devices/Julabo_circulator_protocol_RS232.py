@@ -93,13 +93,8 @@ class Julabo_circulator(SerialDevice):
     #   query_
     # --------------------------------------------------------------------------
 
-    def query_(
-        self,
-        msg: AnyStr,
-        raises_on_timeout: bool = False,
-        returns_ascii: bool = True,
-    ) -> tuple:
-        """Wrapper for :meth:`dvg_qdevices.query` that enforces time gaps
+    def query_(self, *args, **kwargs) -> tuple:
+        """Wrapper for :meth:`dvg_qdevices.query` to add enforcing of time gaps
         between commands as per the Julabo manual.
         """
 
@@ -111,7 +106,7 @@ class Julabo_circulator(SerialDevice):
             pass
         # fmt: on
 
-        success, reply = self.query(msg, raises_on_timeout, returns_ascii)
+        success, reply = super().query(*args, **kwargs)
         self.state.t_prev_in = time.perf_counter()
 
         return (success, reply)
@@ -120,8 +115,8 @@ class Julabo_circulator(SerialDevice):
     #   write_
     # --------------------------------------------------------------------------
 
-    def write_(self, msg: AnyStr, raises_on_timeout: bool = False) -> bool:
-        """Wrapper for :meth:`dvg_qdevices.write` that enforces time gaps
+    def write_(self, *args, **kwargs) -> bool:
+        """Wrapper for :meth:`dvg_qdevices.write` to add enforcing of time gaps
         between commands as per the Julabo manual.
         """
 
@@ -133,7 +128,7 @@ class Julabo_circulator(SerialDevice):
             pass
         # fmt: on
 
-        success = self.write(msg, raises_on_timeout)
+        success = super().write(*args, **kwargs)
         self.state.t_prev_out = time.perf_counter()
 
         return success
@@ -497,6 +492,16 @@ class Julabo_circulator(SerialDevice):
         print("%-*s: %-*.2f" % (w1, "Pt100", w2, C.pt100_temp))
         print()
         print("Status msg: %s" % C.status)
+
+    # --------------------------------------------------------------------------
+    #   send_select_setpoint
+    # --------------------------------------------------------------------------
+
+    def send_select_setpoint(self, number: int):
+        """
+        """
+
+        pass
 
     """
     # --------------------------------------------------------------------------

@@ -195,20 +195,50 @@ class Julabo_circulator(SerialDevice):
             return False
 
     # --------------------------------------------------------------------------
+    #   set_sub_temp
+    # --------------------------------------------------------------------------
+
+    def set_sub_temp(self, sub_temp: float):
+        """Set the low-temperature warning limit. Subsequently, the Julabo is
+        queried for the obtained value, which might be different than the one
+        requested.
+
+        Returns: True if all communication was successful, False otherwise.
+        """
+
+        try:
+            sub_temp = float(sub_temp)
+        except (TypeError, ValueError) as err:
+            pft(err)
+            return False
+
+        if self.write_("OUT_SP_04 %.2f" % sub_temp):
+            return self.query_sub_temp()
+        else:
+            return False
+
+    # --------------------------------------------------------------------------
     #   set_over_temp
     # --------------------------------------------------------------------------
 
     def set_over_temp(self, over_temp: float):
-        """
+        """Set the high-temperature warning limit. Subsequently, the Julabo is
+        queried for the obtained value, which might be different than the one
+        requested.
+
+        Returns: True if all communication was successful, False otherwise.
         """
 
         try:
             over_temp = float(over_temp)
-        except (TypeError, ValueError):
-            pft("WARNING: Received illegal over-temperature value.")
+        except (TypeError, ValueError) as err:
+            pft(err)
             return False
 
-        return self.write_("OUT_SP_03 %.2f" % over_temp)
+        if self.write_("OUT_SP_03 %.2f" % over_temp):
+            return self.query_over_temp()
+        else:
+            return False
 
     # --------------------------------------------------------------------------
     #   query_version

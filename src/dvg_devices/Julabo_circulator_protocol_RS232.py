@@ -91,60 +91,21 @@ class Julabo_circulator(SerialDevice):
         self.state = self.State()
 
     # --------------------------------------------------------------------------
-    #   query_
+    #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def query_(self, *args, **kwargs) -> tuple:
-        """Wrapper for :meth:`dvg_qdevices.query` to add enforcing of time gaps
-        between commands as per the Julabo manual.
+    def ID_validation_query(self) -> (str, str):
+        # Strange Julabo quirk: The first query always times out
+        try:
+            self.query("VERSION")
+        except:
+            pass  # Ignore the first time-out
 
-        Returns:
-            :obj:`tuple`:
-                - success (:obj:`bool`):
-                    True if successful, False otherwise.
+        _success, reply = self.query("VERSION")
+        broad_reply = reply[:6]  # Expected: "JULABO"
+        reply_specific = reply[7:]
 
-                - reply (:obj:`str` | :obj:`bytes` | :obj:`None`):
-                    Reply received from the device, either as ASCII string
-                    (default) or as bytes when ``returns_ascii`` was set to
-                    :const:`False`. :obj:`None` if unsuccessful.
-        """
-
-        # fmt: off
-        while (
-            (time.perf_counter() - self.state.t_prev_in < DELAY_COMMAND_IN) or
-            (time.perf_counter() - self.state.t_prev_out < DELAY_COMMAND_OUT)
-        ):
-            pass
-        # fmt: on
-
-        success, reply = super().query(*args, **kwargs)
-        self.state.t_prev_in = time.perf_counter()
-
-        return (success, reply)
-
-    # --------------------------------------------------------------------------
-    #   write_
-    # --------------------------------------------------------------------------
-
-    def write_(self, *args, **kwargs) -> bool:
-        """Wrapper for :meth:`dvg_qdevices.write` to add enforcing of time gaps
-        between commands as per the Julabo manual.
-
-        Returns: True if successful, False otherwise.
-        """
-
-        # fmt: off
-        while (
-            (time.perf_counter() - self.state.t_prev_in < DELAY_COMMAND_IN) or
-            (time.perf_counter() - self.state.t_prev_out < DELAY_COMMAND_OUT)
-        ):
-            pass
-        # fmt: on
-
-        success = super().write(*args, **kwargs)
-        self.state.t_prev_out = time.perf_counter()
-
-        return success
+        return (broad_reply, reply_specific)
 
     # --------------------------------------------------------------------------
     #   begin
@@ -180,21 +141,74 @@ class Julabo_circulator(SerialDevice):
         return success
 
     # --------------------------------------------------------------------------
-    #   ID_validation_query
+    #   turn_on/off
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> (str, str):
-        # Strange Julabo quirk: The first query always times out
+    def turn_off(self):
+        """Turn the Julabo off.
+
+        Returns: True if successful, False otherwise.
+        """
+
+        if self.write_("OUT_MODE_05 0"):
+            self.state.running = False
+            return True
+        else:
+            return False
+
+    def turn_on(self):
+        """Turn the Julabo on.
+
+        Returns: True if successful, False otherwise.
+        """
+
+        if self.write_("OUT_MODE_05 1"):
+            self.state.running = True
+            return True
+        else:
+            return False
+
+    # --------------------------------------------------------------------------
+    #   select_setpoint
+    # --------------------------------------------------------------------------
+
+    def select_setpoint(self, numero: int):
+        """Instruct the Julabo to select another setpoint preset.
+
+        Args:
+          numero (int): Setpoint to be used, either 1, 2 or 3.
+
+        Returns: True if successful, False otherwise.
+        """
+
+        if not (numero == 1 or numero == 2 or numero == 3):
+            pft(
+                "WARNING: Received illegal setpoint preset.\n"
+                "Must be either 1, 2 or 3."
+            )
+            return False
+
+        if self.write_("OUT_MODE_01 %i" % (numero - 1)):
+            self.state.selected_setpoint = numero
+            return True
+        else:
+            return False
+
+    # --------------------------------------------------------------------------
+    #   set_over_temp
+    # --------------------------------------------------------------------------
+
+    def set_over_temp(self, over_temp: float):
+        """
+        """
+
         try:
-            self.query("VERSION")
-        except:
-            pass  # Ignore the first time-out
+            over_temp = float(over_temp)
+        except (TypeError, ValueError):
+            pft("WARNING: Received illegal over-temperature value.")
+            return False
 
-        _success, reply = self.query("VERSION")
-        broad_reply = reply[:6]  # Expected: "JULABO"
-        reply_specific = reply[7:]
-
-        return (broad_reply, reply_specific)
+        return self.write_("OUT_SP_03 %.2f" % over_temp)
 
     # --------------------------------------------------------------------------
     #   query_version
@@ -533,7 +547,9 @@ class Julabo_circulator(SerialDevice):
     # --------------------------------------------------------------------------
 
     def report(self):
-        # Print info to the terminal, useful for debugging
+        """Print info to the terminal, useful for debugging
+        """
+
         C = self.state  # Shorthand notation
         w1 = 10  # Label width
         w2 = 8  # Value width
@@ -566,7 +582,7 @@ class Julabo_circulator(SerialDevice):
         print("%-*s  %-*s" % (w1, "", w2, ""), end="")
         print("%-*s: %-*.2f" % (w1, "Safe temp.", w2, C.safe_temp))
         print()
-        print("%s" % ("RUNNING" if C.running else "IDLE"))
+        print("%s" % ("--> RUNNING <--" if C.running else "IDLE"))
         print("%-*s: %-*.2f" % (w1, "Setpoint", w2, setpoint), end="")
         print("%-*s: %-*.2f" % (w1, "Bath temp.", w2, C.bath_temp))
         print("%-*s: %-*.2f" % (w1, "Safe sens", w2, C.safe_sens), end="")
@@ -575,57 +591,60 @@ class Julabo_circulator(SerialDevice):
         print("Status msg: %s" % C.status)
 
     # --------------------------------------------------------------------------
-    #   select_setpoint
+    #   query_
     # --------------------------------------------------------------------------
 
-    def select_setpoint(self, numero: int):
-        """Instruct the Julabo to select another setpoint preset.
+    def query_(self, *args, **kwargs) -> tuple:
+        """Wrapper for :meth:`dvg_qdevices.query` to add enforcing of time gaps
+        between commands as per the Julabo manual.
 
-        Args:
-          numero (int): Setpoint to be used, either 1, 2 or 3.
+        Returns:
+            :obj:`tuple`:
+                - success (:obj:`bool`):
+                    True if successful, False otherwise.
+
+                - reply (:obj:`str` | :obj:`bytes` | :obj:`None`):
+                    Reply received from the device, either as ASCII string
+                    (default) or as bytes when ``returns_ascii`` was set to
+                    :const:`False`. :obj:`None` if unsuccessful.
+        """
+
+        # fmt: off
+        while (
+            (time.perf_counter() - self.state.t_prev_in < DELAY_COMMAND_IN) or
+            (time.perf_counter() - self.state.t_prev_out < DELAY_COMMAND_OUT)
+        ):
+            pass
+        # fmt: on
+
+        success, reply = super().query(*args, **kwargs)
+        self.state.t_prev_in = time.perf_counter()
+
+        return (success, reply)
+
+    # --------------------------------------------------------------------------
+    #   write_
+    # --------------------------------------------------------------------------
+
+    def write_(self, *args, **kwargs) -> bool:
+        """Wrapper for :meth:`dvg_qdevices.write` to add enforcing of time gaps
+        between commands as per the Julabo manual.
 
         Returns: True if successful, False otherwise.
         """
 
-        if not (numero == 1 or numero == 2 or numero == 3):
-            print("WARNING: Received illegal setpoint preset.")
-            print("Must be either 1, 2 or 3.")
-            print("Setpoint preset not updated")
-            return False
+        # fmt: off
+        while (
+            (time.perf_counter() - self.state.t_prev_in < DELAY_COMMAND_IN) or
+            (time.perf_counter() - self.state.t_prev_out < DELAY_COMMAND_OUT)
+        ):
+            pass
+        # fmt: on
 
-        if self.write_("OUT_MODE_01 %i" % (numero - 1)):
-            self.state.selected_setpoint = numero
-            return True
-        else:
-            return False
+        success = super().write(*args, **kwargs)
+        self.state.t_prev_out = time.perf_counter()
 
-    # --------------------------------------------------------------------------
-    #   turn_on/off
-    # --------------------------------------------------------------------------
-
-    def turn_off(self):
-        """Turn the Julabo off.
-
-        Returns: True if successful, False otherwise.
-        """
-
-        if self.write_("OUT_MODE_05 0"):
-            self.state.running = False
-            return True
-        else:
-            return False
-
-    def turn_on(self):
-        """Turn the Julabo on.
-
-        Returns: True if successful, False otherwise.
-        """
-
-        if self.write_("OUT_MODE_05 1"):
-            self.state.running = True
-            return True
-        else:
-            return False
+        return success
 
     """
     # --------------------------------------------------------------------------

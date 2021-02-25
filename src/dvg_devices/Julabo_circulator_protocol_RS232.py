@@ -104,10 +104,10 @@ class Julabo_circulator(SerialDevice):
 
     def begin(self):
         """This function should run directly after having established a
-        connection to a Julabo.
+        connection to a Julabo. It retrieves the first readings and settings
+        from the Julabo.
 
-        Returns: True if all messages were sent and received successfully,
-            False otherwise.
+        Returns: True if successful, False otherwise.
         """
 
         success = True
@@ -630,10 +630,34 @@ class Julabo_circulator(SerialDevice):
         return False
 
     # --------------------------------------------------------------------------
+    #   query_common_readings
+    # --------------------------------------------------------------------------
+
+    def query_common_readings(self):
+        """Query the most common readings:
+        - Running?
+        - Bath temperature
+        - Pt100 temperature
+        - Safe sensor temperature
+        - Status
+
+        Returns: True if successful, False otherwise.
+        """
+
+        success = True
+        success &= self.query_running()
+        success &= self.query_bath_temp()
+        success &= self.query_pt100_temp()
+        success &= self.query_safe_sens()
+        success &= self.query_status()
+
+        return success
+
+    # --------------------------------------------------------------------------
     #   report
     # --------------------------------------------------------------------------
 
-    def report(self):
+    def report(self, update_readings: bool = True):
         """Print info to the terminal, useful for debugging
         """
 
@@ -649,11 +673,8 @@ class Julabo_circulator(SerialDevice):
         else:
             setpoint = C.setpoint_1
 
-        self.query_running()
-        self.query_bath_temp()
-        self.query_pt100_temp()
-        self.query_safe_sens()
-        self.query_status()
+        if update_readings:
+            self.query_common_readings()
 
         # Print to terminal
         print(self.state.version)
@@ -755,8 +776,11 @@ if __name__ == "__main__":
     else:
         running_Windows = False
 
-    # Loop
+    # Prepare
+    send_setpoint = 22.0
     do_send_setpoint = False
+
+    # Loop
     done = False
     while not done:
         # Check if a new setpoint has to be send
@@ -770,17 +794,22 @@ if __name__ == "__main__":
             do_send_setpoint = False
 
         # Measure and report
+        julabo.query_common_readings()
+
         if running_Windows:
             os.system("cls")
-            print("Press Q to quit.")
+            julabo.report(update_readings=False)
+
+            print("\nPress Q to quit.")
             print("Press S to enter new setpoint.")
             print("Press O to toggle the Julabo on/off.")
         else:
             os.system("clear")
-            print("Press Control + C to quit.")
+            julabo.report(update_readings=False)
+
+            print("\nPress Control + C to quit.")
             print("No other keyboard input possible because OS is not Windows.")
 
-        julabo.report()
         sys.stdout.flush()
 
         # Process keyboard input
@@ -814,5 +843,6 @@ if __name__ == "__main__":
         time.sleep(1)
 
     julabo.turn_off()
+    time.sleep(1)  # Give time to turn off
+
     julabo.close()
-    time.sleep(1)

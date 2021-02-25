@@ -533,18 +533,31 @@ class Julabo_circulator(SerialDevice):
     # --------------------------------------------------------------------------
 
     def report(self):
-        # Print info to command line interface, useful for debugging
+        # Print info to the terminal, useful for debugging
         C = self.state  # Shorthand notation
         w1 = 10  # Label width
         w2 = 8  # Value width
 
+        # Update readings
+        self.query_running()
+        self.query_selected_setpoint()
+
         if C.selected_setpoint == 3:
+            self.query_setpoint_3()
             setpoint = C.setpoint_3
         elif C.selected_setpoint == 2:
+            self.query_setpoint_2()
             setpoint = C.setpoint_2
         else:
+            self.query_setpoint_1()
             setpoint = C.setpoint_1
 
+        self.query_bath_temp()
+        self.query_pt100_temp()
+        self.query_safe_sens()
+        self.query_status()
+
+        # Print to terminal
         print(self.state.version)
         print("%-*s: %-*s" % (w1, "Temp. unit", w2, C.temp_unit), end="")
         print("%-*s: #%-*s" % (w1, "Sel. setp.", w2, C.selected_setpoint))
@@ -582,6 +595,34 @@ class Julabo_circulator(SerialDevice):
 
         if self.write_("OUT_MODE_01 %i" % (numero - 1)):
             self.state.selected_setpoint = numero
+            return True
+        else:
+            return False
+
+    # --------------------------------------------------------------------------
+    #   turn_on/off
+    # --------------------------------------------------------------------------
+
+    def turn_off(self):
+        """Turn the Julabo off.
+
+        Returns: True if successful, False otherwise.
+        """
+
+        if self.write_("OUT_MODE_05 0"):
+            self.state.running = False
+            return True
+        else:
+            return False
+
+    def turn_on(self):
+        """Turn the Julabo on.
+
+        Returns: True if successful, False otherwise.
+        """
+
+        if self.write_("OUT_MODE_05 1"):
+            self.state.running = True
             return True
         else:
             return False

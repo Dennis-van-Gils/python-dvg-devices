@@ -2,18 +2,14 @@
 # -*- coding: utf-8 -*-
 """RS232 function library for Julabo circulators.
 Tested on model FP51-SL.
-
-The circulator allows for three different setpoints (#1, #2, #3), but we will
-only use #1 for remote control by this module.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "24-02-2021"
 __version__ = "0.2.4"
-# pylint: disable=try-except-raise, bare-except, bad-string-format-type
+# pylint: disable=bare-except, bad-string-format-type
 
-import sys
 import time
 import numpy as np
 import serial
@@ -21,11 +17,6 @@ import serial
 from dvg_debug_functions import print_fancy_traceback as pft
 from dvg_devices.BaseDevice import SerialDevice
 
-# This will be tested against the setting in the Julabo. When mismatched, this
-# module will throw an error and exit.
-# TODO: This settings is obsolete when the GUI is programmed correctly to
-# reflect the unit obtained from the Julabo
-EXPECTED_TEMP_UNIT = "C"  # Either "C" or "F"
 
 # The manual states that
 # - OUT commands should have a time gap > 250 ms. These are 'send' operations.
@@ -198,7 +189,7 @@ class Julabo_circulator(SerialDevice):
     #   set_sub_temp
     # --------------------------------------------------------------------------
 
-    def set_sub_temp(self, sub_temp: float):
+    def set_sub_temp(self, value: float):
         """Set the low-temperature warning limit. Subsequently, the Julabo is
         queried for the obtained value, which might be different than the one
         requested.
@@ -207,12 +198,12 @@ class Julabo_circulator(SerialDevice):
         """
 
         try:
-            sub_temp = float(sub_temp)
+            value = float(value)
         except (TypeError, ValueError) as err:
             pft(err)
             return False
 
-        if self.write_("OUT_SP_04 %.2f" % sub_temp):
+        if self.write_("OUT_SP_04 %.2f" % value):
             return self.query_sub_temp()
         else:
             return False
@@ -221,7 +212,7 @@ class Julabo_circulator(SerialDevice):
     #   set_over_temp
     # --------------------------------------------------------------------------
 
-    def set_over_temp(self, over_temp: float):
+    def set_over_temp(self, value: float):
         """Set the high-temperature warning limit. Subsequently, the Julabo is
         queried for the obtained value, which might be different than the one
         requested.
@@ -230,13 +221,79 @@ class Julabo_circulator(SerialDevice):
         """
 
         try:
-            over_temp = float(over_temp)
+            value = float(value)
         except (TypeError, ValueError) as err:
             pft(err)
             return False
 
-        if self.write_("OUT_SP_03 %.2f" % over_temp):
+        if self.write_("OUT_SP_03 %.2f" % value):
             return self.query_over_temp()
+        else:
+            return False
+
+    # --------------------------------------------------------------------------
+    #   set_sendpoint_1
+    # --------------------------------------------------------------------------
+
+    def set_setpoint_1(self, value: float):
+        """Set the temperature setpoint #1. Subsequently, the Julabo is queried
+        for the obtained value, which might be different than the one requested.
+
+        Returns: True if all communication was successful, False otherwise.
+        """
+
+        try:
+            value = float(value)
+        except (TypeError, ValueError) as err:
+            pft(err)
+            return False
+
+        if self.write_("OUT_SP_00 %.2f" % value):
+            return self.query_setpoint_1()
+        else:
+            return False
+
+    # --------------------------------------------------------------------------
+    #   set_sendpoint_2
+    # --------------------------------------------------------------------------
+
+    def set_setpoint_2(self, value: float):
+        """Set the temperature setpoint #2. Subsequently, the Julabo is queried
+        for the obtained value, which might be different than the one requested.
+
+        Returns: True if all communication was successful, False otherwise.
+        """
+
+        try:
+            value = float(value)
+        except (TypeError, ValueError) as err:
+            pft(err)
+            return False
+
+        if self.write_("OUT_SP_01 %.2f" % value):
+            return self.query_setpoint_2()
+        else:
+            return False
+
+    # --------------------------------------------------------------------------
+    #   set_sendpoint_3
+    # --------------------------------------------------------------------------
+
+    def set_setpoint_3(self, value: float):
+        """Set the temperature setpoint #3. Subsequently, the Julabo is queried
+        for the obtained value, which might be different than the one requested.
+
+        Returns: True if all communication was successful, False otherwise.
+        """
+
+        try:
+            value = float(value)
+        except (TypeError, ValueError) as err:
+            pft(err)
+            return False
+
+        if self.write_("OUT_SP_02 %.2f" % value):
+            return self.query_setpoint_3()
         else:
             return False
 
@@ -585,19 +642,14 @@ class Julabo_circulator(SerialDevice):
         w2 = 8  # Value width
 
         # Update readings
-        self.query_running()
-        self.query_selected_setpoint()
-
         if C.selected_setpoint == 3:
-            self.query_setpoint_3()
             setpoint = C.setpoint_3
         elif C.selected_setpoint == 2:
-            self.query_setpoint_2()
             setpoint = C.setpoint_2
         else:
-            self.query_setpoint_1()
             setpoint = C.setpoint_1
 
+        self.query_running()
         self.query_bath_temp()
         self.query_pt100_temp()
         self.query_safe_sens()
@@ -676,61 +728,8 @@ class Julabo_circulator(SerialDevice):
 
         return success
 
-    """
-    # --------------------------------------------------------------------------
-    #   send_setpoint
-    # --------------------------------------------------------------------------
 
-    def send_setpoint(self, temp_deg_C):
-        # TODO: think on implement check 'setpoint 1' is the working temp
-        # Either send after send_setpoint, or up front during `begin` but danger
-        # is then switch
-
-        ""Send a new temperature setpoint in [deg C.] to the chiller.
-        Subsequently, the chiller replies with the currently set setpoint and
-        this value will be stored in the class member 'state'.
-
-        Args:
-            temp_deg_C (float): temperature in [deg C].
-
-        Returns: True if successful, False otherwise.
-        ""
-        try:
-            temp_deg_C = float(temp_deg_C)
-        except (TypeError, ValueError):
-            # Invalid number
-            print("WARNING: Received illegal setpoint value")
-            print("Setpoint not updated")
-            return False
-
-        if temp_deg_C < self.min_setpoint_degC:
-            temp_deg_C = self.min_setpoint_degC
-            print(
-                "WARNING: setpoint is capped\nto the lower limit of %.1f 'C"
-                % self.min_setpoint_degC
-            )
-        elif temp_deg_C > self.max_setpoint_degC:
-            temp_deg_C = self.max_setpoint_degC
-            print(
-                "WARNING: setpoint is capped\nto the upper limit of %.1f 'C"
-                % self.max_setpoint_degC
-            )
-
-        # Transform temperature to bytes
-        pom = 0.1  # precision of measurement, fixed to 0.1
-        temp_bytes = int(np.round(temp_deg_C / pom)).to_bytes(
-            2, byteorder="big"
-        )
-        msg = RS232_START + [0xF0, 0x02] + [temp_bytes[0], temp_bytes[1]]
-        self.add_checksum(msg)
-        msg_bytes = bytes(msg)
-
-        # Send setpoint to chiller and receive the set setpoint
-        success, value, _units = self.query_data_as_float_and_uom(msg_bytes)
-        self.state.setpoint = value
-        return success
-
-
+"""
 # ------------------------------------------------------------------------------
 #   Main: Will show a demo when run from the terminal
 # ------------------------------------------------------------------------------

@@ -6,9 +6,9 @@ Tested on model FP51-SL.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "24-02-2021"
+__date__ = "25-02-2021"
 __version__ = "0.2.4"
-# pylint: disable=bare-except, bad-string-format-type
+# pylint: disable=bare-except, broad-except, bad-string-format-type
 
 import time
 import numpy as np
@@ -729,23 +729,21 @@ class Julabo_circulator(SerialDevice):
         return success
 
 
-"""
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #   Main: Will show a demo when run from the terminal
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 if __name__ == "__main__":
     import os
-    import time
+    import sys
 
     # Path to the config textfile containing the (last used) RS232 port
-    PATH_CONFIG = "config/port_PolyScience.txt"
+    PATH_CONFIG = "config/port_Julabo_circulator.txt"
 
-    bath = PolyScience_PD_bath()
-    if bath.auto_connect(filepath_last_known_port=PATH_CONFIG):
-        # TO DO: display internal settings of the PolyScience bath, like
-        # its temperature limits, etc.
-        pass
+    # Create connection to Julabo over RS232
+    julabo = Julabo_circulator()
+    if julabo.auto_connect(filepath_last_known_port=PATH_CONFIG):
+        julabo.begin()  # Retrieve necessary parameters
     else:
         time.sleep(1)
         sys.exit(0)
@@ -754,58 +752,67 @@ if __name__ == "__main__":
         import msvcrt
 
         running_Windows = True
-        print("\nPress Q to quit.")
-        print("Press S to enter new setpoint.")
     else:
         running_Windows = False
-        print("\nPress Control + C to quit.")
-        print("No other keyboard input possible because OS is not Windows.")
-
-    # Prepare
-    send_setpoint = 15.0
-    do_send_setpoint = False
-
-    bath.query_setpoint()
-    print("\nSet: %6.2f 'C" % bath.state.setpoint)
 
     # Loop
+    do_send_setpoint = False
     done = False
     while not done:
         # Check if a new setpoint has to be send
         if do_send_setpoint:
-            bath.send_setpoint(send_setpoint)
-            # The bath needs time to process and update its setpoint, which is
-            # found to be up to 1 seconds (!) long. Hence, we sleep.
-            time.sleep(1)
-            bath.query_setpoint()
-            print("\nSet: %6.2f 'C" % bath.state.setpoint)
+            if julabo.state.selected_setpoint == 3:
+                julabo.set_setpoint_3(send_setpoint)
+            elif julabo.state.selected_setpoint == 2:
+                julabo.set_setpoint_2(send_setpoint)
+            else:
+                julabo.set_setpoint_1(send_setpoint)
             do_send_setpoint = False
 
-        # Measure and report the temperatures
-        bath.query_P1_temp()
-        bath.query_P2_temp()
-        print("\rP1 : %6.2f 'C" % bath.state.P1_temp, end="")
-        print("  P2 : %6.2f 'C" % bath.state.P2_temp, end="")
+        # Measure and report
+        if running_Windows:
+            os.system("cls")
+            print("Press Q to quit.")
+            print("Press S to enter new setpoint.")
+            print("Press O to toggle the Julabo on/off.")
+        else:
+            os.system("clear")
+            print("Press Control + C to quit.")
+            print("No other keyboard input possible because OS is not Windows.")
+
+        julabo.report()
         sys.stdout.flush()
 
         # Process keyboard input
         if running_Windows:
             if msvcrt.kbhit():
                 key = msvcrt.getch()
+
                 if key == b"q":
                     print("\nAre you sure you want to quit [y/n]?")
                     if msvcrt.getch() == b"y":
-                        print("Quitting.")
+                        print("Switching off Julabo and quitting.")
                         done = True
-                    else:
-                        do_send_setpoint = True  # Esthestics
+
                 elif key == b"s":
-                    send_setpoint = input("\nEnter new setpoint ['C]: ")
-                    do_send_setpoint = True
+                    send_setpoint = input("\nEnter new setpoint: ")
+
+                    try:
+                        send_setpoint = float(send_setpoint)
+                    except Exception as err:
+                        print("Error: Could not parse float value.")
+                    else:
+                        do_send_setpoint = True
+
+                elif key == b"o":
+                    if julabo.state.running:
+                        julabo.turn_off()
+                    else:
+                        julabo.turn_on()
 
         # Slow down update period
-        time.sleep(0.5)
+        time.sleep(1)
 
-    bath.close()
+    julabo.turn_off()
+    julabo.close()
     time.sleep(1)
-    """

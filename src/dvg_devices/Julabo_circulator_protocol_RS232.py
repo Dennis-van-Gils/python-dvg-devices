@@ -96,6 +96,16 @@ class Julabo_circulator(SerialDevice):
     def query_(self, *args, **kwargs) -> tuple:
         """Wrapper for :meth:`dvg_qdevices.query` to add enforcing of time gaps
         between commands as per the Julabo manual.
+
+        Returns:
+            :obj:`tuple`:
+                - success (:obj:`bool`):
+                    True if successful, False otherwise.
+
+                - reply (:obj:`str` | :obj:`bytes` | :obj:`None`):
+                    Reply received from the device, either as ASCII string
+                    (default) or as bytes when ``returns_ascii`` was set to
+                    :const:`False`. :obj:`None` if unsuccessful.
         """
 
         # fmt: off
@@ -118,6 +128,8 @@ class Julabo_circulator(SerialDevice):
     def write_(self, *args, **kwargs) -> bool:
         """Wrapper for :meth:`dvg_qdevices.write` to add enforcing of time gaps
         between commands as per the Julabo manual.
+
+        Returns: True if successful, False otherwise.
         """
 
         # fmt: off
@@ -374,8 +386,8 @@ class Julabo_circulator(SerialDevice):
     # --------------------------------------------------------------------------
 
     def query_selected_setpoint(self):
-        """Query the selected setpoint used by the Julabo (either 1, 2 or 3)
-        and store it in the class member 'state'. Will be set to numpy.nan if
+        """Query the selected setpoint preset used by the Julabo (either 1, 2 or
+        3) and store it in the class member 'state'. Will be set to numpy.nan if
         unsuccessful.
 
         Returns: True if successful, False otherwise.
@@ -494,14 +506,24 @@ class Julabo_circulator(SerialDevice):
         print("Status msg: %s" % C.status)
 
     # --------------------------------------------------------------------------
-    #   send_select_setpoint
+    #   select_setpoint
     # --------------------------------------------------------------------------
 
-    def send_select_setpoint(self, number: int):
-        """
+    def select_setpoint(self, numero: int):
+        """Instruct the Julabo to select another setpoint preset.
+
+        Args:
+          numero (int): Setpoint to be used, either 1, 2 or 3.
+
+        Returns: True if successful, False otherwise.
         """
 
-        pass
+        if not (numero == 1 or numero == 2 or numero == 3):
+            print("WARNING: Received illegal setpoint preset")
+            print("Setpoint preset not updated")
+            return False
+
+        return self.write_("OUT_MODE_01 %i" % numero - 1)
 
     """
     # --------------------------------------------------------------------------

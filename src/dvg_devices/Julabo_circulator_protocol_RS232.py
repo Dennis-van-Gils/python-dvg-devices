@@ -15,7 +15,6 @@ __version__ = "0.2.4"
 
 import sys
 import time
-from typing import AnyStr
 import numpy as np
 import serial
 
@@ -48,7 +47,9 @@ class Julabo_circulator(SerialDevice):
         running = np.nan     # Is the circulator running?               (bool)
 
         selected_setpoint = np.nan  # Setpoint used by the Julabo    (1; 2; 3)
-        setpoint_1 = np.nan  # Read-out temperature setpoint #1         [C; F]
+        setpoint_1 = np.nan  # Read-out temperature setpoint preset #1  [C; F]
+        setpoint_2 = np.nan  # Read-out temperature setpoint preset #2  [C; F]
+        setpoint_3 = np.nan  # Read-out temperature setpoint preset #3  [C; F]
         bath_temp = np.nan   # Current bath temperature                 [C; F]
         pt100_temp = np.nan  # Current external Pt100 temperature       [C; F]
 
@@ -168,6 +169,8 @@ class Julabo_circulator(SerialDevice):
         success &= self.query_running()
         success &= self.query_selected_setpoint()
         success &= self.query_setpoint_1()
+        success &= self.query_setpoint_2()
+        success &= self.query_setpoint_3()
 
         success &= self.query_bath_temp()
         success &= self.query_pt100_temp()
@@ -429,6 +432,52 @@ class Julabo_circulator(SerialDevice):
         return False
 
     # --------------------------------------------------------------------------
+    #   query_setpoint_2
+    # --------------------------------------------------------------------------
+
+    def query_setpoint_2(self):
+        """Query the temperature setpoint #2 and store it in the class member
+        'state'. Will be set to numpy.nan if unsuccessful.
+
+        Returns: True if successful, False otherwise.
+        """
+        success, reply = self.query_("IN_SP_01")
+        if success:
+            try:
+                num = float(reply)
+            except (TypeError, ValueError) as err:
+                pft(err)
+            else:
+                self.state.setpoint_2 = num
+                return True
+
+        self.state.setpoint_2 = np.nan
+        return False
+
+    # --------------------------------------------------------------------------
+    #   query_setpoint_3
+    # --------------------------------------------------------------------------
+
+    def query_setpoint_3(self):
+        """Query the temperature setpoint #3 and store it in the class member
+        'state'. Will be set to numpy.nan if unsuccessful.
+
+        Returns: True if successful, False otherwise.
+        """
+        success, reply = self.query_("IN_SP_02")
+        if success:
+            try:
+                num = float(reply)
+            except (TypeError, ValueError) as err:
+                pft(err)
+            else:
+                self.state.setpoint_3 = num
+                return True
+
+        self.state.setpoint_3 = np.nan
+        return False
+
+    # --------------------------------------------------------------------------
     #   query_bath_temp
     # --------------------------------------------------------------------------
 
@@ -489,6 +538,13 @@ class Julabo_circulator(SerialDevice):
         w1 = 10  # Label width
         w2 = 8  # Value width
 
+        if C.selected_setpoint == 3:
+            setpoint = C.setpoint_3
+        elif C.selected_setpoint == 2:
+            setpoint = C.setpoint_2
+        else:
+            setpoint = C.setpoint_1
+
         print(self.state.version)
         print("%-*s: %-*s" % (w1, "Temp. unit", w2, C.temp_unit), end="")
         print("%-*s: #%-*s" % (w1, "Sel. setp.", w2, C.selected_setpoint))
@@ -498,7 +554,7 @@ class Julabo_circulator(SerialDevice):
         print("%-*s: %-*.2f" % (w1, "Safe temp.", w2, C.safe_temp))
         print()
         print("%s" % ("RUNNING" if C.running else "IDLE"))
-        print("%-*s: %-*.2f" % (w1, "Setpoint", w2, C.setpoint_1), end="")
+        print("%-*s: %-*.2f" % (w1, "Setpoint", w2, setpoint), end="")
         print("%-*s: %-*.2f" % (w1, "Bath temp.", w2, C.bath_temp))
         print("%-*s: %-*.2f" % (w1, "Safe sens", w2, C.safe_sens), end="")
         print("%-*s: %-*.2f" % (w1, "Pt100", w2, C.pt100_temp))
@@ -519,11 +575,16 @@ class Julabo_circulator(SerialDevice):
         """
 
         if not (numero == 1 or numero == 2 or numero == 3):
-            print("WARNING: Received illegal setpoint preset")
+            print("WARNING: Received illegal setpoint preset.")
+            print("Must be either 1, 2 or 3.")
             print("Setpoint preset not updated")
             return False
 
-        return self.write_("OUT_MODE_01 %i" % numero - 1)
+        if self.write_("OUT_MODE_01 %i" % (numero - 1)):
+            self.state.selected_setpoint = numero
+            return True
+        else:
+            return False
 
     """
     # --------------------------------------------------------------------------

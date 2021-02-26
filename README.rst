@@ -33,9 +33,10 @@ Supported devices
     Arduino, or similar        microcontroller board
     Aim TTi QL series II       power supply
     Bronkhorst EL-FLOW         mass flow controller
-    Parker Compax3             servo controller
+    Julabo circulator          recirculating bath
     Keysight 3497xA            digital multimeter
     Keysight N8700             power supply
+    Parker Compax3             servo controller
     Picotech PT104             temperature logger
     PolyScience PD             recirculating bath
     ThermoFisher ThermoFlex    chiller

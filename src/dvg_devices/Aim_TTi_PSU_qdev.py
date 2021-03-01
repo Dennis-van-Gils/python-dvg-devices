@@ -6,7 +6,7 @@ acquisition for an Aim TTi power supply unit (PSU), QL series II.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "27-08-2020"
+__date__ = "01-03-2021"
 __version__ = "0.2.3"
 
 import time
@@ -323,6 +323,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
     #   GUI functions
     # --------------------------------------------------------------------------
 
+    @QtCore.pyqtSlot()
     def process_pbtn_ENA_output(self):
         if self.pbtn_ENA_output.isChecked():
             # Clear output protection, if triggered and turn on output
@@ -331,9 +332,11 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
             # Turn off output
             self.send(self.dev.turn_off)
 
+    @QtCore.pyqtSlot()
     def process_pbtn_reset_trips(self):
         self.send(self.dev.reset_trips)
 
+    @QtCore.pyqtSlot()
     def process_pbtn_save_settings(self):
         str_title = "Save settings %s" % self.dev.name
         str_msg = (
@@ -365,6 +368,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
                     "Failed to save to disk:\n%s" % self.dev.path_config,
                 )
 
+    @QtCore.pyqtSlot()
     def process_pbtn_load_settings(self):
         str_title = "Load settings %s" % self.dev.name
         str_msg = (
@@ -391,6 +395,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
             )
             self.process_jobs_queue()
 
+    @QtCore.pyqtSlot()
     def send_V_source_from_textbox(self):
         try:
             voltage = float(self.V_source.text())
@@ -409,6 +414,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
         )
         self.process_jobs_queue()
 
+    @QtCore.pyqtSlot()
     def send_I_source_from_textbox(self):
         try:
             current = float(self.I_source.text())
@@ -427,6 +433,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
         )
         self.process_jobs_queue()
 
+    @QtCore.pyqtSlot()
     def send_OVP_level_from_textbox(self):
         try:
             OVP_level = float(self.OVP_level.text())
@@ -442,6 +449,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
         )
         self.process_jobs_queue()
 
+    @QtCore.pyqtSlot()
     def send_OCP_level_from_textbox(self):
         try:
             OCP_level = float(self.OCP_level.text())

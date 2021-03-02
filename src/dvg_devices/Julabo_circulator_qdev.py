@@ -78,6 +78,10 @@ class Julabo_circulator_qdev(QDeviceIO):
         self.signal_connection_lost.connect(self.update_GUI)
         self.signal_GUI_input_field_update.connect(self.update_GUI_input_field)
 
+        self.safe_temp.setText("%.2f" % self.dev.state.safe_temp)
+        self.sub_temp.setText("%.2f" % self.dev.state.sub_temp)
+        self.over_temp.setText("%.2f" % self.dev.state.over_temp)
+
         self.update_GUI()
         self.update_GUI_input_field()
 
@@ -123,6 +127,7 @@ class Julabo_circulator_qdev(QDeviceIO):
 
         # Control
         self.pbtn_running = create_Toggle_button("OFFLINE")
+        self.pbtn_running.clicked.connect(self.process_pbtn_running)
         self.send_setpoint = QtWid.QLineEdit("nan", **p)
         self.read_setpoint = QtWid.QLineEdit("nan", **p, readOnly=True)
         self.bath_temp = QtWid.QLineEdit("nan", **p, readOnly=True)
@@ -199,9 +204,6 @@ class Julabo_circulator_qdev(QDeviceIO):
         """
         if self.dev.is_alive:
             self.safe_sens.setText("%.2f" % self.dev.state.safe_sens)
-            self.safe_temp.setText("%.2f" % self.dev.state.safe_temp)
-            self.sub_temp.setText("%.2f" % self.dev.state.sub_temp)
-            self.over_temp.setText("%.2f" % self.dev.state.over_temp)
 
             self.pbtn_running.setChecked(self.dev.state.running)
             if self.pbtn_running.isChecked():
@@ -250,14 +252,27 @@ class Julabo_circulator_qdev(QDeviceIO):
     #   GUI functions
     # --------------------------------------------------------------------------
 
-    def process_pbtn_ENA_output(self):
-        if self.pbtn_ENA_output.isChecked():
-            # Clear output protection, if triggered and turn on output
-            self.send(self.dev.reset_trips_and_turn_on)
-        else:
-            # Turn off output
+    @QtCore.pyqtSlot()
+    def process_pbtn_running(self):
+        if self.dev.state.running:
             self.send(self.dev.turn_off)
+        else:
+            self.send(self.dev.turn_on)
 
+    @QtCore.pyqtSlot()
+    def send_setpoint_from_textbox(self):
+        try:
+            setpoint = float(self.send_setpoint.text())
+        except (TypeError, ValueError):
+            # Revert to previously set setpoint
+            setpoint = self.dev.state.setpoint
+        except:
+            raise
+
+        self.send_setpoint.setText("%.2f" % setpoint)
+        self.send(self.dev.set_setpoint, setpoint)
+
+    """
     def send_V_source_from_textbox(self):
         try:
             voltage = float(self.V_source.text())
@@ -275,51 +290,4 @@ class Julabo_circulator_qdev(QDeviceIO):
             "signal_GUI_input_field_update", GUI_input_fields.V_source
         )
         self.process_jobs_queue()
-
-    def send_I_source_from_textbox(self):
-        try:
-            current = float(self.I_source.text())
-        except (TypeError, ValueError):
-            current = 0.0
-        except:
-            raise
-
-        if current < 0:
-            current = 0
-
-        self.add_to_jobs_queue(self.dev.set_I_source, current)
-        self.add_to_jobs_queue(self.dev.query_I_source)
-        self.add_to_jobs_queue(
-            "signal_GUI_input_field_update", GUI_input_fields.I_source
-        )
-        self.process_jobs_queue()
-
-    def send_OVP_level_from_textbox(self):
-        try:
-            OVP_level = float(self.OVP_level.text())
-        except (TypeError, ValueError):
-            OVP_level = 0.0
-        except:
-            raise
-
-        self.add_to_jobs_queue(self.dev.set_OVP_level, OVP_level)
-        self.add_to_jobs_queue(self.dev.query_OVP_level)
-        self.add_to_jobs_queue(
-            "signal_GUI_input_field_update", GUI_input_fields.OVP_level
-        )
-        self.process_jobs_queue()
-
-    def send_OCP_level_from_textbox(self):
-        try:
-            OCP_level = float(self.OCP_level.text())
-        except (TypeError, ValueError):
-            OCP_level = 0.0
-        except:
-            raise
-
-        self.add_to_jobs_queue(self.dev.set_OCP_level, OCP_level)
-        self.add_to_jobs_queue(self.dev.query_OCP_level)
-        self.add_to_jobs_queue(
-            "signal_GUI_input_field_update", GUI_input_fields.OCP_level
-        )
-        self.process_jobs_queue()
+    """

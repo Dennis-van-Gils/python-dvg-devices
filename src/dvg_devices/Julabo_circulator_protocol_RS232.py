@@ -6,7 +6,7 @@ Tested on model FP51-SL.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "25-02-2021"
+__date__ = "02-03-2021"
 __version__ = "0.2.4"
 # pylint: disable=bare-except, broad-except, bad-string-format-type
 
@@ -22,8 +22,8 @@ from dvg_devices.BaseDevice import SerialDevice
 # - OUT commands should have a time gap > 250 ms. These are 'send' operations.
 # - IN commands should have a time gap > 10 ms. These are 'query' operations.
 # This module will enforce these time gaps.
-DELAY_COMMAND_IN = 0.01  # [ms]
-DELAY_COMMAND_OUT = 0.25  # [ms]
+DELAY_COMMAND_IN = 0.02  # [s] 0.02 tested stable
+DELAY_COMMAND_OUT = 0.3  # [s] 0.3 tested stable
 
 
 class Julabo_circulator(SerialDevice):
@@ -37,7 +37,7 @@ class Julabo_circulator(SerialDevice):
         temp_unit = np.nan   # Temperature unit used by the Julabo  ("C"; "F")
         running = np.nan     # Is the circulator running?               (bool)
 
-        selected_setpoint = np.nan  # Setpoint used by the Julabo    (1; 2; 3)
+        setpoint_preset = np.nan  # Setpoint used by the Julabo      (1; 2; 3)
         setpoint_1 = np.nan  # Read-out temperature setpoint preset #1  [C; F]
         setpoint_2 = np.nan  # Read-out temperature setpoint preset #2  [C; F]
         setpoint_3 = np.nan  # Read-out temperature setpoint preset #3  [C; F]
@@ -119,7 +119,7 @@ class Julabo_circulator(SerialDevice):
         success &= self.query_safe_temp()
 
         success &= self.query_running()
-        success &= self.query_selected_setpoint()
+        success &= self.query_setpoint_preset()
         success &= self.query_setpoint_1()
         success &= self.query_setpoint_2()
         success &= self.query_setpoint_3()
@@ -155,32 +155,6 @@ class Julabo_circulator(SerialDevice):
 
         if self.write_("OUT_MODE_05 1"):
             self.state.running = True
-            return True
-        else:
-            return False
-
-    # --------------------------------------------------------------------------
-    #   select_setpoint
-    # --------------------------------------------------------------------------
-
-    def select_setpoint(self, numero: int):
-        """Instruct the Julabo to select another setpoint preset.
-
-        Args:
-          numero (int): Setpoint to be used, either 1, 2 or 3.
-
-        Returns: True if successful, False otherwise.
-        """
-
-        if not (numero == 1 or numero == 2 or numero == 3):
-            pft(
-                "WARNING: Received illegal setpoint preset.\n"
-                "Must be either 1, 2 or 3."
-            )
-            return False
-
-        if self.write_("OUT_MODE_01 %i" % (numero - 1)):
-            self.state.selected_setpoint = numero
             return True
         else:
             return False
@@ -230,6 +204,53 @@ class Julabo_circulator(SerialDevice):
             return self.query_over_temp()
         else:
             return False
+
+    # --------------------------------------------------------------------------
+    #   set_setpoint_preset
+    # --------------------------------------------------------------------------
+
+    def set_setpoint_preset(self, n: int):
+        """Instruct the Julabo to select another setpoint preset.
+
+        Args:
+          n (:obj:`int`): Setpoint to be used, either 1, 2 or 3.
+
+        Returns: True if successful, False otherwise.
+        """
+
+        if not (n == 1 or n == 2 or n == 3):
+            pft(
+                "WARNING: Received illegal setpoint preset.\n"
+                "Must be either 1, 2 or 3."
+            )
+            return False
+
+        if self.write_("OUT_MODE_01 %i" % (n - 1)):
+            self.state.setpoint_preset = n
+            return True
+        else:
+            return False
+
+    # --------------------------------------------------------------------------
+    #   set_sendpoint
+    # --------------------------------------------------------------------------
+
+    def set_setpoint(self, value: float):
+        """Set the temperature setpoint #1, #2 or #3, depending on which one is
+        currently the active preset. Subsequently, the Julabo is queried for the
+        obtained value, which might be different than the one requested.
+
+        Returns: True if all communication was successful, False otherwise.
+        """
+
+        if self.state.setpoint_preset == 1:
+            return self.set_setpoint_1(value)
+        elif self.state.setpoint_preset == 2:
+            return self.set_setpoint_2(value)
+        elif self.state.setpoint_preset == 3:
+            return self.set_setpoint_3(value)
+
+        return False
 
     # --------------------------------------------------------------------------
     #   set_sendpoint_1
@@ -486,13 +507,13 @@ class Julabo_circulator(SerialDevice):
         return False
 
     # --------------------------------------------------------------------------
-    #   query_selected_setpoint
+    #   query_setpoint_preset
     # --------------------------------------------------------------------------
 
-    def query_selected_setpoint(self):
-        """Query the selected setpoint preset used by the Julabo (either 1, 2 or
-        3) and store it in the class member 'state'. Will be set to numpy.nan if
-        unsuccessful.
+    def query_setpoint_preset(self):
+        """Query the setpoint preset currently used by the Julabo (#1, #2 or #3)
+        and store it in the class member 'state'. Will be set to numpy.nan
+        if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
@@ -503,11 +524,29 @@ class Julabo_circulator(SerialDevice):
             except (TypeError, ValueError) as err:
                 pft(err)
             else:
-                self.state.selected_setpoint = num + 1
+                self.state.setpoint_preset = num + 1
                 return True
 
-        self.state.selected_setpoint = np.nan
+        self.state.setpoint_preset = np.nan
         return False
+
+    # --------------------------------------------------------------------------
+    #   query_setpoint
+    # --------------------------------------------------------------------------
+
+    def query_setpoint(self):
+        """Query the temperature setpoint #1, #2 or #3, depending on which one
+        is currently the active preset, and store it in the class member
+        'state'. Will be set to numpy.nan if unsuccessful.
+
+        Returns: True if successful, False otherwise.
+        """
+        if self.state.setpoint_preset == 1:
+            return self.query_setpoint_1()
+        elif self.state.setpoint_preset == 2:
+            return self.query_setpoint_2()
+        elif self.state.setpoint_preset == 3:
+            return self.query_setpoint_3()
 
     # --------------------------------------------------------------------------
     #   query_setpoint_1
@@ -666,12 +705,12 @@ class Julabo_circulator(SerialDevice):
         w2 = 8  # Value width
 
         # Update readings
-        if C.selected_setpoint == 3:
-            setpoint = C.setpoint_3
-        elif C.selected_setpoint == 2:
+        if C.setpoint_preset == 1:
+            setpoint = C.setpoint_1
+        elif C.setpoint_preset == 2:
             setpoint = C.setpoint_2
         else:
-            setpoint = C.setpoint_1
+            setpoint = C.setpoint_3
 
         if update_readings:
             self.query_common_readings()
@@ -679,7 +718,7 @@ class Julabo_circulator(SerialDevice):
         # Print to terminal
         print(self.state.version)
         print("%-*s: %-*s" % (w1, "Temp. unit", w2, C.temp_unit), end="")
-        print("%-*s: #%-*s" % (w1, "Sel. setp.", w2, C.selected_setpoint))
+        print("%-*s: #%-*s" % (w1, "Sel. setp.", w2, C.setpoint_preset))
         print("%-*s: %-*.2f" % (w1, "Sub temp.", w2, C.sub_temp), end="")
         print("%-*s: %-*.2f" % (w1, "Over temp.", w2, C.over_temp))
         print("%-*s  %-*s" % (w1, "", w2, ""), end="")
@@ -785,12 +824,7 @@ if __name__ == "__main__":
     while not done:
         # Check if a new setpoint has to be send
         if do_send_setpoint:
-            if julabo.state.selected_setpoint == 3:
-                julabo.set_setpoint_3(send_setpoint)
-            elif julabo.state.selected_setpoint == 2:
-                julabo.set_setpoint_2(send_setpoint)
-            else:
-                julabo.set_setpoint_1(send_setpoint)
+            julabo.set_setpoint(send_setpoint)
             do_send_setpoint = False
 
         # Measure and report
@@ -840,7 +874,7 @@ if __name__ == "__main__":
                         julabo.turn_on()
 
         # Slow down update period
-        time.sleep(1)
+        time.sleep(0.5)
 
     julabo.turn_off()
     time.sleep(1)  # Give time to turn off

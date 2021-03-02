@@ -1,6 +1,10 @@
 Changelog
 =========
 
+0.2.5 (2021-03-02)
+------------------
+* Loosened dependence to ``pyserial~= 3.4``
+
 0.2.4 (2021-03-02)
 ------------------
 * Added device: Julabo circulator

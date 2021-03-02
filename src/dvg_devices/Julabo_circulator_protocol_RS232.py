@@ -37,10 +37,11 @@ class Julabo_circulator(SerialDevice):
         temp_unit = np.nan   # Temperature unit used by the Julabo  ("C"; "F")
         running = np.nan     # Is the circulator running?               (bool)
 
-        setpoint_preset = np.nan  # Setpoint used by the Julabo      (1; 2; 3)
-        setpoint_1 = np.nan  # Read-out temperature setpoint preset #1  [C; F]
-        setpoint_2 = np.nan  # Read-out temperature setpoint preset #2  [C; F]
-        setpoint_3 = np.nan  # Read-out temperature setpoint preset #3  [C; F]
+        setpoint_preset = np.nan # Active setpoint preset in the Julabo (1; 2; 3)
+        setpoint = np.nan    # Read-out temp. setpoint of active preset [C; F]
+        setpoint_1 = np.nan  # Read-out temp. setpoint preset #1        [C; F]
+        setpoint_2 = np.nan  # Read-out temp. setpoint preset #2        [C; F]
+        setpoint_3 = np.nan  # Read-out temp. setpoint preset #3        [C; F]
         bath_temp = np.nan   # Current bath temperature                 [C; F]
         pt100_temp = np.nan  # Current external Pt100 temperature       [C; F]
 
@@ -541,12 +542,19 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
+        success = False
+
         if self.state.setpoint_preset == 1:
-            return self.query_setpoint_1()
+            success = self.query_setpoint_1()
+            self.state.setpoint = self.state.setpoint_1
         elif self.state.setpoint_preset == 2:
-            return self.query_setpoint_2()
+            success = self.query_setpoint_2()
+            self.state.setpoint = self.state.setpoint_2
         elif self.state.setpoint_preset == 3:
-            return self.query_setpoint_3()
+            success = self.query_setpoint_3()
+            self.state.setpoint = self.state.setpoint_3
+
+        return success
 
     # --------------------------------------------------------------------------
     #   query_setpoint_1

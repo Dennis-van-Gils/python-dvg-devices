@@ -689,6 +689,7 @@ class Julabo_circulator(SerialDevice):
     def query_common_readings(self):
         """Query the most common readings:
         - Running?
+        - Setpoint
         - Bath temperature
         - Pt100 temperature
         - Safe sensor temperature
@@ -699,6 +700,7 @@ class Julabo_circulator(SerialDevice):
 
         success = True
         success &= self.query_running()
+        success &= self.query_setpoint()
         success &= self.query_bath_temp()
         success &= self.query_pt100_temp()
         success &= self.query_safe_sens()

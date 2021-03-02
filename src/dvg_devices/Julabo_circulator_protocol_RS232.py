@@ -121,6 +121,7 @@ class Julabo_circulator(SerialDevice):
 
         success &= self.query_running()
         success &= self.query_setpoint_preset()
+        success &= self.query_setpoint()
         success &= self.query_setpoint_1()
         success &= self.query_setpoint_2()
         success &= self.query_setpoint_3()
@@ -244,14 +245,19 @@ class Julabo_circulator(SerialDevice):
         Returns: True if all communication was successful, False otherwise.
         """
 
-        if self.state.setpoint_preset == 1:
-            return self.set_setpoint_1(value)
-        elif self.state.setpoint_preset == 2:
-            return self.set_setpoint_2(value)
-        elif self.state.setpoint_preset == 3:
-            return self.set_setpoint_3(value)
+        success = False
 
-        return False
+        if self.state.setpoint_preset == 1:
+            success = self.set_setpoint_1(value)
+            self.state.setpoint = self.state.setpoint_1
+        elif self.state.setpoint_preset == 2:
+            success = self.set_setpoint_2(value)
+            self.state.setpoint = self.state.setpoint_2
+        elif self.state.setpoint_preset == 3:
+            success = self.set_setpoint_3(value)
+            self.state.setpoint = self.state.setpoint_3
+
+        return success
 
     # --------------------------------------------------------------------------
     #   set_sendpoint_1
@@ -852,13 +858,13 @@ if __name__ == "__main__":
             if msvcrt.kbhit():
                 key = msvcrt.getch()
 
-                if key == b"q":
+                if key == b"q" or key == b"Q":
                     print("\nAre you sure you want to quit [y/n]?")
                     if msvcrt.getch() == b"y":
                         print("Switching off Julabo and quitting.")
                         done = True
 
-                elif key == b"s":
+                elif key == b"s" or key == b"S":
                     send_setpoint = input("\nEnter new setpoint: ")
 
                     try:
@@ -868,7 +874,7 @@ if __name__ == "__main__":
                     else:
                         do_send_setpoint = True
 
-                elif key == b"o":
+                elif key == b"o" or key == b"O":
                     if julabo.state.running:
                         julabo.turn_off()
                     else:

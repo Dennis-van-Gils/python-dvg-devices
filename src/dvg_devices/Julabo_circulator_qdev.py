@@ -220,7 +220,7 @@ class Julabo_circulator_qdev(QDeviceIO):
             self.read_setpoint.setText("%.2f" % self.dev.state.setpoint)
             self.bath_temp.setText("%.2f" % self.dev.state.bath_temp)
             self.pt100_temp.setText("%.2f" % self.dev.state.pt100_temp)
-            
+
             # Check status
             self.status.setReadOnly(self.dev.state.has_error)
             self.status.setStyleSheet(SS_TEXTBOX_ERRORS)
@@ -262,7 +262,7 @@ class Julabo_circulator_qdev(QDeviceIO):
             self.send(self.dev.turn_off)
         else:
             self.send(self.dev.turn_on)
-            
+
         # React as fast as possible by manually triggering processEvents()
         QtWid.QApplication.processEvents()
 

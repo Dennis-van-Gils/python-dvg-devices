@@ -26,6 +26,7 @@ from dvg_devices.Julabo_circulator_protocol_RS232 import Julabo_circulator
 class GUI_input_fields:
     [ALL, setpoint, sub_temp, over_temp] = range(4)
 
+
 class Julabo_circulator_qdev(QDeviceIO):
     """Manages multithreaded communication and periodical data acquisition for
     a Julabo circulator, referred to as the 'device'.
@@ -82,7 +83,7 @@ class Julabo_circulator_qdev(QDeviceIO):
         self.signal_GUI_input_field_update.connect(self.update_GUI_input_field)
 
         self.safe_temp.setText("%.2f" % self.dev.state.safe_temp)
-        
+
         self.update_GUI()
         self.update_GUI_input_field()
 
@@ -131,7 +132,9 @@ class Julabo_circulator_qdev(QDeviceIO):
         self.pbtn_running = create_Toggle_button("OFFLINE")
         self.pbtn_running.clicked.connect(self.process_pbtn_running)
         self.send_setpoint = QtWid.QLineEdit("nan", **p)
-        self.send_setpoint.editingFinished.connect(self.send_setpoint_from_textbox)
+        self.send_setpoint.editingFinished.connect(
+            self.send_setpoint_from_textbox
+        )
         self.read_setpoint = QtWid.QLineEdit("nan", **p, readOnly=True)
         self.bath_temp = QtWid.QLineEdit("nan", **p, readOnly=True)
         self.pt100_temp = QtWid.QLineEdit("nan", **p, readOnly=True)
@@ -231,7 +234,7 @@ class Julabo_circulator_qdev(QDeviceIO):
     @QtCore.pyqtSlot()
     @QtCore.pyqtSlot(int)
     def update_GUI_input_field(self, GUI_input_field=GUI_input_fields.ALL):
-        if GUI_input_field == GUI_input_fields.setpoint:            
+        if GUI_input_field == GUI_input_fields.setpoint:
             self.send_setpoint.setText("%.2f" % self.dev.state.setpoint)
 
         elif GUI_input_field == GUI_input_fields.sub_temp:
@@ -265,15 +268,13 @@ class Julabo_circulator_qdev(QDeviceIO):
             value = self.dev.state.setpoint
         except:
             raise
-        
+
         self.add_to_jobs_queue(self.dev.set_setpoint, value)
         self.add_to_jobs_queue(
-            "signal_GUI_input_field_update",
-            GUI_input_fields.setpoint
+            "signal_GUI_input_field_update", GUI_input_fields.setpoint
         )
         self.process_jobs_queue()
-        
-    
+
     @QtCore.pyqtSlot()
     def send_sub_temp_from_textbox(self):
         try:
@@ -283,14 +284,13 @@ class Julabo_circulator_qdev(QDeviceIO):
             value = self.dev.state.sub_temp
         except:
             raise
-        
+
         self.add_to_jobs_queue(self.dev.set_sub_temp, value)
         self.add_to_jobs_queue(
-            "signal_GUI_input_field_update",
-            GUI_input_fields.sub_temp
+            "signal_GUI_input_field_update", GUI_input_fields.sub_temp
         )
         self.process_jobs_queue()
-        
+
     @QtCore.pyqtSlot()
     def send_over_temp_from_textbox(self):
         try:
@@ -300,10 +300,9 @@ class Julabo_circulator_qdev(QDeviceIO):
             value = self.dev.state.sub_temp
         except:
             raise
-        
+
         self.add_to_jobs_queue(self.dev.set_over_temp, value)
         self.add_to_jobs_queue(
-            "signal_GUI_input_field_update",
-            GUI_input_fields.over_temp
+            "signal_GUI_input_field_update", GUI_input_fields.over_temp
         )
         self.process_jobs_queue()

@@ -7,7 +7,7 @@ __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "02-03-2021"
-__version__ = "0.2.4"
+__version__ = "0.2.6"
 # pylint: disable=broad-except
 
 import time
@@ -138,7 +138,7 @@ class Julabo_circulator_qdev(QDeviceIO):
         self.read_setpoint = QtWid.QLineEdit("nan", **p, readOnly=True)
         self.bath_temp = QtWid.QLineEdit("nan", **p, readOnly=True)
         self.pt100_temp = QtWid.QLineEdit("nan", **p, readOnly=True)
-        self.status = QtWid.QPlainTextEdit(minimumWidth=200, readOnly=True)
+        self.status = QtWid.QPlainTextEdit(maximumWidth=180, readOnly=True)
         self.status.setStyleSheet(SS_TEXTBOX_ERRORS)
         self.update_counter = QtWid.QLabel("0")
 

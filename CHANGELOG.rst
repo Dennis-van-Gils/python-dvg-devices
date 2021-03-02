@@ -1,6 +1,10 @@
 Changelog
 =========
 
+0.2.6 (2021-03-02)
+------------------
+* Minor: Adjusted width of GUI control in ``Julabo_circulator_qdev.py``
+
 0.2.5 (2021-03-02)
 ------------------
 * Loosened dependence to ``pyserial~= 3.4``

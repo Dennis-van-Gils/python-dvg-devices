@@ -22,6 +22,9 @@ from dvg_debug_functions import dprint, print_fancy_traceback as pft
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 from dvg_devices.Julabo_circulator_protocol_RS232 import Julabo_circulator
 
+# Enumeration
+class GUI_input_fields:
+    [ALL, setpoint, sub_temp, over_temp] = range(4)
 
 class Julabo_circulator_qdev(QDeviceIO):
     """Manages multithreaded communication and periodical data acquisition for
@@ -79,10 +82,7 @@ class Julabo_circulator_qdev(QDeviceIO):
         self.signal_GUI_input_field_update.connect(self.update_GUI_input_field)
 
         self.safe_temp.setText("%.2f" % self.dev.state.safe_temp)
-        self.sub_temp.setText("%.2f" % self.dev.state.sub_temp)
-        self.over_temp.setText("%.2f" % self.dev.state.over_temp)
-        self.send_setpoint("%.2f" % self.dev.state.setpoint)
-
+        
         self.update_GUI()
         self.update_GUI_input_field()
 
@@ -106,7 +106,6 @@ class Julabo_circulator_qdev(QDeviceIO):
             # Send I/O operation to the device
             try:
                 func(*args)
-                self.dev.wait_for_OPC()
             except Exception as err:
                 pft(err)
 
@@ -124,13 +123,15 @@ class Julabo_circulator_qdev(QDeviceIO):
         self.safe_sens = QtWid.QLineEdit("nan", **p, readOnly=True)
         self.safe_temp = QtWid.QLineEdit("nan", **p, readOnly=True)
         self.sub_temp = QtWid.QLineEdit("nan", **p)
+        self.sub_temp.editingFinished.connect(self.send_sub_temp_from_textbox)
         self.over_temp = QtWid.QLineEdit("nan", **p)
+        self.over_temp.editingFinished.connect(self.send_over_temp_from_textbox)
 
         # Control
         self.pbtn_running = create_Toggle_button("OFFLINE")
         self.pbtn_running.clicked.connect(self.process_pbtn_running)
         self.send_setpoint = QtWid.QLineEdit("nan", **p)
-        self.send_setpoint.textChanged.connect(self.send_setpoint_from_textbox)
+        self.send_setpoint.editingFinished.connect(self.send_setpoint_from_textbox)
         self.read_setpoint = QtWid.QLineEdit("nan", **p, readOnly=True)
         self.bath_temp = QtWid.QLineEdit("nan", **p, readOnly=True)
         self.pt100_temp = QtWid.QLineEdit("nan", **p, readOnly=True)
@@ -213,7 +214,7 @@ class Julabo_circulator_qdev(QDeviceIO):
             else:
                 self.pbtn_running.setText("Idle")
 
-            self.read_setpoint.setText("%.2f" % self.dev.state.setpoint_1)
+            self.read_setpoint.setText("%.2f" % self.dev.state.setpoint)
             self.bath_temp.setText("%.2f" % self.dev.state.bath_temp)
             self.pt100_temp.setText("%.2f" % self.dev.state.pt100_temp)
             self.status.setText(self.dev.state.status)
@@ -228,27 +229,21 @@ class Julabo_circulator_qdev(QDeviceIO):
     # --------------------------------------------------------------------------
 
     @QtCore.pyqtSlot()
-    def update_GUI_input_field(self):
-        pass
-        """
-        if GUI_input_field == GUI_input_fields.V_source:
-            self.V_source.setText("%.3f" % self.dev.state.V_source)
+    @QtCore.pyqtSlot(int)
+    def update_GUI_input_field(self, GUI_input_field=GUI_input_fields.ALL):
+        if GUI_input_field == GUI_input_fields.setpoint:            
+            self.send_setpoint.setText("%.2f" % self.dev.state.setpoint)
 
-        elif GUI_input_field == GUI_input_fields.I_source:
-            self.I_source.setText("%.3f" % self.dev.state.I_source)
+        elif GUI_input_field == GUI_input_fields.sub_temp:
+            self.sub_temp.setText("%.2f" % self.dev.state.sub_temp)
 
-        elif GUI_input_field == GUI_input_fields.OVP_level:
-            self.OVP_level.setText("%.1f" % self.dev.state.OVP_level)
-
-        elif GUI_input_field == GUI_input_fields.OCP_level:
-            self.OCP_level.setText("%.2f" % self.dev.state.OCP_level)
+        elif GUI_input_field == GUI_input_fields.over_temp:
+            self.over_temp.setText("%.2f" % self.dev.state.over_temp)
 
         else:
-            self.V_source.setText("%.3f" % self.dev.state.V_source)
-            self.I_source.setText("%.3f" % self.dev.state.I_source)
-            self.OVP_level.setText("%.1f" % self.dev.state.OVP_level)
-            self.OCP_level.setText("%.2f" % self.dev.state.OCP_level)
-        """
+            self.send_setpoint.setText("%.2f" % self.dev.state.setpoint)
+            self.sub_temp.setText("%.2f" % self.dev.state.sub_temp)
+            self.over_temp.setText("%.2f" % self.dev.state.over_temp)
 
     # --------------------------------------------------------------------------
     #   GUI functions
@@ -264,32 +259,51 @@ class Julabo_circulator_qdev(QDeviceIO):
     @QtCore.pyqtSlot()
     def send_setpoint_from_textbox(self):
         try:
-            setpoint = float(self.send_setpoint.text())
+            value = float(self.send_setpoint.text())
         except (TypeError, ValueError):
-            # Revert to previously set setpoint
-            setpoint = self.dev.state.setpoint
+            # Revert to previously set value
+            value = self.dev.state.setpoint
         except:
             raise
-
-        self.send_setpoint.setText("%.2f" % setpoint)
-        self.send(self.dev.set_setpoint, setpoint)
-
-    """
-    def send_V_source_from_textbox(self):
-        try:
-            voltage = float(self.V_source.text())
-        except (TypeError, ValueError):
-            voltage = 0.0
-        except:
-            raise
-
-        if voltage < 0:
-            voltage = 0
-
-        self.add_to_jobs_queue(self.dev.set_V_source, voltage)
-        self.add_to_jobs_queue(self.dev.query_V_source)
+        
+        self.add_to_jobs_queue(self.dev.set_setpoint, value)
         self.add_to_jobs_queue(
-            "signal_GUI_input_field_update", GUI_input_fields.V_source
+            "signal_GUI_input_field_update",
+            GUI_input_fields.setpoint
         )
         self.process_jobs_queue()
-    """
+        
+    
+    @QtCore.pyqtSlot()
+    def send_sub_temp_from_textbox(self):
+        try:
+            value = float(self.sub_temp.text())
+        except (TypeError, ValueError):
+            # Revert to previously set value
+            value = self.dev.state.sub_temp
+        except:
+            raise
+        
+        self.add_to_jobs_queue(self.dev.set_sub_temp, value)
+        self.add_to_jobs_queue(
+            "signal_GUI_input_field_update",
+            GUI_input_fields.sub_temp
+        )
+        self.process_jobs_queue()
+        
+    @QtCore.pyqtSlot()
+    def send_over_temp_from_textbox(self):
+        try:
+            value = float(self.over_temp.text())
+        except (TypeError, ValueError):
+            # Revert to previously set value
+            value = self.dev.state.sub_temp
+        except:
+            raise
+        
+        self.add_to_jobs_queue(self.dev.set_over_temp, value)
+        self.add_to_jobs_queue(
+            "signal_GUI_input_field_update",
+            GUI_input_fields.over_temp
+        )
+        self.process_jobs_queue()

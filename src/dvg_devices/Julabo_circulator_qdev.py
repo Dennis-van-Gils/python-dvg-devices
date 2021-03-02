@@ -6,7 +6,7 @@ acquisition for a Julabo circulating bath.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "01-03-2021"
+__date__ = "02-03-2021"
 __version__ = "0.2.4"
 # pylint: disable=broad-except
 
@@ -16,7 +16,7 @@ import numpy as np
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 
-from dvg_pyqt_controls import create_Toggle_button, create_tiny_error_LED
+from dvg_pyqt_controls import create_Toggle_button, SS_TEXTBOX_ERRORS
 from dvg_debug_functions import dprint, print_fancy_traceback as pft
 
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
@@ -138,7 +138,8 @@ class Julabo_circulator_qdev(QDeviceIO):
         self.read_setpoint = QtWid.QLineEdit("nan", **p, readOnly=True)
         self.bath_temp = QtWid.QLineEdit("nan", **p, readOnly=True)
         self.pt100_temp = QtWid.QLineEdit("nan", **p, readOnly=True)
-        self.status = QtWid.QTextEdit(minimumWidth=200, readOnly=True)
+        self.status = QtWid.QPlainTextEdit(minimumWidth=200, readOnly=True)
+        self.status.setStyleSheet(SS_TEXTBOX_ERRORS)
         self.update_counter = QtWid.QLabel("0")
 
         i = 0
@@ -209,18 +210,21 @@ class Julabo_circulator_qdev(QDeviceIO):
         members are written and read atomicly.
         """
         if self.dev.is_alive:
-            self.safe_sens.setText("%.2f" % self.dev.state.safe_sens)
-
             self.pbtn_running.setChecked(self.dev.state.running)
-            if self.pbtn_running.isChecked():
+            if self.dev.state.running:
                 self.pbtn_running.setText("RUNNING")
             else:
-                self.pbtn_running.setText("Idle")
+                self.pbtn_running.setText("OFF")
 
+            self.safe_sens.setText("%.2f" % self.dev.state.safe_sens)
             self.read_setpoint.setText("%.2f" % self.dev.state.setpoint)
             self.bath_temp.setText("%.2f" % self.dev.state.bath_temp)
             self.pt100_temp.setText("%.2f" % self.dev.state.pt100_temp)
-            self.status.setText(self.dev.state.status)
+            
+            # Check status
+            self.status.setReadOnly(self.dev.state.has_error)
+            self.status.setStyleSheet(SS_TEXTBOX_ERRORS)
+            self.status.setPlainText(self.dev.state.status)
 
             self.update_counter.setText("%s" % self.update_counter_DAQ)
         else:
@@ -258,6 +262,9 @@ class Julabo_circulator_qdev(QDeviceIO):
             self.send(self.dev.turn_off)
         else:
             self.send(self.dev.turn_on)
+            
+        # React as fast as possible by manually triggering processEvents()
+        QtWid.QApplication.processEvents()
 
     @QtCore.pyqtSlot()
     def send_setpoint_from_textbox(self):
@@ -297,7 +304,7 @@ class Julabo_circulator_qdev(QDeviceIO):
             value = float(self.over_temp.text())
         except (TypeError, ValueError):
             # Revert to previously set value
-            value = self.dev.state.sub_temp
+            value = self.dev.state.over_temp
         except:
             raise
 

@@ -68,7 +68,7 @@ if __name__ == "__main__":
     DAQ_INTERVAL_MS = 500  # [ms]
 
     # --------------------------------------------------------------------------
-    #   Connect to power supply
+    #   Connect to Julabo
     # --------------------------------------------------------------------------
 
     julabo = Julabo_circulator(name="Julabo")

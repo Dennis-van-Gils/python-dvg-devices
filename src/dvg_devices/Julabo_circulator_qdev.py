@@ -81,6 +81,7 @@ class Julabo_circulator_qdev(QDeviceIO):
         self.safe_temp.setText("%.2f" % self.dev.state.safe_temp)
         self.sub_temp.setText("%.2f" % self.dev.state.sub_temp)
         self.over_temp.setText("%.2f" % self.dev.state.over_temp)
+        self.send_setpoint("%.2f" % self.dev.state.setpoint)
 
         self.update_GUI()
         self.update_GUI_input_field()
@@ -129,6 +130,7 @@ class Julabo_circulator_qdev(QDeviceIO):
         self.pbtn_running = create_Toggle_button("OFFLINE")
         self.pbtn_running.clicked.connect(self.process_pbtn_running)
         self.send_setpoint = QtWid.QLineEdit("nan", **p)
+        self.send_setpoint.textChanged.connect(self.send_setpoint_from_textbox)
         self.read_setpoint = QtWid.QLineEdit("nan", **p, readOnly=True)
         self.bath_temp = QtWid.QLineEdit("nan", **p, readOnly=True)
         self.pt100_temp = QtWid.QLineEdit("nan", **p, readOnly=True)

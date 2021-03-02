@@ -713,13 +713,6 @@ class Julabo_circulator(SerialDevice):
         w2 = 8  # Value width
 
         # Update readings
-        if C.setpoint_preset == 1:
-            setpoint = C.setpoint_1
-        elif C.setpoint_preset == 2:
-            setpoint = C.setpoint_2
-        else:
-            setpoint = C.setpoint_3
-
         if update_readings:
             self.query_common_readings()
 
@@ -733,7 +726,7 @@ class Julabo_circulator(SerialDevice):
         print("%-*s: %-*.2f" % (w1, "Safe temp.", w2, C.safe_temp))
         print()
         print("%s" % ("--> RUNNING <--" if C.running else "IDLE"))
-        print("%-*s: %-*.2f" % (w1, "Setpoint", w2, setpoint), end="")
+        print("%-*s: %-*.2f" % (w1, "Setpoint", w2, C.setpoint), end="")
         print("%-*s: %-*.2f" % (w1, "Bath temp.", w2, C.bath_temp))
         print("%-*s: %-*.2f" % (w1, "Safe sens", w2, C.safe_sens), end="")
         print("%-*s: %-*.2f" % (w1, "Pt100", w2, C.pt100_temp))

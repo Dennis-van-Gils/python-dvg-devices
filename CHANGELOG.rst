@@ -1,6 +1,10 @@
 Changelog
 =========
 
+0.2.4 (2021-03-02)
+------------------
+* Added device: Julabo circulator
+
 0.2.3 (2020-08-27)
 ------------------
 * Workaround for bug with unknown cause in ``Aim_TTi_PSU_protocol_RS232`` where

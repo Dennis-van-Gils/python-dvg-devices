@@ -1,6 +1,10 @@
 Changelog
 =========
 
+1.0.0 (2021-07-02)
+------------------
+* Stable release, identical to v0.2.6
+
 0.2.6 (2021-03-02)
 ------------------
 * Minor: Adjusted width of GUI control in ``Julabo_circulator_qdev.py``

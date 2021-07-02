@@ -24,7 +24,7 @@ def read(*names, **kwargs):
 
 setup(
     name="dvg-devices",
-    version="0.2.6",
+    version="1.0.0",
     license="MIT",
     description="Collection of I/O interfaces to communicate with microcontroller boards and laboratory devices, with optional PyQt5 multithread support and graphical user-interfaces.",
     long_description="%s\n%s"
@@ -82,7 +82,7 @@ setup(
         "dvg-pyqt-controls~=1.0",
         "dvg-pyqt-filelogger~=1.0",
         "dvg-pyqtgraph-threadsafe~=3.0",
-        "dvg-qdeviceio~=0.3.0",
+        "dvg-qdeviceio~=1.0",
         "matplotlib~=3.1",
         "numpy~=1.15",
         "pyqt5~=5.12",

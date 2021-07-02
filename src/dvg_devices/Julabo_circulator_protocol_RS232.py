@@ -11,6 +11,7 @@ __version__ = "0.2.4"
 # pylint: disable=bare-except, broad-except, bad-string-format-type
 
 import time
+from typing import Tuple
 import numpy as np
 import serial
 
@@ -86,7 +87,7 @@ class Julabo_circulator(SerialDevice):
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> (str, str):
+    def ID_validation_query(self) -> Tuple[str, str]:
         # Strange Julabo quirk: The first query always times out
         try:
             self.query("VERSION")

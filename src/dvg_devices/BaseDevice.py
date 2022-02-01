@@ -11,12 +11,12 @@ __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "27-08-2020"
-__version__ = "0.2.2"
+__version__ = "0.3.2"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
 import time
-from typing import AnyStr, Callable
+from typing import AnyStr, Callable, Tuple, Union
 from pathlib import Path
 
 # Use of `ast.literal_eval` got removed in v0.2.2 because it chokes on `nan`
@@ -35,7 +35,8 @@ class SerialDevice:
 
     The following functionality is offered:
 
-    * TODO: mention write(), query(), query_ascii_values() and close().
+    * TODO: mention `write()`, `query()`, `query_ascii_values()`,
+      `readline()` and `close()`.
 
     * Scanning over all serial ports to autoconnect to the desired serial
       device, based on the device's reply to a validation query.
@@ -262,6 +263,71 @@ class SerialDevice:
         self._valid_ID_specific = valid_ID_specific
 
     # --------------------------------------------------------------------------
+    #   readline
+    # --------------------------------------------------------------------------
+
+    def readline(
+        self, raises_on_timeout: bool = False, returns_ascii: bool = True,
+    ) -> Tuple[bool, Union[str, bytes, None]]:
+        """Listen to the Arduino for incoming data. This method is blocking
+        and returns when a full line has been received or when the serial read
+        timeout has expired.
+
+        Args:
+            raises_on_timeout (:obj:`bool`, optional):
+                Should an exception be raised when a read timeout occurs?
+
+                Default: :const:`False`
+
+            returns_ascii (:obj:`bool`, optional):
+                When set to :const:`True` the device's reply will be returned as
+                an ASCII string. Otherwise, it will return as bytes.
+
+                Default: :const:`True`
+
+        Returns:
+            :obj:`tuple`:
+                success (:obj:`bool`):
+                    True if successful, False otherwise.
+
+                reply (:obj:`str` | :obj:`bytes` | :obj:`None`):
+                    Reply received from the device, either as ASCII string
+                    (default) or as bytes when ``returns_ascii`` was set to
+                    :const:`False`. :obj:`None` if unsuccessful.
+        """
+
+        try:
+            reply = self.ser.readline()
+        except serial.SerialException as err:
+            # NOTE: The Serial library does not throw an exception when it
+            # times out in `read`, only when it times out in `write`! We
+            # will check for zero received bytes as indication for a read
+            # timeout, later. See: https://stackoverflow.com/questions/10978224/serialtimeoutexception-in-python-not-working-as-expected
+            pft(err)
+            return False, None
+        except Exception as err:
+            pft(err)
+            return False, None
+
+        if len(reply) == 0:
+            if raises_on_timeout:
+                raise serial.SerialException(
+                    "Received 0 bytes. Read probably timed out."
+                )
+            else:
+                pft("Received 0 bytes. Read probably timed out.")
+                return False, None
+
+        if returns_ascii:
+            try:
+                reply = reply.decode("utf8").strip()
+            except Exception as err:
+                pft(err)
+                return False, None
+
+        return True, reply
+
+    # --------------------------------------------------------------------------
     #   write
     # --------------------------------------------------------------------------
 
@@ -310,7 +376,7 @@ class SerialDevice:
         msg: AnyStr,
         raises_on_timeout: bool = False,
         returns_ascii: bool = True,
-    ) -> tuple:
+    ) -> Tuple[bool, Union[str, bytes, None]]:
         """Send a message to the serial device and subsequently read the reply.
 
         Args:
@@ -331,10 +397,10 @@ class SerialDevice:
 
         Returns:
             :obj:`tuple`:
-                - success (:obj:`bool`):
+                success (:obj:`bool`):
                     True if successful, False otherwise.
 
-                - reply (:obj:`str` | :obj:`bytes` | :obj:`None`):
+                reply (:obj:`str` | :obj:`bytes` | :obj:`None`):
                     Reply received from the device, either as ASCII string
                     (default) or as bytes when ``returns_ascii`` was set to
                     :const:`False`. :obj:`None` if unsuccessful.
@@ -395,7 +461,7 @@ class SerialDevice:
 
     def query_ascii_values(
         self, msg: str, delimiter="\t", raises_on_timeout: bool = False,
-    ) -> tuple:
+    ) -> Tuple[bool, list]:
         r"""Send a message to the serial device and subsequently read the reply.
         Expects a reply in the form of an ASCII string containing a list of
         numeric values, separated by a delimiter. These values will be parsed
@@ -418,10 +484,10 @@ class SerialDevice:
 
         Returns:
             :obj:`tuple`:
-                - success (:obj:`bool`):
+                success (:obj:`bool`):
                     True if successful, False otherwise.
 
-                - reply_list (:obj:`list`):
+                reply_list (:obj:`list`):
                     Reply received from the device and parsed into a list of
                     separate values. The list is empty if unsuccessful.
         """

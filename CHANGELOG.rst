@@ -1,6 +1,10 @@
 Changelog
 =========
 
+1.1.0 (2022-02-01)
+------------------
+* Added method ``BaseDevice.SerialDevice.readline()``
+
 1.0.0 (2021-07-02)
 ------------------
 * Stable release, identical to v0.2.6

@@ -10,6 +10,7 @@ Methods
 .. automethod:: dvg_devices.BaseDevice.SerialDevice.set_ID_validation_query
 .. automethod:: dvg_devices.BaseDevice.SerialDevice.set_read_termination
 .. automethod:: dvg_devices.BaseDevice.SerialDevice.set_write_termination
+.. automethod:: dvg_devices.BaseDevice.SerialDevice.readline
 .. automethod:: dvg_devices.BaseDevice.SerialDevice.write
 .. automethod:: dvg_devices.BaseDevice.SerialDevice.query
 .. automethod:: dvg_devices.BaseDevice.SerialDevice.query_ascii_values

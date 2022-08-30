@@ -26,7 +26,7 @@ class Arduino(SerialDevice):
     I also provide a C++ library for the Arduino(-like) device. It provides
     listening to a serial port for commands and act upon them. This library can be
     used in conjunction (but not required) with this Python module.
-    See https://github.com/Dennis-van-Gils/DvG_SerialCommand.
+    See https://github.com/Dennis-van-Gils/DvG_StreamCommand.
 
     .. rubric:: Most important methods inherited from :class:`~dvg_devices.BaseDevice.SerialDevice`:
 

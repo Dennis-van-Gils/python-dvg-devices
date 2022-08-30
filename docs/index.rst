@@ -34,7 +34,7 @@ Highlights
   a serial device, such as ``auto_connect()``, ``write()`` and ``query()``.
 
 * Class ``Arduino()`` which wraps around ``SerialDevice()``. In combination with
-  `DvG_SerialCommand <https://github.com/Dennis-van-Gils/DvG_SerialCommand>`_ it
+  `DvG_StreamCommand <https://github.com/Dennis-van-Gils/DvG_StreamCommand>`_ it
   allows for automatically connecting to your Arduino(-like) device and for easy
   serial I/O communication.
 

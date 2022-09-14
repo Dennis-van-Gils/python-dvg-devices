@@ -3,13 +3,59 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "18-08-2020"
-__version__ = "0.2.3"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
 
+# Mechanism to support both PyQt and PySide
+# -----------------------------------------
+import os
 import sys
 
-from PyQt5 import QtCore, QtGui
-from PyQt5 import QtWidgets as QtWid
+QT_LIB = os.getenv("PYQTGRAPH_QT_LIB")
+PYSIDE = "PySide"
+PYSIDE2 = "PySide2"
+PYSIDE6 = "PySide6"
+PYQT4 = "PyQt4"
+PYQT5 = "PyQt5"
+PYQT6 = "PyQt6"
+
+# pylint: disable=import-error, no-name-in-module
+# fmt: off
+if QT_LIB is None:
+    libOrder = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
+    for lib in libOrder:
+        if lib in sys.modules:
+            QT_LIB = lib
+            break
+
+if QT_LIB is None:
+    for lib in libOrder:
+        try:
+            __import__(lib)
+            QT_LIB = lib
+            break
+        except ImportError:
+            pass
+
+if QT_LIB is None:
+    raise Exception(
+        "Aim_TTi_PSU_demo requires PyQt5, PyQt6, PySide2 or PySide6; "
+        "none of these packages could be imported."
+    )
+
+if QT_LIB == PYQT5:
+    from PyQt5 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+elif QT_LIB == PYQT6:
+    from PyQt6 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+elif QT_LIB == PYSIDE2:
+    from PySide2 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+elif QT_LIB == PYSIDE6:
+    from PySide6 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+
+# fmt: on
+# pylint: enable=import-error, no-name-in-module
+# \end[Mechanism to support both PyQt and PySide]
+# -----------------------------------------------
 
 from dvg_pyqt_controls import SS_TEXTBOX_READ_ONLY, SS_GROUP
 from dvg_devices.Aim_TTi_PSU_protocol_RS232 import Aim_TTi_PSU
@@ -36,7 +82,9 @@ class MainWindow(QtWid.QWidget):
 
         hbox = QtWid.QHBoxLayout()
         hbox.addWidget(psu_qdev.grpb)
-        hbox.addWidget(self.pbtn_exit, alignment=QtCore.Qt.AlignTop)
+        hbox.addWidget(
+            self.pbtn_exit, alignment=QtCore.Qt.AlignmentFlag.AlignTop
+        )
         hbox.addStretch(1)
 
         vbox = QtWid.QVBoxLayout(self)
@@ -100,4 +148,7 @@ if __name__ == "__main__":
 
     window = MainWindow()
     window.show()
-    sys.exit(app.exec_())
+    if QT_LIB in (PYQT5, PYSIDE2):
+        sys.exit(app.exec_())
+    else:
+        sys.exit(app.exec())

@@ -1,30 +1,85 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""PyQt5 module to provide multithreaded communication and periodical data
+"""PyQt/Pyside module to provide multithreaded communication and periodical data
 acquisition for an Aim TTi power supply unit (PSU), QL series II.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "01-03-2021"
-__version__ = "0.2.3"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
+# pylint: disable=bare-except, broad-except, try-except-raise
 
 import time
 
-import numpy as np
-from PyQt5 import QtCore, QtGui
-from PyQt5 import QtWidgets as QtWid
+# Mechanism to support both PyQt and PySide
+# -----------------------------------------
+import os
+import sys
+
+QT_LIB = os.getenv("PYQTGRAPH_QT_LIB")
+PYSIDE = "PySide"
+PYSIDE2 = "PySide2"
+PYSIDE6 = "PySide6"
+PYQT4 = "PyQt4"
+PYQT5 = "PyQt5"
+PYQT6 = "PyQt6"
+
+# pylint: disable=import-error, no-name-in-module
+# fmt: off
+if QT_LIB is None:
+    libOrder = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
+    for lib in libOrder:
+        if lib in sys.modules:
+            QT_LIB = lib
+            break
+
+if QT_LIB is None:
+    for lib in libOrder:
+        try:
+            __import__(lib)
+            QT_LIB = lib
+            break
+        except ImportError:
+            pass
+
+if QT_LIB is None:
+    raise Exception(
+        "Aim_TTi_PSU_qdev requires PyQt5, PyQt6, PySide2 or PySide6; "
+        "none of these packages could be imported."
+    )
+
+if QT_LIB == PYQT5:
+    from PyQt5 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt5.QtCore import pyqtSlot as Slot              # type: ignore
+    from PyQt5.QtCore import pyqtSignal as Signal          # type: ignore
+elif QT_LIB == PYQT6:
+    from PyQt6 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt6.QtCore import pyqtSlot as Slot              # type: ignore
+    from PyQt6.QtCore import pyqtSignal as Signal          # type: ignore
+elif QT_LIB == PYSIDE2:
+    from PySide2 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide2.QtCore import Slot                        # type: ignore
+    from PySide2.QtCore import Signal                      # type: ignore
+elif QT_LIB == PYSIDE6:
+    from PySide6 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide6.QtCore import Slot                        # type: ignore
+    from PySide6.QtCore import Signal                      # type: ignore
+
+# fmt: on
+# pylint: enable=import-error, no-name-in-module
+# \end[Mechanism to support both PyQt and PySide]
+# -----------------------------------------------
 
 from dvg_pyqt_controls import create_Toggle_button, create_tiny_error_LED
 from dvg_debug_functions import dprint, print_fancy_traceback as pft
-from dvg_pid_controller import PID_Controller
 
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 from dvg_devices.Aim_TTi_PSU_protocol_RS232 import Aim_TTi_PSU
 
 # Monospace font
-FONT_MONOSPACE = QtGui.QFont("Monospace", 12, weight=QtGui.QFont.Bold)
-FONT_MONOSPACE.setStyleHint(QtGui.QFont.TypeWriter)
+FONT_MONOSPACE = QtGui.QFont("Monospace", 12, weight=QtGui.QFont.Weight.Bold)
+FONT_MONOSPACE.setStyleHint(QtGui.QFont.StyleHint.TypeWriter)
 
 # Enumeration
 class GUI_input_fields:
@@ -35,8 +90,8 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
     """Manages multithreaded communication and periodical data acquisition for
     an Aim TTi power supply unit (PSU), referred to as the 'device'.
 
-    In addition, it also provides PyQt5 GUI objects for control of the device.
-    These can be incorporated into your application.
+    In addition, it also provides PyQt/PySide GUI objects for control of the
+    device. These can be incorporated into your application.
 
     All device I/O operations will be offloaded to 'workers', each running in
     a newly created thread.
@@ -56,14 +111,14 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
         qgrp (PyQt5.QtWidgets.QGroupBox)
     """
 
-    signal_GUI_input_field_update = QtCore.pyqtSignal(int)
+    signal_GUI_input_field_update = Signal(int)
 
     def __init__(
         self,
         dev: Aim_TTi_PSU,
         DAQ_trigger=DAQ_TRIGGER.INTERNAL_TIMER,
         DAQ_interval_ms=200,
-        DAQ_timer_type=QtCore.Qt.CoarseTimer,
+        DAQ_timer_type=QtCore.Qt.TimerType.CoarseTimer,
         critical_not_alive_count=3,
         debug=False,
         **kwargs,
@@ -141,13 +196,19 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
 
     def create_GUI(self):
         # Measure
-        p = {"alignment": QtCore.Qt.AlignCenter, "font": FONT_MONOSPACE}
+        p = {
+            "alignment": QtCore.Qt.AlignmentFlag.AlignCenter,
+            "font": FONT_MONOSPACE,
+        }
         self.V_meas = QtWid.QLabel(" 0.000 V", **p)
         self.I_meas = QtWid.QLabel(" 0.000 A", **p)
         self.P_meas = QtWid.QLabel(" 0.000 W", **p)
 
         # Source
-        p = {"maximumWidth": 60, "alignment": QtCore.Qt.AlignRight}
+        p = {
+            "maximumWidth": 60,
+            "alignment": QtCore.Qt.AlignmentFlag.AlignRight,
+        }
         self.pbtn_ENA_output = create_Toggle_button("Output OFF")
         self.pbtn_ENA_output.clicked.connect(self.process_pbtn_ENA_output)
         self.V_source = QtWid.QLineEdit("0.000", **p)
@@ -183,8 +244,6 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
         self.lbl_update_counter = QtWid.QLabel("0")
 
         i = 0
-        p = {"alignment": QtCore.Qt.AlignLeft + QtCore.Qt.AlignVCenter}
-
         grid = QtWid.QGridLayout()
         grid.setVerticalSpacing(0)
         # fmt: off
@@ -199,22 +258,22 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
         grid.addItem(QtWid.QSpacerItem(1, 4)                , i, 0)      ; i+=1
         grid.addWidget(QtWid.QLabel("Voltage")              , i, 0, 1, 2)
         grid.addWidget(self.V_source                        , i, 2)
-        grid.addWidget(QtWid.QLabel("V", **p)               , i, 3)      ; i+=1
+        grid.addWidget(QtWid.QLabel("V")                    , i, 3)      ; i+=1
         grid.addItem(QtWid.QSpacerItem(1, 2)                , i, 0)      ; i+=1
         grid.addWidget(QtWid.QLabel("Current")              , i, 0, 1, 2)
         grid.addWidget(self.I_source                        , i, 2)
-        grid.addWidget(QtWid.QLabel("A", **p)               , i, 3)      ; i+=1
+        grid.addWidget(QtWid.QLabel("A")                    , i, 3)      ; i+=1
 
         grid.addItem(QtWid.QSpacerItem(1, 10)               , i, 0)      ; i+=1
         grid.addWidget(QtWid.QLabel("Protection:")          , i, 0, 1, 4); i+=1
         grid.addItem(QtWid.QSpacerItem(1, 4)                , i, 0)      ; i+=1
         grid.addWidget(QtWid.QLabel("OVP")                  , i, 0, 1, 2)
         grid.addWidget(self.OVP_level                       , i, 2)
-        grid.addWidget(QtWid.QLabel("V", **p)               , i, 3)      ; i+=1
+        grid.addWidget(QtWid.QLabel("V")                    , i, 3)      ; i+=1
         grid.addItem(QtWid.QSpacerItem(1, 2)                , i, 0)      ; i+=1
         grid.addWidget(QtWid.QLabel("OCP")                  , i, 0, 1, 2)
         grid.addWidget(self.OCP_level                       , i, 2)
-        grid.addWidget(QtWid.QLabel("A", **p)               , i, 3)      ; i+=1
+        grid.addWidget(QtWid.QLabel("A")                    , i, 3)      ; i+=1
 
         grid.addItem(QtWid.QSpacerItem(1, 10)               , i, 0)      ; i+=1
         grid.addWidget(self.status_LSR_TRIP_OVP             , i, 0)
@@ -246,8 +305,8 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
         grid.setColumnStretch(1, 0)
         grid.setColumnStretch(2, 0)
         grid.setColumnStretch(3, 1)
-        grid.setAlignment(QtCore.Qt.AlignTop)
-        # grid.setAlignment(QtCore.Qt.AlignLeft)
+        grid.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
+        # grid.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         self.grid = grid
 
         self.grpb = QtWid.QGroupBox("%s" % self.dev.name)
@@ -257,7 +316,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
     #   update_GUI
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def update_GUI(self):
         """NOTE: 'self.dev.mutex' is not being locked, because we are only
         reading 'state' for displaying purposes. We can do this because 'state'
@@ -290,7 +349,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
         else:
             self.V_meas.setText("")
             self.I_meas.setText("Offline")
-            self.I_meas.setAlignment(QtCore.Qt.AlignCenter)
+            self.I_meas.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             self.P_meas.setText("")
             self.grpb.setEnabled(False)
 
@@ -298,8 +357,8 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
     #   update_GUI_input_field
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
-    @QtCore.pyqtSlot(int)
+    @Slot()
+    @Slot(int)
     def update_GUI_input_field(self, GUI_input_field=GUI_input_fields.ALL):
         if GUI_input_field == GUI_input_fields.V_source:
             self.V_source.setText("%.3f" % self.dev.state.V_source)
@@ -323,7 +382,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
     #   GUI functions
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_pbtn_ENA_output(self):
         if self.pbtn_ENA_output.isChecked():
             # Clear output protection, if triggered and turn on output
@@ -332,11 +391,11 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
             # Turn off output
             self.send(self.dev.turn_off)
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_pbtn_reset_trips(self):
         self.send(self.dev.reset_trips)
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_pbtn_save_settings(self):
         str_title = "Save settings %s" % self.dev.name
         str_msg = (
@@ -368,7 +427,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
                     "Failed to save to disk:\n%s" % self.dev.path_config,
                 )
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_pbtn_load_settings(self):
         str_title = "Load settings %s" % self.dev.name
         str_msg = (
@@ -395,7 +454,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
             )
             self.process_jobs_queue()
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def send_V_source_from_textbox(self):
         try:
             voltage = float(self.V_source.text())
@@ -414,7 +473,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
         )
         self.process_jobs_queue()
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def send_I_source_from_textbox(self):
         try:
             current = float(self.I_source.text())
@@ -433,7 +492,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
         )
         self.process_jobs_queue()
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def send_OVP_level_from_textbox(self):
         try:
             OVP_level = float(self.OVP_level.text())
@@ -449,7 +508,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
         )
         self.process_jobs_queue()
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def send_OCP_level_from_textbox(self):
         try:
             OCP_level = float(self.OCP_level.text())

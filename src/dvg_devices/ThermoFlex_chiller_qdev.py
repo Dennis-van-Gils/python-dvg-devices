@@ -1,16 +1,73 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""PyQt5 module to provide multithreaded communication and periodical data
+"""PyQt/PySide module to provide multithreaded communication and periodical data
 acquisition for a Thermo Scientific ThermoFlex recirculating chiller.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "23-07-2020"
-__version__ = "0.2.1"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
+# pylint: disable=broad-except, try-except-raise
 
-from PyQt5 import QtCore, QtGui
-from PyQt5 import QtWidgets as QtWid
+# Mechanism to support both PyQt and PySide
+# -----------------------------------------
+import os
+import sys
+
+QT_LIB = os.getenv("PYQTGRAPH_QT_LIB")
+PYSIDE = "PySide"
+PYSIDE2 = "PySide2"
+PYSIDE6 = "PySide6"
+PYQT4 = "PyQt4"
+PYQT5 = "PyQt5"
+PYQT6 = "PyQt6"
+
+# pylint: disable=import-error, no-name-in-module
+# fmt: off
+if QT_LIB is None:
+    libOrder = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
+    for lib in libOrder:
+        if lib in sys.modules:
+            QT_LIB = lib
+            break
+
+if QT_LIB is None:
+    for lib in libOrder:
+        try:
+            __import__(lib)
+            QT_LIB = lib
+            break
+        except ImportError:
+            pass
+
+if QT_LIB is None:
+    raise Exception(
+        "ThermoFlex_chiller_qdev requires PyQt5, PyQt6, PySide2 or PySide6; "
+        "none of these packages could be imported."
+    )
+
+if QT_LIB == PYQT5:
+    from PyQt5 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt5.QtCore import pyqtSlot as Slot              # type: ignore
+    from PyQt5.QtCore import pyqtSignal as Signal          # type: ignore
+elif QT_LIB == PYQT6:
+    from PyQt6 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt6.QtCore import pyqtSlot as Slot              # type: ignore
+    from PyQt6.QtCore import pyqtSignal as Signal          # type: ignore
+elif QT_LIB == PYSIDE2:
+    from PySide2 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide2.QtCore import Slot                        # type: ignore
+    from PySide2.QtCore import Signal                      # type: ignore
+elif QT_LIB == PYSIDE6:
+    from PySide6 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide6.QtCore import Slot                        # type: ignore
+    from PySide6.QtCore import Signal                      # type: ignore
+
+# fmt: on
+# pylint: enable=import-error, no-name-in-module
+# \end[Mechanism to support both PyQt and PySide]
+# -----------------------------------------------
 
 from dvg_pyqt_controls import (
     create_Toggle_button,
@@ -32,8 +89,8 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
     a Thermo Scientific ThermoFlex recirculating chiller, referred to as the
     'device'.
 
-    In addition, it also provides PyQt5 GUI objects for control of the device.
-    These can be incorporated into your application.
+    In addition, it also provides PyQt/PySide GUI objects for control of the
+    device. These can be incorporated into your application.
 
     (*): See 'dvg_qdeviceio.QDeviceIO()' for details.
 
@@ -51,14 +108,14 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         hbly_GUI (PyQt5.QtWidgets.QHBoxLayout)
     """
 
-    signal_GUI_alarm_values_update = QtCore.pyqtSignal()
-    signal_GUI_PID_values_update = QtCore.pyqtSignal()
+    signal_GUI_alarm_values_update = Signal()
+    signal_GUI_PID_values_update = Signal()
 
     def __init__(
         self,
         dev: ThermoFlex_chiller,
         DAQ_interval_ms=1000,
-        DAQ_timer_type=QtCore.Qt.CoarseTimer,
+        DAQ_timer_type=QtCore.Qt.TimerType.CoarseTimer,
         critical_not_alive_count=1,
         debug=False,
         **kwargs,
@@ -119,7 +176,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         # Groupbox "Alarm values"
         # -----------------------
         p = {
-            "alignment": QtCore.Qt.AlignRight,
+            "alignment": QtCore.Qt.AlignmentFlag.AlignRight,
             "minimumWidth": 50,
             "maximumWidth": 30,
             "readOnly": True,
@@ -133,7 +190,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         self.pbtn_read_alarm_values = QtWid.QPushButton("Read")
         self.pbtn_read_alarm_values.setMinimumSize(50, 30)
 
-        p = {"alignment": QtCore.Qt.AlignCenter}
+        p = {"alignment": QtCore.Qt.AlignmentFlag.AlignCenter}
         grid = QtWid.QGridLayout()
         # fmt: off
         grid.addWidget(QtWid.QLabel("Values can be set in the chiller's menu",
@@ -162,7 +219,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         # Groupbox "PID feedback"
         # -----------------------
         p = {
-            "alignment": QtCore.Qt.AlignRight,
+            "alignment": QtCore.Qt.AlignmentFlag.AlignRight,
             "minimumWidth": 50,
             "maximumWidth": 30,
             "readOnly": True,
@@ -173,7 +230,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         self.pbtn_read_PID_values = QtWid.QPushButton("Read")
         self.pbtn_read_PID_values.setMinimumSize(50, 30)
 
-        p = {"alignment": QtCore.Qt.AlignCenter}
+        p = {"alignment": QtCore.Qt.AlignmentFlag.AlignCenter}
         grid = QtWid.QGridLayout()
         # fmt: off
         grid.addWidget(QtWid.QLabel("Values can be set in the chiller's menu",
@@ -221,7 +278,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         self.SB_high_pressure_factory  = create_tiny_error_LED()
         self.SB_low_pressure_factory   = create_tiny_error_LED()
 
-        p = {'alignment': QtCore.Qt.AlignRight}
+        p = {'alignment': QtCore.Qt.AlignmentFlag.AlignRight}
         grid = QtWid.QGridLayout()
         grid.addWidget(self.SB_tripped                            , 0, 0, 1, 2)
         grid.addItem(QtWid.QSpacerItem(1, 12)                          , 1, 0)
@@ -276,7 +333,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         # Groupbox "Control"
         # ------------------
         p = {
-            "alignment": QtCore.Qt.AlignRight,
+            "alignment": QtCore.Qt.AlignmentFlag.AlignRight,
             "minimumWidth": 50,
             "maximumWidth": 30,
         }
@@ -284,8 +341,8 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         self.lbl_offline = QtWid.QLabel(
             "OFFLINE",
             visible=False,
-            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Bold),
-            alignment=QtCore.Qt.AlignCenter,
+            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Weight.Bold),
+            alignment=QtCore.Qt.AlignmentFlag.AlignCenter,
         )
         # fmt: off
         self.pbtn_on       = create_Toggle_button("Off")
@@ -302,7 +359,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         grid.addWidget(self.lbl_offline                   , 0, 0, 1, 3)
         grid.addWidget(self.pbtn_on                       , 1, 0, 1, 3)
         grid.addWidget(QtWid.QLabel("Is powering up/down?",
-                       alignment=QtCore.Qt.AlignRight)    , 2, 0, 1, 2)
+         alignment=QtCore.Qt.AlignmentFlag.AlignRight)    , 2, 0, 1, 2)
         grid.addWidget(self.powering_down                 , 2, 2)
         grid.addItem(QtWid.QSpacerItem(1, 12)             , 3, 0)
         grid.addWidget(QtWid.QLabel("Send setpoint")      , 4, 0)
@@ -329,15 +386,15 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         grid.addWidget(QtWid.QLabel("Nominal values @ 15-02-2018:"), 12, 0, 1, 3)
         grid.addWidget(QtWid.QLabel("Read flow")                   , 13, 0)
         grid.addWidget(QtWid.QLabel("80  ",
-                                    alignment=QtCore.Qt.AlignRight), 13, 1)
+                      alignment=QtCore.Qt.AlignmentFlag.AlignRight), 13, 1)
         grid.addWidget(QtWid.QLabel("LPM")                         , 13, 2)
         grid.addWidget(QtWid.QLabel("Read supply")                 , 14, 0)
         grid.addWidget(QtWid.QLabel("2.9  ",
-                                    alignment=QtCore.Qt.AlignRight), 14, 1)
+                      alignment=QtCore.Qt.AlignmentFlag.AlignRight), 14, 1)
         grid.addWidget(QtWid.QLabel("bar")                         , 14, 2)
         grid.addWidget(QtWid.QLabel("Read suction")                , 15, 0)
         grid.addWidget(QtWid.QLabel("40  ",
-                                    alignment=QtCore.Qt.AlignRight), 15, 1)
+                      alignment=QtCore.Qt.AlignmentFlag.AlignRight), 15, 1)
         grid.addWidget(QtWid.QLabel("bar")                         , 15, 2)
         grid.addWidget(self.lbl_update_counter                     , 16, 0, 1, 2)
         # fmt: on
@@ -353,18 +410,22 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         vbox = QtWid.QVBoxLayout()
         vbox.addWidget(self.grpb_alarms)
         vbox.addWidget(self.grpb_PID)
-        vbox.setAlignment(self.grpb_alarms, QtCore.Qt.AlignTop)
-        vbox.setAlignment(self.grpb_PID, QtCore.Qt.AlignTop)
-        vbox.setAlignment(QtCore.Qt.AlignTop)
+        vbox.setAlignment(self.grpb_alarms, QtCore.Qt.AlignmentFlag.AlignTop)
+        vbox.setAlignment(self.grpb_PID, QtCore.Qt.AlignmentFlag.AlignTop)
+        vbox.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
 
         self.hbly_GUI = QtWid.QHBoxLayout()
         self.hbly_GUI.addLayout(vbox)
         self.hbly_GUI.addWidget(self.grpb_SBs)
         self.hbly_GUI.addWidget(self.grpb_control)
         self.hbly_GUI.addStretch(1)
-        self.hbly_GUI.setAlignment(self.grpb_SBs, QtCore.Qt.AlignTop)
-        self.hbly_GUI.setAlignment(self.grpb_control, QtCore.Qt.AlignTop)
-        self.hbly_GUI.setAlignment(QtCore.Qt.AlignTop)
+        self.hbly_GUI.setAlignment(
+            self.grpb_SBs, QtCore.Qt.AlignmentFlag.AlignTop
+        )
+        self.hbly_GUI.setAlignment(
+            self.grpb_control, QtCore.Qt.AlignmentFlag.AlignTop
+        )
+        self.hbly_GUI.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
 
         # tab_chiller.setLayout(self.hbly_GUI)
 
@@ -372,7 +433,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
     #   update_GUI
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def update_GUI(self):
         """NOTE: 'self.dev.mutex' is not being locked, because we are only
         reading 'state' for displaying purposes. We can do this because 'state'
@@ -448,7 +509,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
             self.pbtn_on.setVisible(False)
             self.lbl_offline.setVisible(True)
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def update_GUI_alarm_values(self):
         self.LO_flow.setText("%.1f" % self.dev.values_alarm.LO_flow)
         if self.dev.values_alarm.HI_flow == 0:
@@ -460,7 +521,7 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
         self.LO_temp.setText("%.1f" % self.dev.values_alarm.LO_temp)
         self.HI_temp.setText("%.1f" % self.dev.values_alarm.HI_temp)
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def update_GUI_PID_values(self):
         self.PID_P.setText("%.1f" % self.dev.values_PID.P)
         self.PID_I.setText("%.2f" % self.dev.values_PID.I)
@@ -470,26 +531,26 @@ class ThermoFlex_chiller_qdev(QDeviceIO):
     #   GUI functions
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_pbtn_on(self):
         if self.dev.status_bits.running:
             self.send(self.dev.turn_off)
         else:
             self.send(self.dev.turn_on)
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_pbtn_read_alarm_values(self):
         self.add_to_jobs_queue(self.dev.query_alarm_values_and_units)
         self.add_to_jobs_queue("signal_GUI_alarm_values_update")
         self.process_jobs_queue()
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_pbtn_read_PID_values(self):
         self.add_to_jobs_queue(self.dev.query_PID_values)
         self.add_to_jobs_queue("signal_GUI_PID_values_update")
         self.process_jobs_queue()
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def send_setpoint_from_textbox(self):
         try:
             setpoint = float(self.send_setpoint.text())

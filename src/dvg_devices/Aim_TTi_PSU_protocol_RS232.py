@@ -9,14 +9,14 @@ Note:
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "27-08-2020"
-__version__ = "0.2.3"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
 import os
 import sys
 import time
-from typing import AnyStr
+from typing import AnyStr, Tuple
 from pathlib import Path
 
 import numpy as np
@@ -27,8 +27,7 @@ from dvg_devices.BaseDevice import SerialDevice
 
 class Aim_TTi_PSU(SerialDevice):
     class State:
-        """Container for the process and measurement variables.
-        """
+        """Container for the process and measurement variables."""
 
         # fmt: off
         V_source = 0            # Voltage to be sourced         [V]
@@ -122,9 +121,9 @@ class Aim_TTi_PSU(SerialDevice):
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> (bool, str):
+    def ID_validation_query(self) -> Tuple[bool, str]:
         success = self.query_IDN()
-        return (success, self.serial_str)
+        return success, self.serial_str
 
     # --------------------------------------------------------------------------
     #   begin
@@ -319,8 +318,7 @@ class Aim_TTi_PSU(SerialDevice):
         return self.write_and_wait_for_opc("triprst")
 
     def set_OVP_level(self, voltage_V, channel: int = 1) -> bool:
-        """Returns: True if the message was sent successfully, False otherwise.
-        """
+        """Returns: True if the message was sent successfully, False otherwise."""
         try:
             voltage_V = float(voltage_V)
         except (ValueError, TypeError):
@@ -335,8 +333,7 @@ class Aim_TTi_PSU(SerialDevice):
         return False
 
     def set_OCP_level(self, current_A, channel: int = 1) -> bool:
-        """Returns: True if the message was sent successfully, False otherwise.
-        """
+        """Returns: True if the message was sent successfully, False otherwise."""
         try:
             current_A = float(current_A)
         except (ValueError, TypeError):
@@ -351,8 +348,7 @@ class Aim_TTi_PSU(SerialDevice):
         return False
 
     def query_OVP_level(self, channel: int = 1) -> bool:
-        """Returns: True if successful, False otherwise.
-        """
+        """Returns: True if successful, False otherwise."""
         success, reply = self.query("OVP%d?" % channel)
         if success:
             if reply[:3] == "VP%d" % channel:
@@ -364,8 +360,7 @@ class Aim_TTi_PSU(SerialDevice):
         return False
 
     def query_OCP_level(self, channel: int = 1) -> bool:
-        """Returns: True if successful, False otherwise.
-        """
+        """Returns: True if successful, False otherwise."""
         success, reply = self.query("OCP%d?" % channel)
         if success:
             if reply[:3] == "CP%d" % channel:
@@ -381,8 +376,7 @@ class Aim_TTi_PSU(SerialDevice):
     # --------------------------------------------------------------------------
 
     def reset_trips_and_turn_on(self, channel: int = 1) -> bool:
-        """Returns: True if the message was sent successfully, False otherwise.
-        """
+        """Returns: True if the message was sent successfully, False otherwise."""
         if self.write_and_wait_for_opc("triprst;*opc;OP%d 1" % channel):
             self.state.ENA_output = True
             return True
@@ -390,18 +384,15 @@ class Aim_TTi_PSU(SerialDevice):
         return False
 
     def turn_on(self, channel: int = 1) -> bool:
-        """Returns: True if the message was sent successfully, False otherwise.
-        """
+        """Returns: True if the message was sent successfully, False otherwise."""
         return self.set_ENA_output(ENA=True, channel=channel)
 
     def turn_off(self, channel: int = 1) -> bool:
-        """Returns: True if the message was sent successfully, False otherwise.
-        """
+        """Returns: True if the message was sent successfully, False otherwise."""
         return self.set_ENA_output(ENA=False, channel=channel)
 
     def set_ENA_output(self, ENA: bool, channel: int = 1) -> bool:
-        """Returns: True if the message was sent successfully, False otherwise.
-        """
+        """Returns: True if the message was sent successfully, False otherwise."""
         if self.write_and_wait_for_opc("OP%d %d" % (channel, ENA)):
             self.state.ENA_output = ENA
             return True
@@ -409,8 +400,7 @@ class Aim_TTi_PSU(SerialDevice):
         return False
 
     def set_V_source(self, voltage_V, channel: int = 1) -> bool:
-        """Returns: True if the message was sent successfully, False otherwise.
-        """
+        """Returns: True if the message was sent successfully, False otherwise."""
         try:
             voltage_V = float(voltage_V)
         except (ValueError, TypeError):
@@ -425,8 +415,7 @@ class Aim_TTi_PSU(SerialDevice):
         return False
 
     def set_I_source(self, current_A, channel: int = 1) -> bool:
-        """Returns: True if the message was sent successfully, False otherwise.
-        """
+        """Returns: True if the message was sent successfully, False otherwise."""
         try:
             current_A = float(current_A)
         except (ValueError, TypeError):
@@ -441,13 +430,12 @@ class Aim_TTi_PSU(SerialDevice):
         return False
 
     def query_ENA_output(self, channel: int = 1) -> bool:
-        """Returns: True if the query was received successfully, False otherwise.
-        """
+        """Returns: True if the query was received successfully, False otherwise."""
         success, reply = self.query("OP%d?" % channel)
         if success:
             try:
                 self.state.ENA_output = bool(int(reply))
-            except Exception as err:
+            except:
                 pft("Received incorrect reply: %s" % reply)
                 self.ser.flushOutput()
                 self.ser.flushInput()
@@ -455,8 +443,7 @@ class Aim_TTi_PSU(SerialDevice):
         return success
 
     def query_V_source(self, channel: int = 1) -> bool:
-        """Returns: True if the query was received successfully, False otherwise.
-        """
+        """Returns: True if the query was received successfully, False otherwise."""
         success, reply = self.query("V%d?" % channel)
         if success:
             if reply[:2] == "V%d" % channel:
@@ -470,8 +457,7 @@ class Aim_TTi_PSU(SerialDevice):
         return False
 
     def query_V_meas(self, channel: int = 1) -> bool:
-        """Returns: True if the query was received successfully, False otherwise.
-        """
+        """Returns: True if the query was received successfully, False otherwise."""
         success, reply = self.query("V%dO?" % channel)
         if success:
             if reply[-1:] == "V":
@@ -486,8 +472,7 @@ class Aim_TTi_PSU(SerialDevice):
         return False
 
     def query_I_source(self, channel: int = 1) -> bool:
-        """Returns: True if the query was received successfully, False otherwise.
-        """
+        """Returns: True if the query was received successfully, False otherwise."""
         success, reply = self.query("I%d?" % channel)
         if success:
             if reply[:2] == "I%d" % channel:
@@ -501,8 +486,7 @@ class Aim_TTi_PSU(SerialDevice):
         return False
 
     def query_I_meas(self, channel: int = 1) -> bool:
-        """Returns: True if the query was received successfully, False otherwise.
-        """
+        """Returns: True if the query was received successfully, False otherwise."""
         success, reply = self.query("I%dO?" % channel)
         if success:
             if reply[-1:] == "A":
@@ -521,8 +505,7 @@ class Aim_TTi_PSU(SerialDevice):
     # --------------------------------------------------------------------------
 
     def speed_test(self):
-        """Results: Each iteration takes 80 ms to finish.
-        """
+        """Results: Each iteration takes 80 ms to finish."""
         self.turn_off()  # Disable output for safety
 
         tic = time.perf_counter()
@@ -534,8 +517,7 @@ class Aim_TTi_PSU(SerialDevice):
         self.report()
 
     def speed_test2(self):
-        """Results: Each iteration takes 8 ms to finish.
-        """
+        """Results: Each iteration takes 8 ms to finish."""
 
         tic = time.perf_counter()
         for i in range(100):
@@ -559,8 +541,7 @@ class Aim_TTi_PSU(SerialDevice):
     # --------------------------------------------------------------------------
 
     def report(self, channel: int = 1):
-        """Report to the terminal.
-        """
+        """Report to the terminal."""
         self.query_LSR(verbose=True, channel=channel)
         self.query_ENA_output(channel=channel)
         self.query_OVP_level(channel=channel)

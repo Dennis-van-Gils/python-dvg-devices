@@ -15,15 +15,17 @@ also uses the SCPI protocol.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "20-07-2020"
-__version__ = "0.2.1"
-# pylint: disable=try-except-raise
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
+# pylint: disable=try-except-raise, bare-except, pointless-string-statement
 
 import os
 import time
 from pathlib import Path
 
-import visa
+# NOTE: Current demanded requirement pyvisa~=1.11 was ~=1.9 before. 1.11 has
+# broken backwards comp. Still need to test if all is still fine.
+import pyvisa
 import numpy as np
 
 from dvg_debug_functions import print_fancy_traceback as pft
@@ -127,7 +129,7 @@ class Keysight_N8700:
     # --------------------------------------------------------------------------
 
     def close(self):
-        if not self.is_alive:
+        if (not self.is_alive) or (self.device is None):
             # print("ERROR: Device is already closed.")
             pass  # Remain silent. Device is already closed.
         else:
@@ -144,7 +146,7 @@ class Keysight_N8700:
         and its identity is queried and stored in '_idn'.
 
         Args:
-            rm: Instance of visa.ResourceManager
+            rm: Instance of pyvisa.ResourceManager
 
         Returns: True if successful, False otherwise.
         """
@@ -157,7 +159,7 @@ class Keysight_N8700:
                 self._visa_address, timeout=VISA_TIMEOUT
             )
             self.device.clear()
-        except visa.VisaIOError:
+        except pyvisa.VisaIOError:
             print("Could not open resource.\n")
             return False
         except:
@@ -170,8 +172,8 @@ class Keysight_N8700:
         if success:
             print("  %s\n" % self._idn)
             return True
-        else:
-            return False
+
+        return False
 
     # --------------------------------------------------------------------------
     #   begin
@@ -280,7 +282,7 @@ class Keysight_N8700:
 
         try:
             self.device.write(msg_str)
-        except visa.VisaIOError as err:
+        except pyvisa.VisaIOError as err:
             # Print error and struggle on
             pft(err)
             return False
@@ -313,7 +315,7 @@ class Keysight_N8700:
         else:
             try:
                 ans_str = self.device.query(msg_str)
-            except visa.VisaIOError as err:
+            except pyvisa.VisaIOError as err:
                 # Print error and struggle on
                 pft(err)
             except:
@@ -322,7 +324,7 @@ class Keysight_N8700:
                 ans_str = ans_str.strip()
                 success = True
 
-        return (success, ans_str)
+        return success, ans_str
 
     # --------------------------------------------------------------------------
     #   System status related
@@ -341,8 +343,7 @@ class Keysight_N8700:
         else:
             # The reset operation can take a long time to complete. Momentarily
             # increase the timeout to 2000 msec if necessary.
-            if self.device.timeout < 2000:
-                self.device.timeout = 2000
+            self.device.timeout = max(self.device.timeout, 2000)
 
             # Send clear and reset
             success = self.write("*cls;*rst")
@@ -365,12 +366,12 @@ class Keysight_N8700:
         """
         # Returns an ASCII "+1" when all pending overlapped operations have been
         # completed.
-        (success, ans) = self.query("*opc?")
+        success, ans = self.query("*opc?")
         if success and ans == "1":
             return True
-        else:
-            print("Warning: *opc? timed out at device %s" % self.name)
-            return False
+
+        print("Warning: *opc? timed out at device %s" % self.name)
+        return False
 
     def wait_for_OPC_indefinitely(self):
         """Poll OPC status bit for 'operation complete', used for event
@@ -736,38 +737,38 @@ class Keysight_N8700:
     # --------------------------------------------------------------------------
 
     def speed_test(self):
-        """ Results:
+        """Results:
         Each iteration takes 208 ms to finish.
         Total time ~ 20.8 s
         """
         self.set_ENA_output(False)  # Disable output for safety
         self.wait_for_OPC()
 
-        tic = time.time()
+        tic = time.perf_counter()
 
         for i in range(100):
             self.set_V_source(i)
             self.wait_for_OPC()
 
-        print(time.time() - tic)
+        print(time.perf_counter() - tic)
         self.report()
 
     def speed_test2(self):
-        """ Results:
+        """Results:
         Each iteration takes 43 ms to finish.
         Total time ~ 4.3 s
         """
         self.set_ENA_output(False)  # Disable output for safety
         self.wait_for_OPC()
 
-        tic = time.time()
+        tic = time.perf_counter()
 
         for i in range(100):
             self.set_V_source(i)
 
         self.wait_for_OPC_indefinitely()
 
-        print(time.time() - tic)
+        print(time.perf_counter() - tic)
         self.report()
 
     # --------------------------------------------------------------------------
@@ -775,8 +776,7 @@ class Keysight_N8700:
     # --------------------------------------------------------------------------
 
     def report(self):
-        """Report to terminal.
-        """
+        """Report to terminal."""
         print("\nQuestionable condition")
         print(chr(0x2015) * 26)
         self.query_status_QC(True)

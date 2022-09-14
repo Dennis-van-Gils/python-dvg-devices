@@ -45,7 +45,7 @@ if QT_LIB is None:
 
 if QT_LIB is None:
     raise Exception(
-        "______________ requires PyQt5, PyQt6, PySide2 or PySide6; "
+        "Keysight_N8700_qdev requires PyQt5, PyQt6, PySide2 or PySide6; "
         "none of these packages could be imported."
     )
 

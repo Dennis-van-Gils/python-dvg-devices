@@ -1,6 +1,10 @@
 Changelog
 =========
 
+1.2.0 (2022-09-14)
+------------------
+* Added support for PyQt5, PyQt6, PySide2 and PySide6
+
 1.1.0 (2022-02-01)
 ------------------
 * Added method ``BaseDevice.SerialDevice.readline()``

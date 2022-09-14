@@ -24,9 +24,9 @@ def read(*names, **kwargs):
 
 setup(
     name="dvg-devices",
-    version="1.1.0",
+    version="1.2.0",
     license="MIT",
-    description="Collection of I/O interfaces to communicate with microcontroller boards and laboratory devices, with optional PyQt5 multithread support and graphical user-interfaces.",
+    description="Collection of I/O interfaces to communicate with microcontroller boards and laboratory devices, with optional PyQt/PySide multithread support and graphical user-interfaces.",
     long_description="%s\n%s"
     % (
         re.compile("^.. start-badges.*^.. end-badges", re.M | re.S).sub(
@@ -45,7 +45,7 @@ setup(
     zip_safe=False,
     classifiers=[
         # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
-        #'Development Status :: 5 - Production/Stable',
+        "Development Status :: 5 - Production/Stable",
         "License :: OSI Approved :: MIT License",
         "Intended Audience :: Developers",
         "Intended Audience :: Science/Research",
@@ -55,6 +55,7 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Topic :: Scientific/Engineering ",
         "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
         "Topic :: Scientific/Engineering :: Physics",
@@ -63,13 +64,16 @@ setup(
         "Issue Tracker": "https://github.com/Dennis-van-Gils/python-dvg-devices/issues",
     },
     keywords=[
+        "PyQt5",
+        "PyQt6",
+        "PySide2",
+        "PySide6",
         "device I/O",
         "automation",
         "laboratory",
         "science",
         "control",
         "experiment",
-        "PyQt5",
         "multithread",
         "Arduino",
         "serial",
@@ -77,17 +81,21 @@ setup(
     ],
     python_requires=">=3.6",
     install_requires=[
-        "dvg-debug-functions~=2.1",
+        "dvg-debug-functions~=2.2",
         "dvg-pid-controller~=2.0",
-        "dvg-pyqt-controls~=1.0",
-        "dvg-pyqt-filelogger~=1.1",
-        "dvg-pyqtgraph-threadsafe~=3.1",
-        "dvg-qdeviceio~=1.0",
+        "dvg-pyqt-controls~=1.2",
+        "dvg-pyqt-filelogger~=1.2",
+        "dvg-pyqtgraph-threadsafe~=3.2",
+        "dvg-qdeviceio~=1.1",
         "matplotlib~=3.1",
         "numpy~=1.15",
-        "pyqt5~=5.12",
         "pyserial~=3.4",
         "pyvisa~=1.9",
     ],
-    extras_require={},
+    extras_require={
+        "pyqt5": ["pyqt5~=5.12"],
+        "pyqt6": ["pyqt6"],
+        "pyside2": ["pyside2"],
+        "pyside6": ["pyside6"],
+    },
 )

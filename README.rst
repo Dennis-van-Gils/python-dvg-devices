@@ -15,8 +15,10 @@
 DvG_Devices
 =============
 *Collection of I/O interfaces to communicate with microcontroller boards and
-laboratory devices, with optional PyQt5 multithread support and graphical
+laboratory devices, with optional PyQt/PySide multithread support and graphical
 user-interfaces.*
+
+Supports PyQt5, PyQt6, PySide2 and PySide6.
 
 - Documentation: https://python-dvg-devices.readthedocs.io
 - Github: https://github.com/Dennis-van-Gils/python-dvg-devices
@@ -25,6 +27,10 @@ user-interfaces.*
 Installation::
 
     pip install dvg-devices
+
+Installation with an optional Qt-library::
+
+    pip install dvg-devices[pyqt5/pyqt6/pyside2/pyside6]
 
 Supported devices
 -----------------
@@ -52,9 +58,9 @@ Highlights
   allows for automatically connecting to your Arduino(-like) device and for easy
   serial I/O communication.
 
-* Separate PyQt5 interfaces are provided for each of these devices, offering
-  out-of-the-box multithreaded data acquisition and communication. It relies on
-  `DvG_QDeviceIO <https://python-dvg-qdeviceio.readthedocs.io>`_.
+* Separate PyQt/PySide interfaces are provided for each of these devices,
+  offering out-of-the-box multithreaded data acquisition and communication. It
+  relies on `DvG_QDeviceIO <https://python-dvg-qdeviceio.readthedocs.io>`_.
 
-* Ready-to-run PyQt5 demos to directly control many of the supported
+* Ready-to-run PyQt/PySide demos to directly control many of the supported
   devices with a graphical user-interface.

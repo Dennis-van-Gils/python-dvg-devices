@@ -23,7 +23,7 @@ copyright = "2022, Dennis van Gils"
 author = "Dennis van Gils"
 
 # The full version, including alpha/beta/rc tags
-release = "1.1.0"
+release = "1.2.0"
 
 # -- General configuration ---------------------------------------------------
 
@@ -39,7 +39,6 @@ extensions = [
 ]
 
 intersphinx_mapping = {
-    "PyQt5": ("https://www.riverbankcomputing.com/static/Docs/PyQt5/", None),
     "NumPy": ("https://numpy.org/doc/stable/", None),
     "python": ("https://docs.python.org/3", None),
     "serial": ("https://pyserial.readthedocs.io/en/latest/", None),
@@ -49,7 +48,7 @@ intersphinx_mapping = {
     ),
 }
 
-qt_documentation = "Qt5"
+qt_documentation = "PyQt5"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

@@ -15,12 +15,12 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "15-07-2020"
-__version__ = "0.2.1"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
-from typing import Union
+from typing import Union, Tuple
 import time
 
 import numpy as np
@@ -190,7 +190,7 @@ class ThermoFlex_chiller(SerialDevice):
         msg: Union[str, bytes],
         raises_on_timeout: bool = False,
         returns_ascii: bool = True,
-    ) -> tuple:
+    ) -> Tuple[bool, Union[str, bytes, None]]:
         success, reply = super().query(
             msg, raises_on_timeout, returns_ascii=False  # Binary I/O, not ASCII
         )
@@ -215,14 +215,14 @@ class ThermoFlex_chiller(SerialDevice):
         if reply is None:
             reply = np.nan
 
-        return (success, reply)
+        return success, reply
 
     # --------------------------------------------------------------------------
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> (bool, None):
-        return (self.query_Ack(), None)
+    def ID_validation_query(self) -> Tuple[bool, None]:
+        return self.query_Ack(), None
 
     # --------------------------------------------------------------------------
     #   begin
@@ -279,9 +279,9 @@ class ThermoFlex_chiller(SerialDevice):
         if success:
             value, uom = self.parse_data_bytes(ans_bytes)
         if not np.isnan(value):
-            return [True, value, uom]
-        else:
-            return [False, np.nan, np.nan]
+            return True, value, uom
+
+        return False, np.nan, np.nan
 
     # --------------------------------------------------------------------------
     #   add_checksum
@@ -441,7 +441,7 @@ class ThermoFlex_chiller(SerialDevice):
     # --------------------------------------------------------------------------
 
     def turn_off(self):
-        """ Turn the chiller off.
+        """Turn the chiller off.
 
         Returns: The effected on/off state of the chiller, or [numpy.nan] if
         unsuccessful.
@@ -452,11 +452,11 @@ class ThermoFlex_chiller(SerialDevice):
         success, ans_bytes = self.query(msg_bytes)
         if success:
             return bool(ans_bytes[5])  # return resulting on/off state
-        else:
-            return np.nan
+
+        return np.nan
 
     def turn_on(self):
-        """ Turn the chiller on.
+        """Turn the chiller on.
 
         Returns: The effected on/off state of the chiller, or [numpy.nan] if
         unsuccessful.
@@ -467,8 +467,8 @@ class ThermoFlex_chiller(SerialDevice):
         success, ans_bytes = self.query(msg_bytes)
         if success:
             return bool(ans_bytes[5])  # return resulting on/off state
-        else:
-            return np.nan
+
+        return np.nan
 
     def query_is_on(self):
         """Query the on/off state of the chiller.
@@ -483,8 +483,8 @@ class ThermoFlex_chiller(SerialDevice):
         success, ans_bytes = self.query(msg_bytes)
         if success:
             return bool(ans_bytes[5])  # return resulting on/off state
-        else:
-            return np.nan
+
+        return np.nan
 
     # --------------------------------------------------------------------------
     #   query_Ack
@@ -503,8 +503,8 @@ class ThermoFlex_chiller(SerialDevice):
             | (ans_bytes == bytes(RS232_START + [0x00, 0x02, 0x00, 0x01, 0xFB]))
         ):
             return True
-        else:
-            return False
+
+        return False
 
     # --------------------------------------------------------------------------
     #   Request HI/LO alarm values
@@ -758,8 +758,8 @@ class ThermoFlex_chiller(SerialDevice):
         success, ans_bytes = self.query(msg_bytes)
         if success:
             return self.parse_ASCII_bytes(ans_bytes)
-        else:
-            return None
+
+        return None
 
     # --------------------------------------------------------------------------
     #   send_setpoint

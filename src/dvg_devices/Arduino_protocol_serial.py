@@ -3,10 +3,11 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "15-07-2020"
-__version__ = "0.2.1"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
 
 import sys
+from typing import Tuple
 
 from dvg_devices.BaseDevice import SerialDevice
 
@@ -44,7 +45,10 @@ class Arduino(SerialDevice):
     """
 
     def __init__(
-        self, name="Ard_1", long_name="Arduino", connect_to_specific_ID=None,
+        self,
+        name="Ard_1",
+        long_name="Arduino",
+        connect_to_specific_ID=None,
     ):
         super().__init__(name=name, long_name=long_name)
 
@@ -67,14 +71,14 @@ class Arduino(SerialDevice):
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> (str, str):
+    def ID_validation_query(self) -> Tuple[str, str]:
         # Expected: reply = "Arduino, [specific ID]"
         _success, reply = self.query("id?")
         reply = reply.split(",")
         reply_broad = reply[0].strip()  # "Arduino"
         reply_specific = reply[1].strip() if len(reply) > 1 else None
 
-        return (reply_broad, reply_specific)
+        return reply_broad, reply_specific
 
 
 # ------------------------------------------------------------------------------

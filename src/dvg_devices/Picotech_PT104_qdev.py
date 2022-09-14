@@ -1,18 +1,70 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""PyQt5 module to provide multithreaded communication and periodical data
+"""PyQt/PySide module to provide multithreaded communication and periodical data
 acquisition for a Picotech PT-104 pt100/1000 temperature logger.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "23-07-2020"
-__version__ = "0.2.1"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
+
+# Mechanism to support both PyQt and PySide
+# -----------------------------------------
+import os
+import sys
+
+QT_LIB = os.getenv("PYQTGRAPH_QT_LIB")
+PYSIDE = "PySide"
+PYSIDE2 = "PySide2"
+PYSIDE6 = "PySide6"
+PYQT4 = "PyQt4"
+PYQT5 = "PyQt5"
+PYQT6 = "PyQt6"
+
+# pylint: disable=import-error, no-name-in-module
+# fmt: off
+if QT_LIB is None:
+    libOrder = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
+    for lib in libOrder:
+        if lib in sys.modules:
+            QT_LIB = lib
+            break
+
+if QT_LIB is None:
+    for lib in libOrder:
+        try:
+            __import__(lib)
+            QT_LIB = lib
+            break
+        except ImportError:
+            pass
+
+if QT_LIB is None:
+    raise Exception(
+        "Picotech_PT104_qdev requires PyQt5, PyQt6, PySide2 or PySide6; "
+        "none of these packages could be imported."
+    )
+
+if QT_LIB == PYQT5:
+    from PyQt5 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt5.QtCore import pyqtSlot as Slot              # type: ignore
+elif QT_LIB == PYQT6:
+    from PyQt6 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt6.QtCore import pyqtSlot as Slot              # type: ignore
+elif QT_LIB == PYSIDE2:
+    from PySide2 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide2.QtCore import Slot                        # type: ignore
+elif QT_LIB == PYSIDE6:
+    from PySide6 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide6.QtCore import Slot                        # type: ignore
+
+# fmt: on
+# pylint: enable=import-error, no-name-in-module
+# \end[Mechanism to support both PyQt and PySide]
+# -----------------------------------------------
 
 import numpy as np
-
-from PyQt5 import QtCore, QtGui
-from PyQt5 import QtWidgets as QtWid
 
 from dvg_pyqt_controls import SS_GROUP
 
@@ -27,8 +79,8 @@ class Picotech_PT104_qdev(QDeviceIO):
     """Manages multithreaded communication and periodical data acquisition for
     a Picotech PT-104 pt100/1000 temperature logger referred to as the 'device'.
 
-    In addition, it also provides PyQt5 GUI objects for control of the device.
-    These can be incorporated into your application.
+    In addition, it also provides PyQt/PySide GUI objects for control of the
+    device. These can be incorporated into your application.
 
     NOTE: Each PT-104 reading takes roughly 720 ms per channel.
 
@@ -62,7 +114,7 @@ class Picotech_PT104_qdev(QDeviceIO):
         self,
         dev: Picotech_PT104,
         DAQ_interval_ms=1000,
-        DAQ_timer_type=QtCore.Qt.CoarseTimer,
+        DAQ_timer_type=QtCore.Qt.TimerType.CoarseTimer,
         critical_not_alive_count=np.nan,
         debug=False,
         **kwargs,
@@ -99,11 +151,14 @@ class Picotech_PT104_qdev(QDeviceIO):
         self.qlbl_offline = QtWid.QLabel(
             "OFFLINE",
             visible=False,
-            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Bold),
-            alignment=QtCore.Qt.AlignCenter,
+            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Weight.Bold),
+            alignment=QtCore.Qt.AlignmentFlag.AlignCenter,
         )
 
-        p = {"alignment": QtCore.Qt.AlignRight, "minimumWidth": 60}
+        p = {
+            "alignment": QtCore.Qt.AlignmentFlag.AlignRight,
+            "minimumWidth": 60,
+        }
         self.qled_T_ch1 = QtWid.QLineEdit(**p, readOnly=True)
         self.qled_T_ch2 = QtWid.QLineEdit(**p, readOnly=True)
         self.qled_T_ch3 = QtWid.QLineEdit(**p, readOnly=True)
@@ -137,7 +192,7 @@ class Picotech_PT104_qdev(QDeviceIO):
     #   update_GUI
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def update_GUI(self):
         """NOTE: 'self.dev.mutex' is not being locked, because we are only
         reading 'state' for displaying purposes. We can do this because 'state'

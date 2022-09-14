@@ -1,18 +1,77 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""PyQt5 module to provide multithreaded communication and periodical data
+"""PyQt/PySide module to provide multithreaded communication and periodical data
 acquisition for a Keysight N8700 power supply (PSU).
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "23-07-2020"
-__version__ = "0.2.1"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
+# pylint: disable=try-except-raise, broad-except
+
+import time
+
+# Mechanism to support both PyQt and PySide
+# -----------------------------------------
+import os
+import sys
+
+QT_LIB = os.getenv("PYQTGRAPH_QT_LIB")
+PYSIDE = "PySide"
+PYSIDE2 = "PySide2"
+PYSIDE6 = "PySide6"
+PYQT4 = "PyQt4"
+PYQT5 = "PyQt5"
+PYQT6 = "PyQt6"
+
+# pylint: disable=import-error, no-name-in-module
+# fmt: off
+if QT_LIB is None:
+    libOrder = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
+    for lib in libOrder:
+        if lib in sys.modules:
+            QT_LIB = lib
+            break
+
+if QT_LIB is None:
+    for lib in libOrder:
+        try:
+            __import__(lib)
+            QT_LIB = lib
+            break
+        except ImportError:
+            pass
+
+if QT_LIB is None:
+    raise Exception(
+        "______________ requires PyQt5, PyQt6, PySide2 or PySide6; "
+        "none of these packages could be imported."
+    )
+
+if QT_LIB == PYQT5:
+    from PyQt5 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt5.QtCore import pyqtSlot as Slot              # type: ignore
+    from PyQt5.QtCore import pyqtSignal as Signal          # type: ignore
+elif QT_LIB == PYQT6:
+    from PyQt6 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt6.QtCore import pyqtSlot as Slot              # type: ignore
+    from PyQt6.QtCore import pyqtSignal as Signal          # type: ignore
+elif QT_LIB == PYSIDE2:
+    from PySide2 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide2.QtCore import Slot                        # type: ignore
+    from PySide2.QtCore import Signal                      # type: ignore
+elif QT_LIB == PYSIDE6:
+    from PySide6 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide6.QtCore import Slot                        # type: ignore
+    from PySide6.QtCore import Signal                      # type: ignore
+
+# fmt: on
+# pylint: enable=import-error, no-name-in-module
+# \end[Mechanism to support both PyQt and PySide]
+# -----------------------------------------------
 
 import numpy as np
-
-from PyQt5 import QtCore, QtGui
-from PyQt5 import QtWidgets as QtWid
 
 from dvg_pyqt_controls import (
     create_Toggle_button,
@@ -27,25 +86,20 @@ from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 from dvg_devices.Keysight_N8700_protocol_SCPI import Keysight_N8700
 
 # Monospace font
-FONT_MONOSPACE = QtGui.QFont("Monospace", 12, weight=QtGui.QFont.Bold)
-FONT_MONOSPACE.setStyleHint(QtGui.QFont.TypeWriter)
+FONT_MONOSPACE = QtGui.QFont("Monospace", 12, weight=QtGui.QFont.Weight.Bold)
+FONT_MONOSPACE.setStyleHint(QtGui.QFont.StyleHint.TypeWriter)
 
 # Enumeration
 class GUI_input_fields:
     [ALL, OVP_level, V_source, I_source, P_source] = range(5)
 
 
-# Short-hand alias for DEBUG information
-def get_tick():
-    return QtCore.QDateTime.currentMSecsSinceEpoch()
-
-
 class Keysight_N8700_qdev(QDeviceIO):
     """Manages multithreaded communication and periodical data acquisition for
     a Keysight N8700 power supply (PSU), referred to as the 'device'.
 
-    In addition, it also provides PyQt5 GUI objects for control of the device.
-    These can be incorporated into your application.
+    In addition, it also provides PyQt/PySide GUI objects for control of the
+    device. These can be incorporated into your application.
 
     All device I/O operations will be offloaded to 'workers', each running in
     a newly created thread.
@@ -66,14 +120,14 @@ class Keysight_N8700_qdev(QDeviceIO):
         qgrp (PyQt5.QtWidgets.QGroupBox)
     """
 
-    signal_GUI_input_field_update = QtCore.pyqtSignal(int)
+    signal_GUI_input_field_update = Signal(int)
 
     def __init__(
         self,
         dev: Keysight_N8700,
         DAQ_trigger=DAQ_TRIGGER.INTERNAL_TIMER,
         DAQ_interval_ms=200,
-        DAQ_timer_type=QtCore.Qt.CoarseTimer,
+        DAQ_timer_type=QtCore.Qt.TimerType.CoarseTimer,
         critical_not_alive_count=1,
         debug=False,
         **kwargs,
@@ -110,7 +164,7 @@ class Keysight_N8700_qdev(QDeviceIO):
     def DAQ_function(self):
         DEBUG_local = False
         if DEBUG_local:
-            tick = get_tick()
+            tick = time.perf_counter()
 
         # Clear input and output buffers of the device. Seems to resolve
         # intermittent communication time-outs.
@@ -183,17 +237,17 @@ class Keysight_N8700_qdev(QDeviceIO):
             self.dev.set_ENA_output(False)
 
         if DEBUG_local:
-            tock = get_tick()
+            tock = time.perf_counter()
             dprint("%s: done in %i" % (self.dev.name, tock - tick))
 
         # Check if there are errors in the device queue and retrieve all
         # if any and append these to 'dev.state.all_errors'.
         if DEBUG_local:
             dprint("%s: query errors" % self.dev.name)
-            tick = get_tick()
+            tick = time.perf_counter()
         self.dev.query_all_errors_in_queue()
         if DEBUG_local:
-            tock = get_tick()
+            tock = time.perf_counter()
             dprint("%s: stb done in %i" % (self.dev.name, tock - tick))
 
         return True
@@ -221,13 +275,19 @@ class Keysight_N8700_qdev(QDeviceIO):
 
     def create_GUI(self):
         # Measure
-        p = {"alignment": QtCore.Qt.AlignRight, "font": FONT_MONOSPACE}
+        p = {
+            "alignment": QtCore.Qt.AlignmentFlag.AlignRight,
+            "font": FONT_MONOSPACE,
+        }
         self.V_meas = QtWid.QLabel("0.00  V   ", **p)
         self.I_meas = QtWid.QLabel("0.000 A   ", **p)
         self.P_meas = QtWid.QLabel("0.00  W   ", **p)
 
         # Source
-        p = {"maximumWidth": 60, "alignment": QtCore.Qt.AlignRight}
+        p = {
+            "maximumWidth": 60,
+            "alignment": QtCore.Qt.AlignmentFlag.AlignRight,
+        }
         self.pbtn_ENA_output = create_Toggle_button("Output OFF")
         self.V_source = QtWid.QLineEdit("0.00", **p)
         self.I_source = QtWid.QLineEdit("0.000", **p)
@@ -265,8 +325,6 @@ class Keysight_N8700_qdev(QDeviceIO):
         self.lbl_update_counter = QtWid.QLabel("0")
 
         i = 0
-        p = {"alignment": QtCore.Qt.AlignLeft + QtCore.Qt.AlignVCenter}
-
         grid = QtWid.QGridLayout()
         grid.setVerticalSpacing(0)
         # fmt: off
@@ -281,30 +339,30 @@ class Keysight_N8700_qdev(QDeviceIO):
         grid.addItem(QtWid.QSpacerItem(1, 4)             , i, 0)      ; i+=1
         grid.addWidget(QtWid.QLabel("Voltage")           , i, 0, 1, 2)
         grid.addWidget(self.V_source                     , i, 2)
-        grid.addWidget(QtWid.QLabel("V", **p)            , i, 3)      ; i+=1
+        grid.addWidget(QtWid.QLabel("V",)                , i, 3)      ; i+=1
         grid.addItem(QtWid.QSpacerItem(1, 2)             , i, 0)      ; i+=1
         grid.addWidget(QtWid.QLabel("Current")           , i, 0, 1, 2)
         grid.addWidget(self.I_source                     , i, 2)
-        grid.addWidget(QtWid.QLabel("A", **p)            , i, 3)      ; i+=1
+        grid.addWidget(QtWid.QLabel("A")                 , i, 3)      ; i+=1
         grid.addItem(QtWid.QSpacerItem(1, 2)             , i, 0)      ; i+=1
         grid.addWidget(QtWid.QLabel("Power PID")         , i, 0, 1, 2)
         grid.addWidget(self.pbtn_ENA_PID                 , i, 2,
-                                                  QtCore.Qt.AlignLeft); i+=1
+                       QtCore.Qt.AlignmentFlag.AlignLeft)             ; i+=1
         grid.addItem(QtWid.QSpacerItem(1, 2)             , i, 0)      ; i+=1
         grid.addWidget(QtWid.QLabel("Power")             , i, 0, 1, 2)
         grid.addWidget(self.P_source                     , i, 2)
-        grid.addWidget(QtWid.QLabel("W", **p)            , i, 3)      ; i+=1
+        grid.addWidget(QtWid.QLabel("W")                 , i, 3)      ; i+=1
 
         grid.addItem(QtWid.QSpacerItem(1, 10)            , i, 0)      ; i+=1
         grid.addWidget(QtWid.QLabel("Protection:")       , i, 0, 1, 4); i+=1
         grid.addItem(QtWid.QSpacerItem(1, 4)             , i, 0)      ; i+=1
         grid.addWidget(QtWid.QLabel("OVP")               , i, 0, 1, 2)
         grid.addWidget(self.OVP_level                    , i, 2)
-        grid.addWidget(QtWid.QLabel("V", **p)            , i, 3)      ; i+=1
+        grid.addWidget(QtWid.QLabel("V")                 , i, 3)      ; i+=1
         grid.addItem(QtWid.QSpacerItem(1, 2)             , i, 0)      ; i+=1
         grid.addWidget(QtWid.QLabel("OCP")               , i, 0, 1, 2)
         grid.addWidget(self.pbtn_ENA_OCP                 , i, 2,
-                                                  QtCore.Qt.AlignLeft); i+=1
+                       QtCore.Qt.AlignmentFlag.AlignLeft)             ; i+=1
 
         grid.addItem(QtWid.QSpacerItem(1, 10)            , i, 0)      ; i+=1
         grid.addWidget(self.status_QC_OV                 , i, 0)
@@ -356,8 +414,8 @@ class Keysight_N8700_qdev(QDeviceIO):
         grid.setColumnStretch(1, 0)
         grid.setColumnStretch(2, 0)
         grid.setColumnStretch(3, 1)
-        grid.setAlignment(QtCore.Qt.AlignTop)
-        # grid.setAlignment(QtCore.Qt.AlignLeft)
+        grid.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
+        # grid.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         self.grid = grid
 
         self.grpb = QtWid.QGroupBox("%s" % self.dev.name)
@@ -368,7 +426,7 @@ class Keysight_N8700_qdev(QDeviceIO):
     #   update_GUI
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def update_GUI(self):
         """NOTE: 'self.dev.mutex' is not being locked, because we are only
         reading 'state' for displaying purposes. We can do this because 'state'
@@ -390,13 +448,13 @@ class Keysight_N8700_qdev(QDeviceIO):
             if self.dev.state.status_QC_INH:
                 self.V_meas.setText("")
                 self.I_meas.setText("Inhibited")
-                self.I_meas.setAlignment(QtCore.Qt.AlignCenter)
+                self.I_meas.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
                 self.P_meas.setText("")
             else:
                 # fmt: off
                 self.V_meas.setText("%.2f  V   " % self.dev.state.V_meas)
                 self.I_meas.setText("%.3f A   "  % self.dev.state.I_meas)
-                self.I_meas.setAlignment(QtCore.Qt.AlignRight)
+                self.I_meas.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
                 self.P_meas.setText("%.2f  W   " % self.dev.state.P_meas)
                 # fmt: on
 
@@ -430,7 +488,7 @@ class Keysight_N8700_qdev(QDeviceIO):
         else:
             self.V_meas.setText("")
             self.I_meas.setText("Offline")
-            self.I_meas.setAlignment(QtCore.Qt.AlignCenter)
+            self.I_meas.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             self.P_meas.setText("")
             self.grpb.setEnabled(False)
 
@@ -438,8 +496,8 @@ class Keysight_N8700_qdev(QDeviceIO):
     #   update_GUI_input_field
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
-    @QtCore.pyqtSlot(int)
+    @Slot()
+    @Slot(int)
     def update_GUI_input_field(self, GUI_input_field=GUI_input_fields.ALL):
         if GUI_input_field == GUI_input_fields.OVP_level:
             self.OVP_level.setText("%.2f" % self.dev.state.OVP_level)
@@ -557,10 +615,7 @@ class Keysight_N8700_qdev(QDeviceIO):
         except:
             raise
 
-        if voltage < 0:
-            voltage = 0
-
-        self.add_to_jobs_queue(self.dev.set_V_source, voltage)
+        self.add_to_jobs_queue(self.dev.set_V_source, max(voltage, 0))
         self.add_to_jobs_queue(self.dev.query_V_source)
         self.add_to_jobs_queue(
             "signal_GUI_input_field_update", GUI_input_fields.V_source
@@ -575,10 +630,7 @@ class Keysight_N8700_qdev(QDeviceIO):
         except:
             raise
 
-        if current < 0:
-            current = 0
-
-        self.add_to_jobs_queue(self.dev.set_I_source, current)
+        self.add_to_jobs_queue(self.dev.set_I_source, max(current, 0))
         self.add_to_jobs_queue(self.dev.query_I_source)
         self.add_to_jobs_queue(
             "signal_GUI_input_field_update", GUI_input_fields.I_source
@@ -593,9 +645,7 @@ class Keysight_N8700_qdev(QDeviceIO):
         except:
             raise
 
-        if power < 0:
-            power = 0
-        self.dev.state.P_source = power
+        self.dev.state.P_source = max(power, 0)
         self.update_GUI_input_field(GUI_input_fields.P_source)
 
     def send_OVP_level_from_textbox(self):

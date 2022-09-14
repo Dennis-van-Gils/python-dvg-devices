@@ -1,7 +1,3 @@
-* Modify pyvisa close() routines. They should check for 'self.dev is None' too
-
-* Check if we can better use time.perf_counter()
-
 * Change `For i in range` to enumerate
   
   for i, x in enumerate(list)

@@ -5,8 +5,8 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "15-07-2020"
-__version__ = "0.2.1"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
 # pylint: disable=try-except-raise
 
 import socket
@@ -42,7 +42,7 @@ DEBUG = False
 
 class Picotech_PT104:
     class Eeprom:
-        # Container for the PT-104 specific values retreived from it's memory
+        # Container for the PT-104 specific values retreived from its memory
         # fmt: off
         serial     = None
         calib_date = None
@@ -188,7 +188,7 @@ class Picotech_PT104:
         except:
             raise
 
-        return (success, ans_bytes)
+        return success, ans_bytes
 
     # --------------------------------------------------------------------------
     #   UDP_query_and_check
@@ -214,11 +214,11 @@ class Picotech_PT104:
             success, ans_bytes = self.UDP_recv()
             if success:
                 if ans_bytes[: len(check_ans_bytes)] == check_ans_bytes:
-                    return (True, ans_bytes)
-                else:
-                    print("Failed %s: received %s" % (msg_bytes, ans_bytes))
+                    return True, ans_bytes
 
-        return (False, None)
+                print("Failed %s: received %s" % (msg_bytes, ans_bytes))
+
+        return False, None
 
     # --------------------------------------------------------------------------
     #   PT-104 functions
@@ -272,10 +272,9 @@ class Picotech_PT104:
             self._eeprom.MAC        = MAC
             self._eeprom.checksum   = checksum
             # fmt: on
-
             return True
-        else:
-            return False
+
+        return False
 
     def start_conversion(self, ENA_channels=None, gain_channels=None):
         """
@@ -401,7 +400,7 @@ class Picotech_PT104:
                 return False
 
             # Receive a possible next packet from the UDP in-buffer
-            (success, ans) = self.UDP_recv()
+            success, ans = self.UDP_recv()
 
         # No more packets
         return True
@@ -541,4 +540,3 @@ if __name__ == "__main__":
     while 1:
         pt104.scan_4_wire_temperature()
         print("\r%.3f\t%.3f" % (pt104.state.ch1_T, pt104.state.ch2_T), end="")
-

@@ -4,3 +4,4 @@
   
   Likewise change `for x in y`
   
+* Showcase all device demos with pictures

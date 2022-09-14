@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""PyQt5 module to provide multithreaded communication and periodical data
+"""PyQt/PySide module to provide multithreaded communication and periodical data
 acquisition for a Keysight (former HP or Agilent) 34970A/34972A data
 acquisition/switch unit. Different boards can be installed inside such a unit.
 This library is intended to be used with multiplexer board(s), as it will
@@ -10,12 +10,66 @@ refer to this device as a multiplexer, or mux.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "23-07-2020"
-__version__ = "0.2.1"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
 # pylint: disable=broad-except
 
-from PyQt5 import QtCore, QtGui
-from PyQt5 import QtWidgets as QtWid
+import time
+
+# Mechanism to support both PyQt and PySide
+# -----------------------------------------
+import os
+import sys
+
+QT_LIB = os.getenv("PYQTGRAPH_QT_LIB")
+PYSIDE = "PySide"
+PYSIDE2 = "PySide2"
+PYSIDE6 = "PySide6"
+PYQT4 = "PyQt4"
+PYQT5 = "PyQt5"
+PYQT6 = "PyQt6"
+
+# pylint: disable=import-error, no-name-in-module
+# fmt: off
+if QT_LIB is None:
+    libOrder = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
+    for lib in libOrder:
+        if lib in sys.modules:
+            QT_LIB = lib
+            break
+
+if QT_LIB is None:
+    for lib in libOrder:
+        try:
+            __import__(lib)
+            QT_LIB = lib
+            break
+        except ImportError:
+            pass
+
+if QT_LIB is None:
+    raise Exception(
+        "Keysight_3497xA_qdev requires PyQt5, PyQt6, PySide2 or PySide6; "
+        "none of these packages could be imported."
+    )
+
+if QT_LIB == PYQT5:
+    from PyQt5 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt5.QtCore import pyqtSlot as Slot              # type: ignore
+elif QT_LIB == PYQT6:
+    from PyQt6 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt6.QtCore import pyqtSlot as Slot              # type: ignore
+elif QT_LIB == PYSIDE2:
+    from PySide2 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide2.QtCore import Slot                        # type: ignore
+elif QT_LIB == PYSIDE6:
+    from PySide6 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide6.QtCore import Slot                        # type: ignore
+
+# fmt: on
+# pylint: enable=import-error, no-name-in-module
+# \end[Mechanism to support both PyQt and PySide]
+# -----------------------------------------------
 
 from dvg_pyqt_controls import (
     create_Toggle_button,
@@ -30,19 +84,15 @@ from dvg_devices.Keysight_3497xA_protocol_SCPI import Keysight_3497xA
 
 
 # Monospace font
-FONT_MONOSPACE = QtGui.QFont("Monospace", 12, weight=QtGui.QFont.Bold)
-FONT_MONOSPACE.setStyleHint(QtGui.QFont.TypeWriter)
+FONT_MONOSPACE = QtGui.QFont("Monospace", 12, weight=QtGui.QFont.Weight.Bold)
+FONT_MONOSPACE.setStyleHint(QtGui.QFont.StyleHint.TypeWriter)
 
 FONT_MONOSPACE_SMALL = QtGui.QFont("Monospace", 9)
-FONT_MONOSPACE_SMALL.setStyleHint(QtGui.QFont.TypeWriter)
+FONT_MONOSPACE_SMALL.setStyleHint(QtGui.QFont.StyleHint.TypeWriter)
 
 # Infinity cap: values reported by the 3497xA greater than this will be
 # displayed as 'inf'
 INFINITY_CAP = 9.8e37
-
-# Short-hand alias for DEBUG information
-def get_tick():
-    return QtCore.QDateTime.currentMSecsSinceEpoch()
 
 
 class Keysight_3497xA_qdev(QDeviceIO):
@@ -53,8 +103,8 @@ class Keysight_3497xA_qdev(QDeviceIO):
     as it will scan over the board's input channels to retrieve the readings.
     Hence, we also refer to this device as a multiplexer, or mux.
 
-    In addition, it also provides PyQt5 GUI objects for control of the device.
-    These can be incorporated into your application.
+    In addition, it also provides PyQt/PySide GUI objects for control of the
+    device. These can be incorporated into your application.
 
     All device I/O operations will be offloaded to 'workers', each running in
     a newly created thread.
@@ -104,7 +154,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
         self,
         dev: Keysight_3497xA,
         DAQ_interval_ms=1000,
-        DAQ_timer_type=QtCore.Qt.CoarseTimer,
+        DAQ_timer_type=QtCore.Qt.TimerType.CoarseTimer,
         critical_not_alive_count=3,
         DAQ_postprocess_MUX_scan_function=None,
         debug=False,
@@ -151,7 +201,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
     #   start_scanning
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def start_MUX_scan(self):
         # TODO: Stop and restart the worker_DAQ timer, such that a scan is
         # immediately begun, instead of waiting for the next occuring `tick`.
@@ -167,7 +217,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
     #   stop_scanning
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def stop_MUX_scan(self):
         self.is_MUX_scanning = False
         self.signal_DAQ_updated.emit()  # Show we stopped scanning
@@ -178,7 +228,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
     # --------------------------------------------------------------------------
 
     def DAQ_function(self):
-        tick = get_tick()
+        tick = time.perf_counter()
 
         # Clear input and output buffers of the device. Seems to resolve
         # intermittent communication time-outs.
@@ -191,20 +241,20 @@ class Keysight_3497xA_qdev(QDeviceIO):
             if success:
                 self.dev.wait_for_OPC()  # Wait for OPC
                 if self.worker_DAQ.debug:
-                    tock = get_tick()
+                    tock = time.perf_counter()
                     dprint("opc? in: %i" % (tock - tick))
                     tick = tock
 
                 success &= self.dev.fetch_scan()  # Fetch scan
                 if self.worker_DAQ.debug:
-                    tock = get_tick()
+                    tock = time.perf_counter()
                     dprint("fetc in: %i" % (tock - tick))
                     tick = tock
 
             if success:
                 self.dev.wait_for_OPC()  # Wait for OPC
                 if self.worker_DAQ.debug:
-                    tock = get_tick()
+                    tock = time.perf_counter()
                     dprint("opc? in: %i" % (tock - tick))
                     tick = tock
 
@@ -213,7 +263,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
             # might have already failed. Hence this check for no success.
             self.dev.query_all_errors_in_queue()  # Query errors
             if self.worker_DAQ.debug:
-                tock = get_tick()
+                tock = time.perf_counter()
                 dprint("err? in: %i" % (tock - tick))
                 tick = tock
 
@@ -222,7 +272,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
             # everything times out.
             # self.dev.wait_for_OPC()
             # if self.worker_DAQ.debug:
-            #    tock = get_tick()
+            #    tock = time.perf_counter()
             #    dprint("opc? in: %i" % (tock - tick))
             #    tick = tock
 
@@ -237,7 +287,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
             self.DAQ_postprocess_MUX_scan_function()
 
         if self.worker_DAQ.debug:
-            tock = get_tick()
+            tock = time.perf_counter()
             dprint("extf in: %i" % (tock - tick))
             tick = tock
 
@@ -260,25 +310,37 @@ class Keysight_3497xA_qdev(QDeviceIO):
     # --------------------------------------------------------------------------
 
     def create_GUI(self):
-        p = {"alignment": QtCore.Qt.AlignCenter, "font": FONT_MONOSPACE}
-        p2 = {"alignment": QtCore.Qt.AlignCenter + QtCore.Qt.AlignVCenter}
+        p = {
+            "alignment": QtCore.Qt.AlignmentFlag.AlignCenter,
+            "font": FONT_MONOSPACE,
+        }
+        p2 = {
+            "alignment": QtCore.Qt.AlignmentFlag(
+                QtCore.Qt.AlignmentFlag.AlignCenter
+                + QtCore.Qt.AlignmentFlag.AlignVCenter
+            )
+        }
         # self.qlbl_mux = QtWid.QLabel("Keysight 34972a", **p2)
         self.qlbl_mux_state = QtWid.QLabel("Offline", **p)
         self.qpbt_start_scan = create_Toggle_button("Start scan")
 
-        self.qpte_SCPI_commands = QtWid.QPlainTextEdit(
-            "", readOnly=True, lineWrapMode=False
+        self.qpte_SCPI_commands = QtWid.QPlainTextEdit("", readOnly=True)
+        self.qpte_SCPI_commands.setLineWrapMode(
+            QtWid.QPlainTextEdit.LineWrapMode.NoWrap
         )
         self.qpte_SCPI_commands.setStyleSheet(SS_TEXTBOX_READ_ONLY)
         self.qpte_SCPI_commands.setMaximumHeight(152)
         self.qpte_SCPI_commands.setMinimumWidth(200)
         self.qpte_SCPI_commands.setFont(FONT_MONOSPACE_SMALL)
 
-        p = {"alignment": QtCore.Qt.AlignRight, "readOnly": True}
+        p = {"alignment": QtCore.Qt.AlignmentFlag.AlignRight, "readOnly": True}
         self.qled_scanning_interval_ms = QtWid.QLineEdit("", **p)
         self.qled_obtained_interval_ms = QtWid.QLineEdit("", **p)
 
-        self.qpte_errors = QtWid.QPlainTextEdit("", lineWrapMode=False)
+        self.qpte_errors = QtWid.QPlainTextEdit("")
+        self.qpte_errors.setLineWrapMode(
+            QtWid.QPlainTextEdit.LineWrapMode.NoWrap
+        )
         self.qpte_errors.setStyleSheet(SS_TEXTBOX_ERRORS)
         self.qpte_errors.setMaximumHeight(90)
 
@@ -295,8 +357,6 @@ class Keysight_3497xA_qdev(QDeviceIO):
         self.qpbt_debug_test.clicked.connect(self.process_qpbt_debug_test)
 
         i = 0
-        p = {"alignment": QtCore.Qt.AlignLeft + QtCore.Qt.AlignVCenter}
-
         grid = QtWid.QGridLayout()
         grid.setVerticalSpacing(4)
         # fmt: off
@@ -347,7 +407,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
     #   update_GUI
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def update_GUI(self):
         """NOTE: 'self.dev.mutex' is not being locked, because we are only
         reading 'state' for displaying purposes. We can do this because 'state'
@@ -425,7 +485,10 @@ class Keysight_3497xA_qdev(QDeviceIO):
 
         for i in range(len(self.dev.state.all_scan_list_channels)):
             item = QtWid.QTableWidgetItem("nan")
-            item.setTextAlignment(QtCore.Qt.AlignRight + QtCore.Qt.AlignCenter)
+            item.setTextAlignment(
+                QtCore.Qt.AlignmentFlag.AlignRight
+                + QtCore.Qt.AlignmentFlag.AlignCenter
+            )
             self.qtbl_readings.setItem(i, 0, item)
 
     def set_table_readings_format(self, format_str):
@@ -438,14 +501,14 @@ class Keysight_3497xA_qdev(QDeviceIO):
     #   GUI functions
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_qpbt_start_scan(self):
         if self.qpbt_start_scan.isChecked():
             self.start_MUX_scan()
         else:
             self.stop_MUX_scan()
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_qpbt_ackn_errors(self):
         # Lock the dev mutex because string operations are not atomic
         locker = QtCore.QMutexLocker(self.dev.mutex)
@@ -454,7 +517,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
         self.qpte_errors.setReadOnly(False)  # To change back to regular colors
         locker.unlock()
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_qpbt_reinit(self):
         str_msg = (
             "Are you sure you want reinitialize the multiplexer?\n\n"
@@ -476,6 +539,6 @@ class Keysight_3497xA_qdev(QDeviceIO):
             self.add_to_jobs_queue(self.dev.begin)
             self.process_jobs_queue()
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_qpbt_debug_test(self):
         self.send(self.dev.write, "junk")

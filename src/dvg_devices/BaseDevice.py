@@ -238,13 +238,13 @@ class SerialDevice:
 
                 .. code-block:: python
 
-                    def my_ID_validation_query(self) -> (object, object):
+                    def my_ID_validation_query(self) -> tuple[str, str]:
                         # Expected: reply = "THURLBY THANDAR, QL355TP, 279730, 1.00 – 1.00"
                         _success, reply = self.query("*idn?")
                         reply_broad = ans[:19]                  # "THURLBY THANDAR, QL"
                         reply_specific = ans.split(",")[2]      # "279730", i.e. serial number
 
-                        return (reply_broad, reply_specific)
+                        return reply_broad, reply_specific
 
                 When ``ID_validation_query`` is set to :obj:`None`, no
                 validation will take place and *any* successful connection will

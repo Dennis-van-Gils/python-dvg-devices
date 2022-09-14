@@ -10,8 +10,8 @@ class.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "27-08-2020"
-__version__ = "0.3.2"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
@@ -86,7 +86,9 @@ class SerialDevice:
     """
 
     def __init__(
-        self, name="Dev_1", long_name="Serial Device",
+        self,
+        name="Dev_1",
+        long_name="Serial Device",
     ):
         self.long_name = long_name
         self.name = name
@@ -127,7 +129,9 @@ class SerialDevice:
     # --------------------------------------------------------------------------
 
     def set_read_termination(
-        self, termination: AnyStr, query_wait_time: float = 0.1,
+        self,
+        termination: AnyStr,
+        query_wait_time: float = 0.1,
     ):
         """Set the termination character(s) for serial read.
 
@@ -267,7 +271,9 @@ class SerialDevice:
     # --------------------------------------------------------------------------
 
     def readline(
-        self, raises_on_timeout: bool = False, returns_ascii: bool = True,
+        self,
+        raises_on_timeout: bool = False,
+        returns_ascii: bool = True,
     ) -> Tuple[bool, Union[str, bytes, None]]:
         """Listen to the Arduino for incoming data. This method is blocking
         and returns when a full line has been received or when the serial read
@@ -355,7 +361,10 @@ class SerialDevice:
 
         try:
             self.ser.write(msg + self._write_termination)
-        except (serial.SerialTimeoutException, serial.SerialException,) as err:
+        except (
+            serial.SerialTimeoutException,
+            serial.SerialException,
+        ) as err:
             if raises_on_timeout:
                 raise err  # --> leaving
             else:
@@ -460,7 +469,10 @@ class SerialDevice:
     # --------------------------------------------------------------------------
 
     def query_ascii_values(
-        self, msg: str, delimiter="\t", raises_on_timeout: bool = False,
+        self,
+        msg: str,
+        delimiter="\t",
+        raises_on_timeout: bool = False,
     ) -> Tuple[bool, list]:
         r"""Send a message to the serial device and subsequently read the reply.
         Expects a reply in the form of an ASCII string containing a list of
@@ -517,8 +529,7 @@ class SerialDevice:
     # --------------------------------------------------------------------------
 
     def close(self, ignore_exceptions=False):
-        """Cancel all pending serial operations and close the serial port.
-        """
+        """Cancel all pending serial operations and close the serial port."""
         if self.ser is not None:
             try:
                 self.ser.cancel_read()

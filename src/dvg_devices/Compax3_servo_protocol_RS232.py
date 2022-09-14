@@ -15,12 +15,12 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "15-07-2020"
-__version__ = "0.2.1"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
 # pylint: disable=bare-except, broad-except, try-except-raise, pointless-string-statement
 
 import sys
-from typing import Union
+from typing import Union, Tuple
 import numpy as np
 
 from dvg_devices.BaseDevice import SerialDevice
@@ -99,7 +99,7 @@ class Compax3_servo(SerialDevice):
         msg: Union[str, bytes],
         raises_on_timeout: bool = False,
         returns_ascii: bool = True,
-    ) -> tuple:
+    ) -> Tuple[bool, Union[str, bytes, None]]:
         success, reply = super().query(msg, raises_on_timeout, returns_ascii)
 
         # The Compax3 is more complex in its replies than the average device.
@@ -116,18 +116,18 @@ class Compax3_servo(SerialDevice):
                 # Successful operation with meaningful reply
                 pass
 
-        return (success, reply)
+        return success, reply
 
     # --------------------------------------------------------------------------
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> (str, str):
+    def ID_validation_query(self) -> Tuple[str, str]:
         _success, reply = self.query("_?")
         broad_reply = reply[:7]  # Expected: "Compax3"
         _success, reply = self.query("o1.4")
         specific_reply = reply  # Serial number
-        return (broad_reply, specific_reply)
+        return broad_reply, specific_reply
 
     # --------------------------------------------------------------------------
     #   begin
@@ -334,8 +334,7 @@ class Compax3_servo(SerialDevice):
         return success
 
     def activate_motion_profile(self, profile_number=2):
-        """
-        """
+        """ """
         # Control word (CW) for activating the passed profile number
         # First send: quit/motor bit (bit 0) high
         #             stop bits (bits 1, 14) high
@@ -366,8 +365,7 @@ class Compax3_servo(SerialDevice):
         return success
 
     def jog_plus(self):
-        """
-        """
+        """ """
         # Control word (CW) for activating the jog+
         CW_LO = 0b0100000000000011
         success, _reply = self.query("o1100.3=%d" % CW_LO)
@@ -379,8 +377,7 @@ class Compax3_servo(SerialDevice):
         return success
 
     def jog_minus(self):
-        """
-        """
+        """ """
         # Control word (CW) for activating the jog-
         CW_LO = 0b0100000000000011
         success, _reply = self.query("o1100.3=%d" % CW_LO)
@@ -392,16 +389,14 @@ class Compax3_servo(SerialDevice):
         return success
 
     def stop_motion_but_keep_power(self):
-        """
-        """
+        """ """
         CW_LO = 0b0100000000000011
         success, _reply = self.query("o1100.3=%d" % CW_LO)
 
         return success
 
     def stop_motion_and_remove_power(self):
-        """
-        """
+        """ """
         success, _reply = self.query("o1100.3=0")
 
         return success
@@ -423,8 +418,7 @@ class Compax3_servo(SerialDevice):
         return success
 
     def report_status_word_1(self, compact=False):
-        """
-        """
+        """ """
         if not compact:
             print("Status word 1:")
             print("  %-6s: I0" % self.status_word_1.I0)

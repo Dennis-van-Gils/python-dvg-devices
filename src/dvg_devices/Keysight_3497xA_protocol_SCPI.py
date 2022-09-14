@@ -16,8 +16,8 @@ or that the previous query resulted in a communication error.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "15-07-2020"
-__version__ = "0.2.1"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
 # pylint: disable=try-except-raise
 
 import time
@@ -157,7 +157,7 @@ class Keysight_3497xA:
     # --------------------------------------------------------------------------
 
     def close(self):
-        if not self.is_alive:
+        if (not self.is_alive) or (self.device is None):
             # print("ERROR: Device is already closed.")
             pass  # Remain silent. Device is already closed.
         else:
@@ -320,7 +320,7 @@ class Keysight_3497xA:
                 ans_str = ans_str.strip()
                 success = True
 
-        return (success, ans_str)
+        return success, ans_str
 
     # --------------------------------------------------------------------------
     #   query_ascii_values
@@ -354,7 +354,7 @@ class Keysight_3497xA:
             else:
                 success = True
 
-        return (success, ans_list)
+        return success, ans_list
 
     # --------------------------------------------------------------------------
     #   query_diagnostics
@@ -501,8 +501,7 @@ class Keysight_3497xA:
 
         # The reset operation can take a long time to complete. Momentarily
         # increase the timeout to 2000 msec if necessary.
-        if self.device.timeout < 2000:
-            self.device.timeout = 2000
+        self.device.timeout = max(self.device.timeout, 2000)
 
         # Send clear and reset
         success = self.write("abor;*rst;*cls")

@@ -1,18 +1,72 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""PyQt5 module to provide multithreaded communication and periodical data
+"""PyQt/PySide module to provide multithreaded communication and periodical data
 acquisition for a Bronkhorst mass flow controller (MFC).
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "23-07-2020"
-__version__ = "0.2.1"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
 
+# Mechanism to support both PyQt and PySide
+# -----------------------------------------
+import os
+import sys
 
-from PyQt5 import QtCore, QtGui
-from PyQt5 import QtWidgets as QtWid
-from PyQt5.QtCore import QDateTime
+QT_LIB = os.getenv("PYQTGRAPH_QT_LIB")
+PYSIDE = "PySide"
+PYSIDE2 = "PySide2"
+PYSIDE6 = "PySide6"
+PYQT4 = "PyQt4"
+PYQT5 = "PyQt5"
+PYQT6 = "PyQt6"
+
+# pylint: disable=import-error, no-name-in-module
+# fmt: off
+if QT_LIB is None:
+    libOrder = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
+    for lib in libOrder:
+        if lib in sys.modules:
+            QT_LIB = lib
+            break
+
+if QT_LIB is None:
+    for lib in libOrder:
+        try:
+            __import__(lib)
+            QT_LIB = lib
+            break
+        except ImportError:
+            pass
+
+if QT_LIB is None:
+    raise Exception(
+        "Bronkhorst_MFC_qdev requires PyQt5, PyQt6, PySide2 or PySide6; "
+        "none of these packages could be imported."
+    )
+
+if QT_LIB == PYQT5:
+    from PyQt5 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt5.QtCore import pyqtSlot as Slot              # type: ignore
+    from PyQt5.QtCore import pyqtSignal as Signal          # type: ignore
+elif QT_LIB == PYQT6:
+    from PyQt6 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt6.QtCore import pyqtSlot as Slot              # type: ignore
+    from PyQt6.QtCore import pyqtSignal as Signal          # type: ignore
+elif QT_LIB == PYSIDE2:
+    from PySide2 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide2.QtCore import Slot                        # type: ignore
+    from PySide2.QtCore import Signal                      # type: ignore
+elif QT_LIB == PYSIDE6:
+    from PySide6 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide6.QtCore import Slot                        # type: ignore
+    from PySide6.QtCore import Signal                      # type: ignore
+
+# fmt: on
+# pylint: enable=import-error, no-name-in-module
+# \end[Mechanism to support both PyQt and PySide]
+# -----------------------------------------------
 
 from dvg_pyqt_controls import SS_GROUP, SS_TEXTBOX_READ_ONLY
 from dvg_debug_functions import print_fancy_traceback as pft
@@ -25,8 +79,8 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
     """Manages multithreaded communication and data acquisition for a
     Bronkhorst mass flow controller (MFC), referred to as the 'device'.
 
-    In addition, it also provides PyQt5 GUI objects for control of the device.
-    These can be incorporated into your application.
+    In addition, it also provides PyQt/PySide GUI objects for control of the
+    device. These can be incorporated into your application.
 
     Extra functionality is provided to allow for automatic closing and opening
     of a peripheral valve that could be in line with the mass flow controller.
@@ -66,14 +120,14 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
         signal_valve_auto_open()
     """
 
-    signal_valve_auto_close = QtCore.pyqtSignal()
-    signal_valve_auto_open = QtCore.pyqtSignal()
+    signal_valve_auto_close = Signal()
+    signal_valve_auto_open = Signal()
 
     def __init__(
         self,
         dev: Bronkhorst_MFC,
         DAQ_interval_ms=200,
-        DAQ_timer_type=QtCore.Qt.CoarseTimer,
+        DAQ_timer_type=QtCore.Qt.TimerType.CoarseTimer,
         critical_not_alive_count=1,
         valve_auto_close_deadtime_period_ms=3000,
         debug=False,
@@ -124,7 +178,7 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
                 if (
                     self.dev.valve_auto_close_briefly_prevent
                     and self.dev.valve_auto_close_start_deadtime.msecsTo(
-                        QDateTime.currentDateTime()
+                        QtCore.QDateTime.currentDateTime()
                     )
                     < self.dev.valve_auto_close_deadtime_period_ms
                 ):
@@ -163,7 +217,7 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
                 #              --> signal auto open
                 self.dev.valve_auto_close_briefly_prevent = True
                 self.dev.valve_auto_close_start_deadtime = (
-                    QDateTime.currentDateTime()
+                    QtCore.QDateTime.currentDateTime()
                 )
                 self.dev.state.prev_flow_rate = -1  # Necessary reset
                 self.signal_valve_auto_open.emit()
@@ -176,12 +230,12 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
         self.qlbl_offline = QtWid.QLabel(
             "MFC OFFLINE",
             visible=False,
-            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Bold),
-            alignment=QtCore.Qt.AlignCenter,
+            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Weight.Bold),
+            alignment=QtCore.Qt.AlignmentFlag.AlignCenter,
         )
 
         p = {
-            "alignment": QtCore.Qt.AlignRight,
+            "alignment": QtCore.Qt.AlignmentFlag.AlignRight,
             "minimumWidth": 50,
             "maximumWidth": 30,
             "styleSheet": SS_TEXTBOX_READ_ONLY,
@@ -222,7 +276,7 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
     #   _update_GUI
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def _update_GUI(self):
         """NOTE: 'self.dev.mutex' is not being locked, because we are only
         reading 'state' for displaying purposes. We can do this because 'state'
@@ -246,7 +300,7 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
     #   GUI functions
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def _send_setpoint_from_textbox(self):
         try:
             setpoint = float(self.qled_send_setpoint.text())

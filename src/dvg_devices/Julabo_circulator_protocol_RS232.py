@@ -6,12 +6,12 @@ Tested on model FP51-SL.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "02-03-2021"
-__version__ = "0.2.4"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
 # pylint: disable=bare-except, broad-except, bad-string-format-type
 
 import time
-from typing import Tuple
+from typing import Union, Tuple
 import numpy as np
 import serial
 
@@ -98,7 +98,7 @@ class Julabo_circulator(SerialDevice):
         broad_reply = reply[:6]  # Expected: "JULABO"
         reply_specific = reply[7:]
 
-        return (broad_reply, reply_specific)
+        return broad_reply, reply_specific
 
     # --------------------------------------------------------------------------
     #   begin
@@ -147,8 +147,8 @@ class Julabo_circulator(SerialDevice):
         if self.write_("OUT_MODE_05 0"):
             self.state.running = False
             return True
-        else:
-            return False
+
+        return False
 
     def turn_on(self):
         """Turn the Julabo on.
@@ -159,8 +159,8 @@ class Julabo_circulator(SerialDevice):
         if self.write_("OUT_MODE_05 1"):
             self.state.running = True
             return True
-        else:
-            return False
+
+        return False
 
     # --------------------------------------------------------------------------
     #   set_sub_temp
@@ -182,8 +182,8 @@ class Julabo_circulator(SerialDevice):
 
         if self.write_("OUT_SP_04 %.2f" % value):
             return self.query_sub_temp()
-        else:
-            return False
+
+        return False
 
     # --------------------------------------------------------------------------
     #   set_over_temp
@@ -205,8 +205,8 @@ class Julabo_circulator(SerialDevice):
 
         if self.write_("OUT_SP_03 %.2f" % value):
             return self.query_over_temp()
-        else:
-            return False
+
+        return False
 
     # --------------------------------------------------------------------------
     #   set_setpoint_preset
@@ -221,7 +221,7 @@ class Julabo_circulator(SerialDevice):
         Returns: True if successful, False otherwise.
         """
 
-        if not (n == 1 or n == 2 or n == 3):
+        if not n in (1, 2, 3):
             pft(
                 "WARNING: Received illegal setpoint preset.\n"
                 "Must be either 1, 2 or 3."
@@ -231,8 +231,8 @@ class Julabo_circulator(SerialDevice):
         if self.write_("OUT_MODE_01 %i" % (n - 1)):
             self.state.setpoint_preset = n
             return True
-        else:
-            return False
+
+        return False
 
     # --------------------------------------------------------------------------
     #   set_sendpoint
@@ -279,8 +279,8 @@ class Julabo_circulator(SerialDevice):
 
         if self.write_("OUT_SP_00 %.2f" % value):
             return self.query_setpoint_1()
-        else:
-            return False
+
+        return False
 
     # --------------------------------------------------------------------------
     #   set_sendpoint_2
@@ -301,8 +301,8 @@ class Julabo_circulator(SerialDevice):
 
         if self.write_("OUT_SP_01 %.2f" % value):
             return self.query_setpoint_2()
-        else:
-            return False
+
+        return False
 
     # --------------------------------------------------------------------------
     #   set_sendpoint_3
@@ -323,8 +323,8 @@ class Julabo_circulator(SerialDevice):
 
         if self.write_("OUT_SP_02 %.2f" % value):
             return self.query_setpoint_3()
-        else:
-            return False
+
+        return False
 
     # --------------------------------------------------------------------------
     #   query_version
@@ -714,8 +714,7 @@ class Julabo_circulator(SerialDevice):
     # --------------------------------------------------------------------------
 
     def report(self, update_readings: bool = True):
-        """Print info to the terminal, useful for debugging
-        """
+        """Print info to the terminal, useful for debugging"""
 
         C = self.state  # Shorthand notation
         w1 = 10  # Label width
@@ -746,7 +745,7 @@ class Julabo_circulator(SerialDevice):
     #   query_
     # --------------------------------------------------------------------------
 
-    def query_(self, *args, **kwargs) -> tuple:
+    def query_(self, *args, **kwargs) -> Tuple[bool, Union[str, bytes, None]]:
         """Wrapper for :meth:`dvg_qdevices.query` to add enforcing of time gaps
         between commands as per the Julabo manual.
 
@@ -772,7 +771,7 @@ class Julabo_circulator(SerialDevice):
         success, reply = super().query(*args, **kwargs)
         self.state.t_prev_in = time.perf_counter()
 
-        return (success, reply)
+        return success, reply
 
     # --------------------------------------------------------------------------
     #   write_
@@ -872,7 +871,7 @@ if __name__ == "__main__":
 
                     try:
                         send_setpoint = float(send_setpoint)
-                    except Exception as err:
+                    except:
                         print("Error: Could not parse float value.")
                     else:
                         do_send_setpoint = True

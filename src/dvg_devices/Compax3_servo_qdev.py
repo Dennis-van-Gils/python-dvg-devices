@@ -1,17 +1,69 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""PyQt5 module to provide multithreaded communication and periodical data
+"""PyQt/PySide module to provide multithreaded communication and periodical data
 acquisition for a Compax3 traverse controller.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "23-07-2020"
+__date__ = "14-09-2022"
 __version__ = "0.2.1"
 # pylint: disable=try-except-raise
 
-from PyQt5 import QtCore, QtGui
-from PyQt5 import QtWidgets as QtWid
+# Mechanism to support both PyQt and PySide
+# -----------------------------------------
+import os
+import sys
+
+QT_LIB = os.getenv("PYQTGRAPH_QT_LIB")
+PYSIDE = "PySide"
+PYSIDE2 = "PySide2"
+PYSIDE6 = "PySide6"
+PYQT4 = "PyQt4"
+PYQT5 = "PyQt5"
+PYQT6 = "PyQt6"
+
+# pylint: disable=import-error, no-name-in-module
+# fmt: off
+if QT_LIB is None:
+    libOrder = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
+    for lib in libOrder:
+        if lib in sys.modules:
+            QT_LIB = lib
+            break
+
+if QT_LIB is None:
+    for lib in libOrder:
+        try:
+            __import__(lib)
+            QT_LIB = lib
+            break
+        except ImportError:
+            pass
+
+if QT_LIB is None:
+    raise Exception(
+        "Compax3_servo_qdev requires PyQt5, PyQt6, PySide2 or PySide6; "
+        "none of these packages could be imported."
+    )
+
+if QT_LIB == PYQT5:
+    from PyQt5 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt5.QtCore import pyqtSlot as Slot              # type: ignore
+elif QT_LIB == PYQT6:
+    from PyQt6 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt6.QtCore import pyqtSlot as Slot              # type: ignore
+elif QT_LIB == PYSIDE2:
+    from PySide2 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide2.QtCore import Slot                        # type: ignore
+elif QT_LIB == PYSIDE6:
+    from PySide6 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide6.QtCore import Slot                        # type: ignore
+
+# fmt: on
+# pylint: enable=import-error, no-name-in-module
+# \end[Mechanism to support both PyQt and PySide]
+# -----------------------------------------------
 
 from dvg_pyqt_controls import (
     SS_GROUP,
@@ -28,8 +80,8 @@ class Compax3_servo_qdev(QDeviceIO):
     """Manages multithreaded communication and periodical data acquisition for
     a Compax3 traverse controller, referred to as the 'device'.
 
-    In addition, it also provides PyQt5 GUI objects for control of the device.
-    These can be incorporated into your application.
+    In addition, it also provides PyQt/PySide GUI objects for control of the
+    device. These can be incorporated into your application.
 
     All device I/O operations will be offloaded to 'workers', each running in
     a newly created thread.
@@ -55,7 +107,7 @@ class Compax3_servo_qdev(QDeviceIO):
         dev: Compax3_servo,
         DAQ_interval_ms=250,
         critical_not_alive_count=1,
-        DAQ_timer_type=QtCore.Qt.CoarseTimer,
+        DAQ_timer_type=QtCore.Qt.TimerType.CoarseTimer,
         debug=False,
         **kwargs,
     ):
@@ -111,7 +163,7 @@ class Compax3_servo_qdev(QDeviceIO):
         self.sw1_pos_reached = create_tiny_LED()
 
         i = 0
-        p = {"alignment": QtCore.Qt.AlignRight}
+        p = {"alignment": QtCore.Qt.AlignmentFlag.AlignRight}
         grid = QtWid.QGridLayout()
         grid.setVerticalSpacing(4)
         # fmt: off
@@ -131,25 +183,32 @@ class Compax3_servo_qdev(QDeviceIO):
         self.qgrp_sw1.setLayout(grid)
 
         # Main groupbox
-        font_lbl_status = QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Bold)
+        font_lbl_status = QtGui.QFont(
+            "Palatino", 14, weight=QtGui.QFont.Weight.Bold
+        )
         self.lbl_status = QtWid.QLabel(
-            "OFFLINE", font=font_lbl_status, alignment=QtCore.Qt.AlignCenter
+            "OFFLINE",
+            font=font_lbl_status,
+            alignment=QtCore.Qt.AlignmentFlag.AlignCenter,
         )
         self.lbl_status.setFixedHeight(
             3 * QtGui.QFontMetrics(font_lbl_status).height()
         )
 
         self.sw1_error_tripped = create_error_LED(text="No error")
-        self.error_msg = QtWid.QPlainTextEdit("", lineWrapMode=True)
+        self.error_msg = QtWid.QPlainTextEdit("")
+        self.error_msg.setLineWrapMode(
+            QtWid.QPlainTextEdit.LineWrapMode.WidgetWidth
+        )
         self.error_msg.setStyleSheet(SS_TEXTBOX_ERRORS)
         self.error_msg.setMinimumWidth(22 * default_font_width)
         self.error_msg.setFixedHeight(4 * default_font_height)
         self.pbtn_ackn_error = QtWid.QPushButton("Acknowledge error")
         self.qled_cur_pos = QtWid.QLineEdit(
-            "nan", readOnly=True, alignment=QtCore.Qt.AlignRight
+            "nan", readOnly=True, alignment=QtCore.Qt.AlignmentFlag.AlignRight
         )
         self.qled_new_pos = QtWid.QLineEdit(
-            "nan", readOnly=False, alignment=QtCore.Qt.AlignRight
+            "nan", readOnly=False, alignment=QtCore.Qt.AlignmentFlag.AlignRight
         )
         self.pbtn_move_to_new_pos = QtWid.QPushButton("Move to new position")
         self.pbtn_move_to_new_pos.setFixedHeight(3 * default_font_height)
@@ -159,7 +218,7 @@ class Compax3_servo_qdev(QDeviceIO):
         self.lbl_update_counter = QtWid.QLabel("0")
 
         i = 0
-        p = {"alignment": QtCore.Qt.AlignRight}
+        p = {"alignment": QtCore.Qt.AlignmentFlag.AlignRight}
         grid = QtWid.QGridLayout()
         grid.setVerticalSpacing(4)
         # fmt: off
@@ -200,7 +259,7 @@ class Compax3_servo_qdev(QDeviceIO):
     #   _update_GUI
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def _update_GUI(self):
         """NOTE: 'self.dev.mutex' is not being locked, because we are only
         reading 'state' for displaying purposes. We can do this because 'state'
@@ -251,11 +310,11 @@ class Compax3_servo_qdev(QDeviceIO):
     #   GUI functions
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_pbtn_ackn_error(self):
         self.send(self.dev.acknowledge_error)
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_editingFinished_qled_new_pos(self):
         try:
             new_pos = float(self.qled_new_pos.text())
@@ -265,7 +324,7 @@ class Compax3_servo_qdev(QDeviceIO):
             raise
         self.qled_new_pos.setText("%.2f" % new_pos)
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_pbtn_move_to_new_pos(self):
         # Double check if the value in the QLineEdit is actually numeric
         try:
@@ -274,29 +333,29 @@ class Compax3_servo_qdev(QDeviceIO):
             raise
         self.send(self.dev.move_to_target_position, (new_pos, 2))
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_pbtn_jog_plus_pressed(self):
         if not self._jog_plus_is_active:
             self._jog_plus_is_active = True
             self.send(self.dev.jog_plus)
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_pbtn_jog_plus_released(self):
         self._jog_plus_is_active = False
         self.send(self.dev.stop_motion_but_keep_power)
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_pbtn_jog_minus_pressed(self):
         if not self._jog_minus_is_active:
             self._jog_minus_is_active = True
             self.send(self.dev.jog_minus)
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_pbtn_jog_minus_released(self):
         self._jog_minus_is_active = False
         self.send(self.dev.stop_motion_but_keep_power)
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_pbtn_stop(self):
         self.send(self.dev.stop_motion_and_remove_power)
 

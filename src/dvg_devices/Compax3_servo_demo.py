@@ -1,19 +1,70 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Multithreaded PyQt5 GUI to interface with a Compax3 servo controller.
+"""Multithreaded PyQt/PySide GUI to interface with a Compax3 servo controller.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "15-07-2020"
-__version__ = "0.2.1"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
 # pylint: disable=bare-except
 
-import sys
 from pathlib import Path
 
-from PyQt5 import QtCore, QtGui
-from PyQt5 import QtWidgets as QtWid
+# Mechanism to support both PyQt and PySide
+# -----------------------------------------
+import os
+import sys
+
+QT_LIB = os.getenv("PYQTGRAPH_QT_LIB")
+PYSIDE = "PySide"
+PYSIDE2 = "PySide2"
+PYSIDE6 = "PySide6"
+PYQT4 = "PyQt4"
+PYQT5 = "PyQt5"
+PYQT6 = "PyQt6"
+
+# pylint: disable=import-error, no-name-in-module
+# fmt: off
+if QT_LIB is None:
+    libOrder = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
+    for lib in libOrder:
+        if lib in sys.modules:
+            QT_LIB = lib
+            break
+
+if QT_LIB is None:
+    for lib in libOrder:
+        try:
+            __import__(lib)
+            QT_LIB = lib
+            break
+        except ImportError:
+            pass
+
+if QT_LIB is None:
+    raise Exception(
+        "Compax3_servo_demo requires PyQt5, PyQt6, PySide2 or PySide6; "
+        "none of these packages could be imported."
+    )
+
+if QT_LIB == PYQT5:
+    from PyQt5 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt5.QtCore import pyqtSlot as Slot              # type: ignore
+elif QT_LIB == PYQT6:
+    from PyQt6 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt6.QtCore import pyqtSlot as Slot              # type: ignore
+elif QT_LIB == PYSIDE2:
+    from PySide2 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide2.QtCore import Slot                        # type: ignore
+elif QT_LIB == PYSIDE6:
+    from PySide6 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide6.QtCore import Slot                        # type: ignore
+
+# fmt: on
+# pylint: enable=import-error, no-name-in-module
+# \end[Mechanism to support both PyQt and PySide]
+# -----------------------------------------------
 
 from dvg_pyqt_controls import SS_TEXTBOX_READ_ONLY, SS_GROUP
 
@@ -36,7 +87,7 @@ class MainWindow(QtWid.QWidget):
         # Top grid
         self.lbl_title = QtWid.QLabel(
             "Compax3 traverse controller",
-            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Bold),
+            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Weight.Bold),
         )
         self.pbtn_exit = QtWid.QPushButton("Exit")
         self.pbtn_exit.clicked.connect(self.close)
@@ -44,7 +95,9 @@ class MainWindow(QtWid.QWidget):
 
         grid_top = QtWid.QGridLayout()
         grid_top.addWidget(self.lbl_title, 0, 0)
-        grid_top.addWidget(self.pbtn_exit, 0, 1, QtCore.Qt.AlignRight)
+        grid_top.addWidget(
+            self.pbtn_exit, 0, 1, QtCore.Qt.AlignmentFlag.AlignRight
+        )
 
         # Traverse schematic image
         lbl_trav_img = QtWid.QLabel()
@@ -57,7 +110,7 @@ class MainWindow(QtWid.QWidget):
         lbl_trav_img.setFixedSize(244, 240)
 
         grid = QtWid.QGridLayout()
-        grid.addWidget(lbl_trav_img, 0, 0, QtCore.Qt.AlignTop)
+        grid.addWidget(lbl_trav_img, 0, 0, QtCore.Qt.AlignmentFlag.AlignTop)
 
         grpb_trav_img = QtWid.QGroupBox("Traverse schematic")
         grpb_trav_img.setStyleSheet(SS_GROUP)
@@ -68,15 +121,15 @@ class MainWindow(QtWid.QWidget):
         vbox.addWidget(grpb_trav_img)
         vbox.addWidget(trav_step_nav.grpb)
         vbox.addStretch(1)
-        vbox.setAlignment(trav_step_nav.grpb, QtCore.Qt.AlignLeft)
+        vbox.setAlignment(trav_step_nav.grpb, QtCore.Qt.AlignmentFlag.AlignLeft)
 
         hbox = QtWid.QHBoxLayout()
         hbox.addWidget(trav_vert_qdev.qgrp)
         hbox.addWidget(trav_horz_qdev.qgrp)
         hbox.addLayout(vbox)
         hbox.addStretch(1)
-        hbox.setAlignment(trav_horz_qdev.qgrp, QtCore.Qt.AlignTop)
-        hbox.setAlignment(trav_vert_qdev.qgrp, QtCore.Qt.AlignTop)
+        hbox.setAlignment(trav_horz_qdev.qgrp, QtCore.Qt.AlignmentFlag.AlignTop)
+        hbox.setAlignment(trav_vert_qdev.qgrp, QtCore.Qt.AlignmentFlag.AlignTop)
 
         vbox = QtWid.QVBoxLayout(self)
         vbox.addLayout(grid_top)
@@ -88,25 +141,25 @@ class MainWindow(QtWid.QWidget):
 # ------------------------------------------------------------------------------
 
 
-@QtCore.pyqtSlot()
+@Slot()
 def act_upon_signal_step_up(new_pos: float):
     trav_vert_qdev.qled_new_pos.setText("%.2f" % new_pos)
     trav_vert_qdev.process_pbtn_move_to_new_pos()
 
 
-@QtCore.pyqtSlot()
+@Slot()
 def act_upon_signal_step_down(new_pos: float):
     trav_vert_qdev.qled_new_pos.setText("%.2f" % new_pos)
     trav_vert_qdev.process_pbtn_move_to_new_pos()
 
 
-@QtCore.pyqtSlot()
+@Slot()
 def act_upon_signal_step_left(new_pos: float):
     trav_horz_qdev.qled_new_pos.setText("%.2f" % new_pos)
     trav_horz_qdev.process_pbtn_move_to_new_pos()
 
 
-@QtCore.pyqtSlot()
+@Slot()
 def act_upon_signal_step_right(new_pos: float):
     trav_horz_qdev.qled_new_pos.setText("%.2f" % new_pos)
     trav_horz_qdev.process_pbtn_move_to_new_pos()
@@ -250,4 +303,7 @@ if __name__ == "__main__":
     # --------------------------------------------------------------------------
 
     window.show()
-    sys.exit(app.exec_())
+    if QT_LIB in (PYQT5, PYSIDE2):
+        sys.exit(app.exec_())
+    else:
+        sys.exit(app.exec())

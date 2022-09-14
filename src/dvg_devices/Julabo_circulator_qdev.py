@@ -1,23 +1,76 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""PyQt5 module to provide multithreaded communication and periodical data
+"""PyQt/PySide module to provide multithreaded communication and periodical data
 acquisition for a Julabo circulating bath.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "02-03-2021"
-__version__ = "0.2.6"
-# pylint: disable=broad-except
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
+# pylint: disable=broad-except, try-except-raise
 
-import time
+# Mechanism to support both PyQt and PySide
+# -----------------------------------------
+import os
+import sys
 
-import numpy as np
-from PyQt5 import QtCore, QtGui
-from PyQt5 import QtWidgets as QtWid
+QT_LIB = os.getenv("PYQTGRAPH_QT_LIB")
+PYSIDE = "PySide"
+PYSIDE2 = "PySide2"
+PYSIDE6 = "PySide6"
+PYQT4 = "PyQt4"
+PYQT5 = "PyQt5"
+PYQT6 = "PyQt6"
+
+# pylint: disable=import-error, no-name-in-module
+# fmt: off
+if QT_LIB is None:
+    libOrder = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
+    for lib in libOrder:
+        if lib in sys.modules:
+            QT_LIB = lib
+            break
+
+if QT_LIB is None:
+    for lib in libOrder:
+        try:
+            __import__(lib)
+            QT_LIB = lib
+            break
+        except ImportError:
+            pass
+
+if QT_LIB is None:
+    raise Exception(
+        "Julabo_circulator_qdev requires PyQt5, PyQt6, PySide2 or PySide6; "
+        "none of these packages could be imported."
+    )
+
+if QT_LIB == PYQT5:
+    from PyQt5 import QtCore, QtWidgets as QtWid           # type: ignore
+    from PyQt5.QtCore import pyqtSlot as Slot              # type: ignore
+    from PyQt5.QtCore import pyqtSignal as Signal          # type: ignore
+elif QT_LIB == PYQT6:
+    from PyQt6 import QtCore, QtWidgets as QtWid           # type: ignore
+    from PyQt6.QtCore import pyqtSlot as Slot              # type: ignore
+    from PyQt6.QtCore import pyqtSignal as Signal          # type: ignore
+elif QT_LIB == PYSIDE2:
+    from PySide2 import QtCore, QtWidgets as QtWid         # type: ignore
+    from PySide2.QtCore import Slot                        # type: ignore
+    from PySide2.QtCore import Signal                      # type: ignore
+elif QT_LIB == PYSIDE6:
+    from PySide6 import QtCore, QtWidgets as QtWid         # type: ignore
+    from PySide6.QtCore import Slot                        # type: ignore
+    from PySide6.QtCore import Signal                      # type: ignore
+
+# fmt: on
+# pylint: enable=import-error, no-name-in-module
+# \end[Mechanism to support both PyQt and PySide]
+# -----------------------------------------------
 
 from dvg_pyqt_controls import create_Toggle_button, SS_TEXTBOX_ERRORS
-from dvg_debug_functions import dprint, print_fancy_traceback as pft
+from dvg_debug_functions import print_fancy_traceback as pft
 
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 from dvg_devices.Julabo_circulator_protocol_RS232 import Julabo_circulator
@@ -31,8 +84,8 @@ class Julabo_circulator_qdev(QDeviceIO):
     """Manages multithreaded communication and periodical data acquisition for
     a Julabo circulator, referred to as the 'device'.
 
-    In addition, it also provides PyQt5 GUI objects for control of the device.
-    These can be incorporated into your application.
+    In addition, it also provides PyQt/PySide GUI objects for control of the
+    device. These can be incorporated into your application.
 
     All device I/O operations will be offloaded to 'workers', each running in
     a newly created thread.
@@ -53,14 +106,14 @@ class Julabo_circulator_qdev(QDeviceIO):
         qgrp (PyQt5.QtWidgets.QGroupBox)
     """
 
-    signal_GUI_input_field_update = QtCore.pyqtSignal(int)
+    signal_GUI_input_field_update = Signal(int)
 
     def __init__(
         self,
         dev: Julabo_circulator,
         DAQ_trigger=DAQ_TRIGGER.INTERNAL_TIMER,
         DAQ_interval_ms=500,
-        DAQ_timer_type=QtCore.Qt.CoarseTimer,
+        DAQ_timer_type=QtCore.Qt.TimerType.CoarseTimer,
         critical_not_alive_count=3,
         debug=False,
         **kwargs,
@@ -117,7 +170,7 @@ class Julabo_circulator_qdev(QDeviceIO):
     def create_GUI(self):
         # Safety
         p = {
-            "alignment": QtCore.Qt.AlignRight,
+            "alignment": QtCore.Qt.AlignmentFlag.AlignRight,
             "minimumWidth": 60,
             "maximumWidth": 30,
         }
@@ -143,7 +196,7 @@ class Julabo_circulator_qdev(QDeviceIO):
         self.update_counter = QtWid.QLabel("0")
 
         i = 0
-        p = {"alignment": QtCore.Qt.AlignLeft}
+        p = {"alignment": QtCore.Qt.AlignmentFlag.AlignLeft}
         lbl_temp_unit = "\u00b0%s" % self.dev.state.temp_unit
 
         # fmt: off
@@ -193,7 +246,7 @@ class Julabo_circulator_qdev(QDeviceIO):
         grid.setColumnStretch(0, 0)
         grid.setColumnStretch(1, 0)
         grid.setColumnStretch(2, 1)
-        grid.setAlignment(QtCore.Qt.AlignTop)
+        grid.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
         self.grid = grid
 
         self.grpb = QtWid.QGroupBox("%s" % self.dev.name)
@@ -203,7 +256,7 @@ class Julabo_circulator_qdev(QDeviceIO):
     #   update_GUI
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def update_GUI(self):
         """NOTE: 'self.dev.mutex' is not being locked, because we are only
         reading 'state' for displaying purposes. We can do this because 'state'
@@ -235,8 +288,8 @@ class Julabo_circulator_qdev(QDeviceIO):
     #   update_GUI_input_field
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
-    @QtCore.pyqtSlot(int)
+    @Slot()
+    @Slot(int)
     def update_GUI_input_field(self, GUI_input_field=GUI_input_fields.ALL):
         if GUI_input_field == GUI_input_fields.setpoint:
             self.send_setpoint.setText("%.2f" % self.dev.state.setpoint)
@@ -256,7 +309,7 @@ class Julabo_circulator_qdev(QDeviceIO):
     #   GUI functions
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def process_pbtn_running(self):
         if self.dev.state.running:
             self.send(self.dev.turn_off)
@@ -266,7 +319,7 @@ class Julabo_circulator_qdev(QDeviceIO):
         # React as fast as possible by manually triggering processEvents()
         QtWid.QApplication.processEvents()
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def send_setpoint_from_textbox(self):
         try:
             value = float(self.send_setpoint.text())
@@ -282,7 +335,7 @@ class Julabo_circulator_qdev(QDeviceIO):
         )
         self.process_jobs_queue()
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def send_sub_temp_from_textbox(self):
         try:
             value = float(self.sub_temp.text())
@@ -298,7 +351,7 @@ class Julabo_circulator_qdev(QDeviceIO):
         )
         self.process_jobs_queue()
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def send_over_temp_from_textbox(self):
         try:
             value = float(self.over_temp.text())

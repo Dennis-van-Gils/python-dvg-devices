@@ -12,12 +12,13 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "15-07-2020"
-__version__ = "0.2.1"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
 import struct
+from typing import Tuple
 
 from dvg_devices.BaseDevice import SerialDevice
 
@@ -63,13 +64,14 @@ class Bronkhorst_MFC(SerialDevice):
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> (str, str):
+    def ID_validation_query(self) -> Tuple[str, str]:
         _success, reply = self.query(":0780047163716300")
         broad_reply = reply[3:13]  # Expected: "8002716300"
         specific_reply = bytearray.fromhex(
             reply[13:-2]
         ).decode()  # Serial number
-        return (broad_reply, specific_reply)
+
+        return broad_reply, specific_reply
 
     # --------------------------------------------------------------------------
     #   begin
@@ -107,9 +109,9 @@ class Bronkhorst_MFC(SerialDevice):
         if success and reply[3:13] == "8002716300":
             self.serial_str = bytearray.fromhex(reply[13:-2]).decode()
             return True
-        else:
-            self.serial_str = None
-            return False
+
+        self.serial_str = None
+        return False
 
     # --------------------------------------------------------------------------
     #   query_model_str
@@ -124,9 +126,9 @@ class Bronkhorst_MFC(SerialDevice):
         if success:
             self.model_str = bytearray.fromhex(reply[13:-2]).decode()
             return True
-        else:
-            self.model_str = None
-            return False
+
+        self.model_str = None
+        return False
 
     # --------------------------------------------------------------------------
     #   query_fluid_name
@@ -142,9 +144,9 @@ class Bronkhorst_MFC(SerialDevice):
         if success:
             self.fluid_name = bytearray.fromhex(reply[13:-2]).decode()
             return True
-        else:
-            self.fluid_name = None
-            return False
+
+        self.fluid_name = None
+        return False
 
     # --------------------------------------------------------------------------
     #   query_max_flow_rate
@@ -161,9 +163,9 @@ class Bronkhorst_MFC(SerialDevice):
         if success:
             self.max_flow_rate = hex_to_32bit_IEEE754_float(reply[11:])
             return True
-        else:
-            self.max_flow_rate = None
-            return False
+
+        self.max_flow_rate = None
+        return False
 
     # --------------------------------------------------------------------------
     #   query_setpoint
@@ -237,8 +239,8 @@ class Bronkhorst_MFC(SerialDevice):
         success, reply = self.query(":0680010121%04x" % setpoint)
         if success and reply[5:].strip() == "000005":  # Also check status reply
             return True
-        else:
-            return False
+
+        return False
 
 
 # ------------------------------------------------------------------------------

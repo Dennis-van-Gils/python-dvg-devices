@@ -1,25 +1,75 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Multithreaded PyQt5 GUI to interface with a a Keysight (former HP or Agilent)
-34970A/34972A data acquisition/switch unit.
+"""Multithreaded PyQt/PySide GUI to interface with a a Keysight (former HP or
+Agilent) 34970A/34972A data acquisition/switch unit.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "11-08-2020"
-__version__ = "0.2.1"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
 # pylint: disable=bare-except
 
-import sys
 import time
 
-import visa
+# Mechanism to support both PyQt and PySide
+# -----------------------------------------
+import os
+import sys
+
+QT_LIB = os.getenv("PYQTGRAPH_QT_LIB")
+PYSIDE = "PySide"
+PYSIDE2 = "PySide2"
+PYSIDE6 = "PySide6"
+PYQT4 = "PyQt4"
+PYQT5 = "PyQt5"
+PYQT6 = "PyQt6"
+
+# pylint: disable=import-error, no-name-in-module
+# fmt: off
+if QT_LIB is None:
+    libOrder = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
+    for lib in libOrder:
+        if lib in sys.modules:
+            QT_LIB = lib
+            break
+
+if QT_LIB is None:
+    for lib in libOrder:
+        try:
+            __import__(lib)
+            QT_LIB = lib
+            break
+        except ImportError:
+            pass
+
+if QT_LIB is None:
+    raise Exception(
+        "Keysight_3497xA_demo_logger requires PyQt5, PyQt6, PySide2 or PySide6; "
+        "none of these packages could be imported."
+    )
+
+if QT_LIB == PYQT5:
+    from PyQt5 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt5.QtCore import pyqtSlot as Slot              # type: ignore
+elif QT_LIB == PYQT6:
+    from PyQt6 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+    from PyQt6.QtCore import pyqtSlot as Slot              # type: ignore
+elif QT_LIB == PYSIDE2:
+    from PySide2 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide2.QtCore import Slot                        # type: ignore
+elif QT_LIB == PYSIDE6:
+    from PySide6 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+    from PySide6.QtCore import Slot                        # type: ignore
+
+# fmt: on
+# pylint: enable=import-error, no-name-in-module
+# \end[Mechanism to support both PyQt and PySide]
+# -----------------------------------------------
+
+import pyvisa
 import matplotlib.pyplot as plt
 import numpy as np
-
-from PyQt5 import QtCore, QtGui
-from PyQt5 import QtWidgets as QtWid
-from PyQt5.QtCore import QDateTime
 import pyqtgraph as pg
 
 from dvg_pyqtgraph_threadsafe import (
@@ -74,7 +124,7 @@ class MainWindow(QtWid.QWidget):
 
         self.qlbl_title = QtWid.QLabel(
             "Keysight 3497xA control",
-            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Bold),
+            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Weight.Bold),
         )
         self.qlbl_cur_date_time = QtWid.QLabel("00-00-0000    00:00:00")
         self.qpbt_record = create_Toggle_button(
@@ -91,10 +141,10 @@ class MainWindow(QtWid.QWidget):
 
         grid_top = QtWid.QGridLayout()
         # fmt: off
-        grid_top.addWidget(self.qlbl_title        , 0, 0, QtCore.Qt.AlignCenter)
-        grid_top.addWidget(self.qpbt_exit         , 0, 2, QtCore.Qt.AlignRight)
-        grid_top.addWidget(self.qlbl_cur_date_time, 1, 0, QtCore.Qt.AlignCenter)
-        grid_top.addWidget(self.qpbt_record       , 2, 0, QtCore.Qt.AlignCenter)
+        grid_top.addWidget(self.qlbl_title        , 0, 0, QtCore.Qt.AlignmentFlag.AlignCenter)
+        grid_top.addWidget(self.qpbt_exit         , 0, 2, QtCore.Qt.AlignmentFlag.AlignRight)
+        grid_top.addWidget(self.qlbl_cur_date_time, 1, 0, QtCore.Qt.AlignmentFlag.AlignCenter)
+        grid_top.addWidget(self.qpbt_record       , 2, 0, QtCore.Qt.AlignmentFlag.AlignCenter)
         # fmt: on
         grid_top.setColumnMinimumWidth(0, 420)
         grid_top.setColumnStretch(1, 1)
@@ -186,9 +236,13 @@ class MainWindow(QtWid.QWidget):
 
         vbox1 = QtWid.QVBoxLayout()
         vbox1.addWidget(
-            self.qgrp_legend, stretch=0, alignment=QtCore.Qt.AlignTop
+            self.qgrp_legend,
+            stretch=0,
+            alignment=QtCore.Qt.AlignmentFlag.AlignTop,
         )
-        vbox1.addWidget(qgrp_history, stretch=0, alignment=QtCore.Qt.AlignTop)
+        vbox1.addWidget(
+            qgrp_history, stretch=0, alignment=QtCore.Qt.AlignmentFlag.AlignTop
+        )
         vbox1.addStretch(1)
 
         # ----------------------------------------------------------------------
@@ -196,7 +250,9 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
 
         hbox1 = QtWid.QHBoxLayout()
-        hbox1.addWidget(mux_qdev.qgrp, stretch=0, alignment=QtCore.Qt.AlignTop)
+        hbox1.addWidget(
+            mux_qdev.qgrp, stretch=0, alignment=QtCore.Qt.AlignmentFlag.AlignTop
+        )
         hbox1.addWidget(self.gw_mux, stretch=1)
         hbox1.addLayout(vbox1)
 
@@ -209,9 +265,9 @@ class MainWindow(QtWid.QWidget):
     #   Handle controls
     # --------------------------------------------------------------------------
 
-    @QtCore.pyqtSlot()
+    @Slot()
     def update_GUI(self):
-        cur_date_time = QDateTime.currentDateTime()
+        cur_date_time = QtCore.QDateTime.currentDateTime()
         self.qlbl_cur_date_time.setText(
             cur_date_time.toString("dd-MM-yyyy")
             + "    "
@@ -254,7 +310,7 @@ def DAQ_postprocess_MUX_scan_function():
     performed. We use it to parse out the scan readings into separate variables
     and log it to file.
     """
-    cur_date_time = QDateTime.currentDateTime()
+    cur_date_time = QtCore.QDateTime.currentDateTime()
     now = time.perf_counter()
 
     # DEBUG info
@@ -351,7 +407,7 @@ if __name__ == "__main__":
     #   Connect to Keysight 3497xA (mux)
     # --------------------------------------------------------------------------
 
-    rm = visa.ResourceManager()
+    rm = pyvisa.ResourceManager()
 
     mux = Keysight_3497xA(MUX_VISA_ADDRESS, "MUX")
     if mux.connect(rm):
@@ -425,7 +481,7 @@ if __name__ == "__main__":
     #   Start threads
     # --------------------------------------------------------------------------
 
-    mux_qdev.start(DAQ_priority=QtCore.QThread.TimeCriticalPriority)
+    mux_qdev.start()
 
     # --------------------------------------------------------------------------
     #   Set up timers
@@ -441,4 +497,7 @@ if __name__ == "__main__":
 
     window.plot_manager.perform_preset(2)  # Init time axis of the history chart
     window.show()
-    sys.exit(app.exec_())
+    if QT_LIB in (PYQT5, PYSIDE2):
+        sys.exit(app.exec_())
+    else:
+        sys.exit(app.exec())

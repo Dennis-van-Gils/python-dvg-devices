@@ -1,21 +1,67 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Multithreaded PyQt5 GUI to interface with a a Keysight (former HP or Agilent)
-34970A/34972A data acquisition/switch unit.
+"""Multithreaded PyQt/PySide GUI to interface with a a Keysight (former HP or
+Agilent) 34970A/34972A data acquisition/switch unit.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "07-07-2020"
-__version__ = "0.2.1"
+__date__ = "14-09-2022"
+__version__ = "1.0.0"
 # pylint: disable=bare-except
 
+# Mechanism to support both PyQt and PySide
+# -----------------------------------------
+import os
 import sys
-import visa
 
-from PyQt5 import QtCore, QtGui
-from PyQt5 import QtWidgets as QtWid
+QT_LIB = os.getenv("PYQTGRAPH_QT_LIB")
+PYSIDE = "PySide"
+PYSIDE2 = "PySide2"
+PYSIDE6 = "PySide6"
+PYQT4 = "PyQt4"
+PYQT5 = "PyQt5"
+PYQT6 = "PyQt6"
 
+# pylint: disable=import-error, no-name-in-module
+# fmt: off
+if QT_LIB is None:
+    libOrder = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
+    for lib in libOrder:
+        if lib in sys.modules:
+            QT_LIB = lib
+            break
+
+if QT_LIB is None:
+    for lib in libOrder:
+        try:
+            __import__(lib)
+            QT_LIB = lib
+            break
+        except ImportError:
+            pass
+
+if QT_LIB is None:
+    raise Exception(
+        "Keysight_3497xA_demo requires PyQt5, PyQt6, PySide2 or PySide6; "
+        "none of these packages could be imported."
+    )
+
+if QT_LIB == PYQT5:
+    from PyQt5 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+elif QT_LIB == PYQT6:
+    from PyQt6 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
+elif QT_LIB == PYSIDE2:
+    from PySide2 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+elif QT_LIB == PYSIDE6:
+    from PySide6 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
+
+# fmt: on
+# pylint: enable=import-error, no-name-in-module
+# \end[Mechanism to support both PyQt and PySide]
+# -----------------------------------------------
+
+import pyvisa
 from dvg_pyqt_controls import SS_TEXTBOX_READ_ONLY
 
 from dvg_devices.Keysight_3497xA_protocol_SCPI import Keysight_3497xA
@@ -36,7 +82,7 @@ class MainWindow(QtWid.QWidget):
         # Top grid
         self.qlbl_title = QtWid.QLabel(
             "Keysight 3497xA control",
-            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Bold),
+            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Weight.Bold),
         )
         self.qpbt_exit = QtWid.QPushButton("Exit")
         self.qpbt_exit.clicked.connect(self.close)
@@ -44,13 +90,15 @@ class MainWindow(QtWid.QWidget):
 
         grid_top = QtWid.QGridLayout()
         grid_top.addWidget(self.qlbl_title, 0, 0)
-        grid_top.addWidget(self.qpbt_exit, 0, 1, QtCore.Qt.AlignRight)
+        grid_top.addWidget(
+            self.qpbt_exit, 0, 1, QtCore.Qt.AlignmentFlag.AlignRight
+        )
 
         # Bottom grid
         hbox1 = QtWid.QHBoxLayout()
         hbox1.addWidget(mux_qdev.qgrp)
         hbox1.addStretch(1)
-        hbox1.setAlignment(mux_qdev.qgrp, QtCore.Qt.AlignTop)
+        hbox1.setAlignment(mux_qdev.qgrp, QtCore.Qt.AlignmentFlag.AlignTop)
 
         # Round up full window
         vbox = QtWid.QVBoxLayout(self)
@@ -117,7 +165,7 @@ if __name__ == "__main__":
     #   Connect to Keysight 3497xA (mux)
     # --------------------------------------------------------------------------
 
-    rm = visa.ResourceManager()
+    rm = pyvisa.ResourceManager()
 
     mux = Keysight_3497xA(MUX_VISA_ADDRESS, "MUX_1")
     if mux.connect(rm):
@@ -149,4 +197,7 @@ if __name__ == "__main__":
 
     window = MainWindow()
     window.show()
-    sys.exit(app.exec_())
+    if QT_LIB in (PYQT5, PYSIDE2):
+        sys.exit(app.exec_())
+    else:
+        sys.exit(app.exec())

@@ -21,7 +21,11 @@ __version__ = "1.0.0"
 # pylint: disable=try-except-raise
 
 import time
-import visa
+
+# TODO: Current demanded requirement pyvisa~=1.11 was ~=1.9 before. 1.11 has
+# broken backwards comp. Still need to test if all is still fine. Delete this
+# comment if tested okay.
+import pyvisa
 import numpy as np
 
 from dvg_debug_functions import print_fancy_traceback
@@ -174,7 +178,7 @@ class Keysight_3497xA:
         and its identity is queried and stored in '_idn'.
 
         Args:
-            rm: Instance of visa.ResourceManager
+            rm: Instance of pyvisa.ResourceManager
 
         Returns: True if successful, False otherwise.
         """
@@ -187,7 +191,7 @@ class Keysight_3497xA:
                 self._visa_address, timeout=VISA_TIMEOUT
             )
             self.device.clear()
-        except visa.VisaIOError:
+        except pyvisa.VisaIOError:
             print("Could not open resource.\n")
             return False
         except:
@@ -278,7 +282,7 @@ class Keysight_3497xA:
 
         try:
             self.device.write(msg_str)
-        except visa.VisaIOError as err:
+        except pyvisa.VisaIOError as err:
             # Print error and struggle on
             print_fancy_traceback(err, 3)
             return False
@@ -311,7 +315,7 @@ class Keysight_3497xA:
         else:
             try:
                 ans_str = self.device.query(msg_str)
-            except visa.VisaIOError as err:
+            except pyvisa.VisaIOError as err:
                 # Print error and struggle on
                 print_fancy_traceback(err, 3)
             except:
@@ -346,7 +350,7 @@ class Keysight_3497xA:
         else:
             try:
                 ans_list = self.device.query_ascii_values(msg_str)
-            except visa.VisaIOError as err:
+            except pyvisa.VisaIOError as err:
                 # Print error and struggle on
                 print_fancy_traceback(err, 3)
             except:

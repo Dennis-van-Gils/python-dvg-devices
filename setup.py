@@ -90,7 +90,7 @@ setup(
         "matplotlib~=3.1",
         "numpy~=1.15",
         "pyserial~=3.4",
-        "pyvisa~=1.9",
+        "pyvisa~=1.11",
     ],
     extras_require={
         "pyqt5": ["pyqt5~=5.12"],

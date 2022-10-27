@@ -5,21 +5,20 @@ Supported models:
     PD07R-20, PD07R-40, PD7LR-20, PD15R-30, PD15R-40, PD20R-30, PD28R-30,
     PD45R-20, PD07H200, PD15H200, PD20H200, PD28H200, PD15RCAL, PD15HCAL.
 Tested on model PD15R-30‐A12E
-
-TODO:
-- Make use of `dvg_debug_functions.print_fancy_traceback()` in place of
-`sys._getframe(0)...`.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "15-07-2020"
-__version__ = "0.2.3"
+__date__ = "27-10-2022"
+__version__ = "0.3.0"
 # pylint: disable=try-except-raise, bare-except
 
 import sys
+from typing import Tuple
+
 import numpy as np
 
+from dvg_debug_functions import print_fancy_traceback as pft
 from dvg_devices.BaseDevice import SerialDevice
 
 # Temperature setpoint limits in software, not on a hardware level
@@ -61,7 +60,7 @@ class PolyScience_PD_bath(SerialDevice):
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> (str, str):
+    def ID_validation_query(self) -> Tuple[str, str]:
         # We'll use the `Disable command echo` of the PolyScience bath and check
         # for the proper reply '!'.
         _success, reply = self.query("SE0")
@@ -73,7 +72,7 @@ class PolyScience_PD_bath(SerialDevice):
     #   query_P1_temp
     # --------------------------------------------------------------------------
 
-    def query_P1_temp(self):
+    def query_P1_temp(self) -> bool:
         """Query the bath temperature and store it in the class member 'state'.
         Will be set to numpy.nan if unsuccessful.
 
@@ -84,7 +83,7 @@ class PolyScience_PD_bath(SerialDevice):
             try:
                 num = float(reply)
             except (TypeError, ValueError) as err:
-                print("ERROR: %s" % sys._getframe(0).f_code.co_name)
+                pft(err)
                 print(err)
             else:
                 self.state.P1_temp = num
@@ -97,7 +96,7 @@ class PolyScience_PD_bath(SerialDevice):
     #   query_P2_temp
     # --------------------------------------------------------------------------
 
-    def query_P2_temp(self):
+    def query_P2_temp(self) -> bool:
         """Query the external probe and store it in the class member 'state'.
         Will be set to numpy.nan if unsuccessful.
 
@@ -108,7 +107,7 @@ class PolyScience_PD_bath(SerialDevice):
             try:
                 num = float(reply)
             except (TypeError, ValueError) as err:
-                print("ERROR: %s" % sys._getframe(0).f_code.co_name)
+                pft(err)
                 print(err)
             else:
                 self.state.P2_temp = num
@@ -121,7 +120,7 @@ class PolyScience_PD_bath(SerialDevice):
     #   query_setpoint
     # --------------------------------------------------------------------------
 
-    def query_setpoint(self):
+    def query_setpoint(self) -> bool:
         """Query the temperature setpoint in [deg C] set at the PolyScience bath
         and store it in the class member 'state'. Will be set to numpy.nan if
         unsuccessful.
@@ -134,7 +133,7 @@ class PolyScience_PD_bath(SerialDevice):
             try:
                 num = float(reply)
             except (TypeError, ValueError) as err:
-                print("ERROR: %s" % sys._getframe(0).f_code.co_name)
+                pft(err)
                 print(err)
             else:
                 self.state.setpoint = num
@@ -147,7 +146,7 @@ class PolyScience_PD_bath(SerialDevice):
     #   send_setpoint
     # --------------------------------------------------------------------------
 
-    def send_setpoint(self, setpoint):
+    def send_setpoint(self, setpoint) -> bool:
         """Send a new temperature setpoint in [deg C] to the PolyScience bath.
 
         Args:

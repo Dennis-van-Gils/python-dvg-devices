@@ -6,7 +6,7 @@ Tested on model FP51-SL.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "14-09-2022"
+__date__ = "28-10-2022"
 __version__ = "1.0.0"
 # pylint: disable=bare-except, broad-except, bad-string-format-type
 
@@ -104,7 +104,7 @@ class Julabo_circulator(SerialDevice):
     #   begin
     # --------------------------------------------------------------------------
 
-    def begin(self):
+    def begin(self) -> bool:
         """This function should run directly after having established a
         connection to a Julabo. It retrieves the first readings and settings
         from the Julabo.
@@ -138,7 +138,7 @@ class Julabo_circulator(SerialDevice):
     #   turn_on/off
     # --------------------------------------------------------------------------
 
-    def turn_off(self):
+    def turn_off(self) -> bool:
         """Turn the Julabo off.
 
         Returns: True if successful, False otherwise.
@@ -150,7 +150,7 @@ class Julabo_circulator(SerialDevice):
 
         return False
 
-    def turn_on(self):
+    def turn_on(self) -> bool:
         """Turn the Julabo on.
 
         Returns: True if successful, False otherwise.
@@ -166,7 +166,7 @@ class Julabo_circulator(SerialDevice):
     #   set_sub_temp
     # --------------------------------------------------------------------------
 
-    def set_sub_temp(self, value: float):
+    def set_sub_temp(self, value: float) -> bool:
         """Set the low-temperature warning limit. Subsequently, the Julabo is
         queried for the obtained value, which might be different than the one
         requested.
@@ -189,7 +189,7 @@ class Julabo_circulator(SerialDevice):
     #   set_over_temp
     # --------------------------------------------------------------------------
 
-    def set_over_temp(self, value: float):
+    def set_over_temp(self, value: float) -> bool:
         """Set the high-temperature warning limit. Subsequently, the Julabo is
         queried for the obtained value, which might be different than the one
         requested.
@@ -212,7 +212,7 @@ class Julabo_circulator(SerialDevice):
     #   set_setpoint_preset
     # --------------------------------------------------------------------------
 
-    def set_setpoint_preset(self, n: int):
+    def set_setpoint_preset(self, n: int) -> bool:
         """Instruct the Julabo to select another setpoint preset.
 
         Args:
@@ -238,7 +238,7 @@ class Julabo_circulator(SerialDevice):
     #   set_sendpoint
     # --------------------------------------------------------------------------
 
-    def set_setpoint(self, value: float):
+    def set_setpoint(self, value: float) -> bool:
         """Set the temperature setpoint #1, #2 or #3, depending on which one is
         currently the active preset. Subsequently, the Julabo is queried for the
         obtained value, which might be different than the one requested.
@@ -264,7 +264,7 @@ class Julabo_circulator(SerialDevice):
     #   set_sendpoint_1
     # --------------------------------------------------------------------------
 
-    def set_setpoint_1(self, value: float):
+    def set_setpoint_1(self, value: float) -> bool:
         """Set the temperature setpoint #1. Subsequently, the Julabo is queried
         for the obtained value, which might be different than the one requested.
 
@@ -286,7 +286,7 @@ class Julabo_circulator(SerialDevice):
     #   set_sendpoint_2
     # --------------------------------------------------------------------------
 
-    def set_setpoint_2(self, value: float):
+    def set_setpoint_2(self, value: float) -> bool:
         """Set the temperature setpoint #2. Subsequently, the Julabo is queried
         for the obtained value, which might be different than the one requested.
 
@@ -308,7 +308,7 @@ class Julabo_circulator(SerialDevice):
     #   set_sendpoint_3
     # --------------------------------------------------------------------------
 
-    def set_setpoint_3(self, value: float):
+    def set_setpoint_3(self, value: float) -> bool:
         """Set the temperature setpoint #3. Subsequently, the Julabo is queried
         for the obtained value, which might be different than the one requested.
 
@@ -330,7 +330,7 @@ class Julabo_circulator(SerialDevice):
     #   query_version
     # --------------------------------------------------------------------------
 
-    def query_version(self):
+    def query_version(self) -> bool:
         """Query the version of the Julabo firmware and store it in the class
         member 'state'. Will be set to numpy.nan if unsuccessful.
 
@@ -348,7 +348,7 @@ class Julabo_circulator(SerialDevice):
     #   query_status
     # --------------------------------------------------------------------------
 
-    def query_status(self):
+    def query_status(self) -> bool:
         """Query the status or error message of the Julabo and store it in the
         class member 'state'. Will be set to numpy.nan if unsuccessful.
 
@@ -379,7 +379,7 @@ class Julabo_circulator(SerialDevice):
     #   query_temp_unit
     # --------------------------------------------------------------------------
 
-    def query_temp_unit(self):
+    def query_temp_unit(self) -> bool:
         """Query the temperature unit used by the Julabo and store it in the
         class member 'state'. Will be set to numpy.nan if unsuccessful, else
         either "C" or "F".
@@ -403,7 +403,7 @@ class Julabo_circulator(SerialDevice):
     #   query_running
     # --------------------------------------------------------------------------
 
-    def query_running(self):
+    def query_running(self) -> bool:
         """Query if the Julabo is running and store it in the class member
         'state'. Will be set to numpy.nan if unsuccessful.
 
@@ -426,7 +426,7 @@ class Julabo_circulator(SerialDevice):
     #   query_sub_temp
     # --------------------------------------------------------------------------
 
-    def query_sub_temp(self):
+    def query_sub_temp(self) -> bool:
         """Query the low-temperature warning limit and store it in the class
         member 'state'. Will be set to numpy.nan if unsuccessful.
 
@@ -449,7 +449,7 @@ class Julabo_circulator(SerialDevice):
     #   query_over_temp
     # --------------------------------------------------------------------------
 
-    def query_over_temp(self):
+    def query_over_temp(self) -> bool:
         """Query the high-temperature warning limit and store it in the class
         member 'state'. Will be set to numpy.nan if unsuccessful.
 
@@ -472,7 +472,7 @@ class Julabo_circulator(SerialDevice):
     #   query_safe_temp
     # --------------------------------------------------------------------------
 
-    def query_safe_temp(self):
+    def query_safe_temp(self) -> bool:
         """Query the screw-set excess temperature protection and store it in the
         class member 'state'. Will be set to numpy.nan if unsuccessful.
 
@@ -495,7 +495,7 @@ class Julabo_circulator(SerialDevice):
     #   query_safe_sens
     # --------------------------------------------------------------------------
 
-    def query_safe_sens(self):
+    def query_safe_sens(self) -> bool:
         """Query the safety sensor temperature and store it in the class member
         'state'. Will be set to numpy.nan if unsuccessful.
 
@@ -518,7 +518,7 @@ class Julabo_circulator(SerialDevice):
     #   query_setpoint_preset
     # --------------------------------------------------------------------------
 
-    def query_setpoint_preset(self):
+    def query_setpoint_preset(self) -> bool:
         """Query the setpoint preset currently used by the Julabo (#1, #2 or #3)
         and store it in the class member 'state'. Will be set to numpy.nan
         if unsuccessful.
@@ -542,7 +542,7 @@ class Julabo_circulator(SerialDevice):
     #   query_setpoint
     # --------------------------------------------------------------------------
 
-    def query_setpoint(self):
+    def query_setpoint(self) -> bool:
         """Query the temperature setpoint #1, #2 or #3, depending on which one
         is currently the active preset, and store it in the class member
         'state'. Will be set to numpy.nan if unsuccessful.
@@ -567,7 +567,7 @@ class Julabo_circulator(SerialDevice):
     #   query_setpoint_1
     # --------------------------------------------------------------------------
 
-    def query_setpoint_1(self):
+    def query_setpoint_1(self) -> bool:
         """Query the temperature setpoint #1 and store it in the class member
         'state'. Will be set to numpy.nan if unsuccessful.
 
@@ -590,7 +590,7 @@ class Julabo_circulator(SerialDevice):
     #   query_setpoint_2
     # --------------------------------------------------------------------------
 
-    def query_setpoint_2(self):
+    def query_setpoint_2(self) -> bool:
         """Query the temperature setpoint #2 and store it in the class member
         'state'. Will be set to numpy.nan if unsuccessful.
 
@@ -613,7 +613,7 @@ class Julabo_circulator(SerialDevice):
     #   query_setpoint_3
     # --------------------------------------------------------------------------
 
-    def query_setpoint_3(self):
+    def query_setpoint_3(self) -> bool:
         """Query the temperature setpoint #3 and store it in the class member
         'state'. Will be set to numpy.nan if unsuccessful.
 
@@ -636,7 +636,7 @@ class Julabo_circulator(SerialDevice):
     #   query_bath_temp
     # --------------------------------------------------------------------------
 
-    def query_bath_temp(self):
+    def query_bath_temp(self) -> bool:
         """Query the current bath temperature and store it in the class member
         'state'. Will be set to numpy.nan if unsuccessful.
 
@@ -659,7 +659,7 @@ class Julabo_circulator(SerialDevice):
     #   query_pt100_temp
     # --------------------------------------------------------------------------
 
-    def query_pt100_temp(self):
+    def query_pt100_temp(self) -> bool:
         """Query the current external Pt100 temperature sensor and store it in
         the class member 'state'. Will be set to numpy.nan if no external sensor
         is connected or when communication is unsuccessful.
@@ -687,7 +687,7 @@ class Julabo_circulator(SerialDevice):
     #   query_common_readings
     # --------------------------------------------------------------------------
 
-    def query_common_readings(self):
+    def query_common_readings(self) -> bool:
         """Query the most common readings:
         - Running?
         - Setpoint

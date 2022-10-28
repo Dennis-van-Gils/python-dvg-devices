@@ -15,7 +15,7 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "14-09-2022"
+__date__ = "28-10-2022"
 __version__ = "1.0.0"
 # pylint: disable=bare-except, broad-except, try-except-raise, pointless-string-statement
 
@@ -149,7 +149,7 @@ class Compax3_servo(SerialDevice):
     #   Higher level queries
     # --------------------------------------------------------------------------
 
-    def query_serial_str(self):
+    def query_serial_str(self) -> bool:
         """Query the serial number and store it in the class member 'serial_str'
 
         Returns: True if successful, False otherwise.
@@ -169,7 +169,7 @@ class Compax3_servo(SerialDevice):
         self.serial_str = None
         return False
 
-    def query_position(self):
+    def query_position(self) -> bool:
         """Query the position and store in the class member 'state.cur_pos'
         when successful. When the communication fails the class member will be
         set to [numpy.nan].
@@ -184,7 +184,7 @@ class Compax3_servo(SerialDevice):
 
         return success
 
-    def query_error(self):
+    def query_error(self) -> bool:
         """Query the last error and store in the class member 'state.error_msg'
         when successful. When the communication fails the class member will be
         set to [numpy.nan].
@@ -221,7 +221,7 @@ class Compax3_servo(SerialDevice):
 
         return success
 
-    def query_status_word_1(self):
+    def query_status_word_1(self) -> bool:
         """Query the status word 1 and store in the class member 'status_word_1'
         when successful. When the communication fails the class member
         'status_word_1' will be populated with [numpy.nan].
@@ -289,7 +289,7 @@ class Compax3_servo(SerialDevice):
         decel=100,
         jerk=1e6,
         profile_number=2,
-    ):
+    ) -> bool:
         """
         Note:
             Profile_number 0 is reserved for homing.
@@ -333,7 +333,7 @@ class Compax3_servo(SerialDevice):
 
         return success
 
-    def activate_motion_profile(self, profile_number=2):
+    def activate_motion_profile(self, profile_number=2) -> bool:
         """ """
         # Control word (CW) for activating the passed profile number
         # First send: quit/motor bit (bit 0) high
@@ -349,7 +349,9 @@ class Compax3_servo(SerialDevice):
 
         return success
 
-    def move_to_target_position(self, target_position, profile_number=2):
+    def move_to_target_position(
+        self, target_position, profile_number=2
+    ) -> bool:
         """
         Note: Make sure a motion profile with number 'profile_number' is stored
         at least once with 'self.store_motion_profile' before moving.
@@ -364,7 +366,7 @@ class Compax3_servo(SerialDevice):
 
         return success
 
-    def jog_plus(self):
+    def jog_plus(self) -> bool:
         """ """
         # Control word (CW) for activating the jog+
         CW_LO = 0b0100000000000011
@@ -376,7 +378,7 @@ class Compax3_servo(SerialDevice):
 
         return success
 
-    def jog_minus(self):
+    def jog_minus(self) -> bool:
         """ """
         # Control word (CW) for activating the jog-
         CW_LO = 0b0100000000000011
@@ -388,20 +390,20 @@ class Compax3_servo(SerialDevice):
 
         return success
 
-    def stop_motion_but_keep_power(self):
+    def stop_motion_but_keep_power(self) -> bool:
         """ """
         CW_LO = 0b0100000000000011
         success, _reply = self.query("o1100.3=%d" % CW_LO)
 
         return success
 
-    def stop_motion_and_remove_power(self):
+    def stop_motion_and_remove_power(self) -> bool:
         """ """
         success, _reply = self.query("o1100.3=0")
 
         return success
 
-    def acknowledge_error(self):
+    def acknowledge_error(self) -> bool:
         """If the cause of an error is eliminated, the error can be
         acknowledged. This is necessary for the axis to be able to get powered
         again.

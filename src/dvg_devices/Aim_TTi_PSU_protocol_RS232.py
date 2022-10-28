@@ -9,7 +9,7 @@ Note:
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "14-09-2022"
+__date__ = "28-10-2022"
 __version__ = "1.0.0"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
@@ -228,7 +228,7 @@ class Aim_TTi_PSU(SerialDevice):
 
         return success
 
-    def wait_for_OPC(self):
+    def wait_for_OPC(self) -> bool:
         """'Operation complete' query, used for event synchronization. Will wait
         for all device operations to complete or until a timeout is triggered.
         Blocking.

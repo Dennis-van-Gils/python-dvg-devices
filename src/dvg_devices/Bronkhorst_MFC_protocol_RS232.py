@@ -12,7 +12,7 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "14-09-2022"
+__date__ = "28-10-2022"
 __version__ = "1.0.0"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
@@ -100,7 +100,7 @@ class Bronkhorst_MFC(SerialDevice):
     #   query_serial_str
     # --------------------------------------------------------------------------
 
-    def query_serial_str(self):
+    def query_serial_str(self) -> bool:
         """Query the serial number and store it in the class member 'serial_str'
 
         Returns: True if successful, False otherwise.
@@ -117,7 +117,7 @@ class Bronkhorst_MFC(SerialDevice):
     #   query_model_str
     # --------------------------------------------------------------------------
 
-    def query_model_str(self):
+    def query_model_str(self) -> bool:
         """Query the model name of the MFC and store it in the class member 'state'.
 
         Returns: True if successful, False otherwise.
@@ -134,7 +134,7 @@ class Bronkhorst_MFC(SerialDevice):
     #   query_fluid_name
     # --------------------------------------------------------------------------
 
-    def query_fluid_name(self):
+    def query_fluid_name(self) -> bool:
         """Query the fluid name that the MFC is calibrated for and store it in
         the class member 'state'.
 
@@ -152,7 +152,7 @@ class Bronkhorst_MFC(SerialDevice):
     #   query_max_flow_rate
     # --------------------------------------------------------------------------
 
-    def query_max_flow_rate(self):
+    def query_max_flow_rate(self) -> bool:
         """Query the maximum mass flow rate in [ln/min] of the MFC and store it
         in the class member 'state'. This value is mandatory to be known, because it is
         used to set and read the setpoint, and to read the flow rate.
@@ -171,7 +171,7 @@ class Bronkhorst_MFC(SerialDevice):
     #   query_setpoint
     # --------------------------------------------------------------------------
 
-    def query_setpoint(self):
+    def query_setpoint(self) -> bool:
         """Query the mass flow rate setpoint in [ln/min] set at the MFC and
         store it in the class member 'state' 'state'. Will be set to None if
         unsuccessful.
@@ -195,7 +195,7 @@ class Bronkhorst_MFC(SerialDevice):
     #   query_flow_rate
     # --------------------------------------------------------------------------
 
-    def query_flow_rate(self):
+    def query_flow_rate(self) -> bool:
         """Query the mass flow rate in [ln/min] measured by the MFC and
         store it in the class member 'state'. Will be set to None if
         unsuccessful.
@@ -219,7 +219,7 @@ class Bronkhorst_MFC(SerialDevice):
     #   send_setpoint
     # --------------------------------------------------------------------------
 
-    def send_setpoint(self, setpoint):
+    def send_setpoint(self, setpoint) -> bool:
         """Send a new mass flow rate setpoint in [ln/min] to the MFC.
 
         Args:
@@ -248,7 +248,7 @@ class Bronkhorst_MFC(SerialDevice):
 # ------------------------------------------------------------------------------
 
 
-def hex_to_32bit_IEEE754_float(hex_str):
+def hex_to_32bit_IEEE754_float(hex_str) -> float:
     """Transform a string containing a hexidecimal representation of a 32-bits
     IEEE754-formatted float value to a float
     """

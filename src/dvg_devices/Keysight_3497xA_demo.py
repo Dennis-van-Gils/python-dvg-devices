@@ -6,34 +6,40 @@ Agilent) 34970A/34972A data acquisition/switch unit.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "14-09-2022"
+__date__ = "28-10-2022"
 __version__ = "1.0.0"
 # pylint: disable=bare-except
 
-# Mechanism to support both PyQt and PySide
-# -----------------------------------------
 import os
 import sys
 
-QT_LIB = os.getenv("PYQTGRAPH_QT_LIB")
-PYSIDE = "PySide"
-PYSIDE2 = "PySide2"
-PYSIDE6 = "PySide6"
-PYQT4 = "PyQt4"
+# Mechanism to support both PyQt and PySide
+# -----------------------------------------
+
 PYQT5 = "PyQt5"
 PYQT6 = "PyQt6"
+PYSIDE2 = "PySide2"
+PYSIDE6 = "PySide6"
+QT_LIB_ORDER = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
+QT_LIB = None
 
-# pylint: disable=import-error, no-name-in-module
-# fmt: off
+# Parse optional cli argument to enfore a QT_LIB
+# cli example: python benchmark.py pyside6
+if len(sys.argv) > 1:
+    arg1 = str(sys.argv[1]).upper()
+    for i, lib in enumerate(QT_LIB_ORDER):
+        if arg1 == lib.upper():
+            QT_LIB = lib
+            break
+
 if QT_LIB is None:
-    libOrder = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
-    for lib in libOrder:
+    for lib in QT_LIB_ORDER:
         if lib in sys.modules:
             QT_LIB = lib
             break
 
 if QT_LIB is None:
-    for lib in libOrder:
+    for lib in QT_LIB_ORDER:
         try:
             __import__(lib)
             QT_LIB = lib
@@ -42,11 +48,14 @@ if QT_LIB is None:
             pass
 
 if QT_LIB is None:
+    this_file = __file__.split(os.sep)[-1]
     raise Exception(
-        "Keysight_3497xA_demo requires PyQt5, PyQt6, PySide2 or PySide6; "
+        f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
         "none of these packages could be imported."
     )
 
+# fmt: off
+# pylint: disable=import-error, no-name-in-module
 if QT_LIB == PYQT5:
     from PyQt5 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
 elif QT_LIB == PYQT6:
@@ -55,9 +64,9 @@ elif QT_LIB == PYSIDE2:
     from PySide2 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
 elif QT_LIB == PYSIDE6:
     from PySide6 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
-
-# fmt: on
 # pylint: enable=import-error, no-name-in-module
+# fmt: on
+
 # \end[Mechanism to support both PyQt and PySide]
 # -----------------------------------------------
 

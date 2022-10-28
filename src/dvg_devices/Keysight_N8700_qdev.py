@@ -6,36 +6,32 @@ acquisition for a Keysight N8700 power supply (PSU).
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "14-09-2022"
+__date__ = "28-10-2022"
 __version__ = "1.0.0"
 # pylint: disable=try-except-raise, broad-except
 
+import os
+import sys
 import time
 
 # Mechanism to support both PyQt and PySide
 # -----------------------------------------
-import os
-import sys
 
-QT_LIB = os.getenv("PYQTGRAPH_QT_LIB")
-PYSIDE = "PySide"
-PYSIDE2 = "PySide2"
-PYSIDE6 = "PySide6"
-PYQT4 = "PyQt4"
 PYQT5 = "PyQt5"
 PYQT6 = "PyQt6"
+PYSIDE2 = "PySide2"
+PYSIDE6 = "PySide6"
+QT_LIB_ORDER = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
+QT_LIB = None
 
-# pylint: disable=import-error, no-name-in-module
-# fmt: off
 if QT_LIB is None:
-    libOrder = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
-    for lib in libOrder:
+    for lib in QT_LIB_ORDER:
         if lib in sys.modules:
             QT_LIB = lib
             break
 
 if QT_LIB is None:
-    for lib in libOrder:
+    for lib in QT_LIB_ORDER:
         try:
             __import__(lib)
             QT_LIB = lib
@@ -44,11 +40,14 @@ if QT_LIB is None:
             pass
 
 if QT_LIB is None:
+    this_file = __file__.split(os.sep)[-1]
     raise Exception(
-        "Keysight_N8700_qdev requires PyQt5, PyQt6, PySide2 or PySide6; "
+        f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
         "none of these packages could be imported."
     )
 
+# fmt: off
+# pylint: disable=import-error, no-name-in-module
 if QT_LIB == PYQT5:
     from PyQt5 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
     from PyQt5.QtCore import pyqtSlot as Slot              # type: ignore
@@ -65,9 +64,9 @@ elif QT_LIB == PYSIDE6:
     from PySide6 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
     from PySide6.QtCore import Slot                        # type: ignore
     from PySide6.QtCore import Signal                      # type: ignore
-
-# fmt: on
 # pylint: enable=import-error, no-name-in-module
+# fmt: on
+
 # \end[Mechanism to support both PyQt and PySide]
 # -----------------------------------------------
 
@@ -161,7 +160,7 @@ class Keysight_N8700_qdev(QDeviceIO):
     #   DAQ_function
     # --------------------------------------------------------------------------
 
-    def DAQ_function(self):
+    def DAQ_function(self) -> bool:
         DEBUG_local = False
         if DEBUG_local:
             tick = time.perf_counter()

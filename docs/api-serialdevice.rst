@@ -13,6 +13,7 @@ Methods
 .. automethod:: dvg_devices.BaseDevice.SerialDevice.readline
 .. automethod:: dvg_devices.BaseDevice.SerialDevice.write
 .. automethod:: dvg_devices.BaseDevice.SerialDevice.query
+.. automethod:: dvg_devices.BaseDevice.SerialDevice.query_bytes
 .. automethod:: dvg_devices.BaseDevice.SerialDevice.query_ascii_values
 .. automethod:: dvg_devices.BaseDevice.SerialDevice.connect_at_port
 .. automethod:: dvg_devices.BaseDevice.SerialDevice.scan_ports

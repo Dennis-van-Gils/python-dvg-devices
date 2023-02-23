@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.3.0 (2023-02-23)
+------------------
+* Added method ``BaseDevice.SerialDevice.query_bytes()``
+* Fixed type hints in ``BaseDevice.SerialDevice``
+
 1.2.0 (2022-09-14)
 ------------------
 * Added support for PyQt5, PyQt6, PySide2 and PySide6

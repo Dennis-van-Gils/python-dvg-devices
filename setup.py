@@ -24,7 +24,7 @@ def read(*names, **kwargs):
 
 setup(
     name="dvg-devices",
-    version="1.2.0",
+    version="1.3.0",
     license="MIT",
     description="Collection of I/O interfaces to communicate with microcontroller boards and laboratory devices, with optional PyQt/PySide multithread support and graphical user-interfaces.",
     long_description="%s\n%s"
@@ -56,6 +56,7 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Topic :: Scientific/Engineering ",
         "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
         "Topic :: Scientific/Engineering :: Physics",

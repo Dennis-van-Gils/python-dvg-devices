@@ -2,9 +2,6 @@
     :target: https://pypi.org/project/dvg-devices
 .. image:: https://img.shields.io/pypi/pyversions/dvg-devices
     :target: https://pypi.org/project/dvg-devices
-.. image:: https://requires.io/github/Dennis-van-Gils/python-dvg-devices/requirements.svg?branch=master
-    :target: https://requires.io/github/Dennis-van-Gils/python-dvg-devices/requirements/?branch=master
-    :alt: Requirements Status
 .. image:: https://readthedocs.org/projects/python-dvg-devices/badge/?version=latest
     :target: https://python-dvg-devices.readthedocs.io/en/latest/?badge=latest
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg

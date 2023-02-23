@@ -10,8 +10,8 @@ class.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "14-09-2022"
-__version__ = "1.0.0"
+__date__ = "23-20-2023"
+__version__ = "1.3.0"
 # pylint: disable=bare-except, broad-except, try-except-raise
 
 import sys
@@ -121,7 +121,7 @@ class SerialDevice:
         # flag instead to enforce the raise.
         self._force_query_to_raise_on_timeout = False
 
-        self.ser = None
+        self.ser: serial.Serial = None  # type: ignore
         self.is_alive = False
 
     # --------------------------------------------------------------------------
@@ -429,7 +429,7 @@ class SerialDevice:
             if self._read_termination == b"":
                 self.ser.flush()
                 time.sleep(self._query_wait_time)
-                reply = self.ser.read(self.ser.inWaiting())
+                reply = self.ser.read(self.ser.in_waiting)
             else:
                 reply = self.ser.read_until(self._read_termination)
         except serial.SerialException as err:
@@ -508,7 +508,7 @@ class SerialDevice:
         )
 
         if not success:
-            return (False, ())  # --> leaving
+            return (False, list())  # --> leaving
 
         try:
             # NOTE: `ast.literal_eval` chokes when it receives 'nan' so we ditch
@@ -517,7 +517,7 @@ class SerialDevice:
             reply_list = list(map(float, reply.split(delimiter)))
         except ValueError as err:
             pft(err, 3)
-            return (False, ())  # --> leaving
+            return (False, list())  # --> leaving
         except Exception as err:
             pft(err, 3)
             sys.exit(0)  # --> leaving

@@ -49,7 +49,7 @@ if QT_LIB is None:
 
 if QT_LIB is None:
     this_file = __file__.split(os.sep)[-1]
-    raise Exception(
+    raise ImportError(
         f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
         "none of these packages could be imported."
     )
@@ -194,7 +194,6 @@ def about_to_quit():
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
-
     # Specific connection settings of each traverse axis of our setup
     class Trav_connection_params:
         # Serial number of the Compax3 traverse controller to connect to.

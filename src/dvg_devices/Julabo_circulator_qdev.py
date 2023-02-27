@@ -40,7 +40,7 @@ if QT_LIB is None:
 
 if QT_LIB is None:
     this_file = __file__.split(os.sep)[-1]
-    raise Exception(
+    raise ImportError(
         f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
         "none of these packages could be imported."
     )
@@ -74,6 +74,7 @@ from dvg_debug_functions import print_fancy_traceback as pft
 
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 from dvg_devices.Julabo_circulator_protocol_RS232 import Julabo_circulator
+
 
 # Enumeration
 class GUI_input_fields:

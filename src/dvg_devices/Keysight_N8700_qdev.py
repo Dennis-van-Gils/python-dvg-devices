@@ -41,7 +41,7 @@ if QT_LIB is None:
 
 if QT_LIB is None:
     this_file = __file__.split(os.sep)[-1]
-    raise Exception(
+    raise ImportError(
         f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
         "none of these packages could be imported."
     )
@@ -87,6 +87,7 @@ from dvg_devices.Keysight_N8700_protocol_SCPI import Keysight_N8700
 # Monospace font
 FONT_MONOSPACE = QtGui.QFont("Monospace", 12, weight=QtGui.QFont.Weight.Bold)
 FONT_MONOSPACE.setStyleHint(QtGui.QFont.StyleHint.TypeWriter)
+
 
 # Enumeration
 class GUI_input_fields:

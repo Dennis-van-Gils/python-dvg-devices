@@ -374,8 +374,8 @@ if __name__ == "__main__":
     # VISA address of the Keysight 3497xA data acquisition/switch unit
     # containing a multiplexer plug-in module. Hence, we simply call this device
     # a 'mux'.
-    MUX_VISA_ADDRESS = "USB0::0x0957::0x2007::MY49018071::INSTR"
-    # MUX_VISA_ADDRESS = "GPIB0::9::INSTR"
+    #MUX_VISA_ADDRESS = "USB0::0x0957::0x2007::-::INSTR"
+    MUX_VISA_ADDRESS = "GPIB0::9::INSTR"
 
     # A scan will be performed by the mux every N milliseconds
     MUX_SCANNING_INTERVAL_MS = 1000  # [ms]
@@ -389,7 +389,7 @@ if __name__ == "__main__":
     UPDATE_INTERVAL_GUI = 1000  # [ms]
 
     # SCPI commands to be send to the 3497xA to set up the scan cycle.
-    # """
+    """
     scan_list = "(@301:310)"
     MUX_SCPI_COMMANDS = [
         "rout:open %s" % scan_list,
@@ -400,16 +400,16 @@ if __name__ == "__main__":
         "sens:temp:nplc 1,%s" % scan_list,
         "rout:scan %s" % scan_list,
     ]
-    # """
     """
+    #"""
     scan_list = "(@101)"
     MUX_SCPI_COMMANDS = [
         "rout:open %s" % scan_list,
-        "conf:res 1e5,%s" % scan_list,
+        "conf:res 1e6,%s" % scan_list,
         "sens:res:nplc 1,%s" % scan_list,
         "rout:scan %s" % scan_list,
     ]
-    """
+    #"""
 
     # --------------------------------------------------------------------------
     #   Connect to Keysight 3497xA (mux)

@@ -45,9 +45,17 @@ from dvg_devices.BaseDevice import SerialDevice
 
 
 class MDrive_Motor:
+    class Config:
+        # Container for the configuration parameters
+        # fmt: off
+        device_name      = ""            # DN
+        serial_number    = ""            # SN
+        firmware_version = ""            # VR
+        user_variables: list[str] = []   # UV
+        # fmt: on
 
     class State:
-        # Container for the process and measurement variables
+        # Container for measurement variables
         # [numpy.nan] values indicate that the parameter is not initialized or
         # that the last query was unsuccessful in communication.
 
@@ -62,7 +70,7 @@ class MDrive_Controller(SerialDevice):
     # Holds the list of device names (DN) of each detected motor
     motor_idxs: list[str] = []
 
-    # Holds the list of `MDrive_Motor` instances
+    # Holds the list of `MDrive_Motor` instances, one for each attached motor
     motors = list[MDrive_Motor]
 
     def __init__(
@@ -231,19 +239,64 @@ class MDrive_Controller(SerialDevice):
         """
         success, reply = self.query(msg, returns_ascii=False)
         if success and reply[-2:] == b"\r\n":
-            return success, reply.decode().strip("\r\n")
+            reply = reply.decode().strip("\r\n")
+            reply = reply.replace("\r", "\t")
+            reply = reply.replace("\n", "\t")
+            return success, reply
 
         print(f"MDRIVE COMMUNICATION ERROR: {reply}")
         return False, None
+
+    # --------------------------------------------------------------------------
+    #   query_user_variables
+    # --------------------------------------------------------------------------
+
+    def query_user_variables(self):
+        """Query the user variables of all attached MDrive motors and store
+        these inside member `MDrive_Motor.user_variables` as a list of strings.
+        """
+
+        # This query is a special case, because the MDrive controller seems to
+        # treat each user variable that is defined in the MDrive motor as a
+        # single reply. It buffers all these separate replies internally and
+        # pops a single reply of the stack for each subsequent query. Hence, we
+        # send a single query for the user variables and have to empty out the
+        # reply buffer by sending blank queries until emptied.
+        for motor_idx in self.motor_idxs:
+            print(f"User variables: {motor_idx}")
+            replies: list[str] = []
+            success, reply = self.query_half_duplex(f"{motor_idx}pr uv")
+            while success and reply != "":
+                replies.append(reply)
+                success, reply = self.query_half_duplex("")
+
+            print(replies)
 
     # --------------------------------------------------------------------------
     #   execute_motor_subroutine
     # --------------------------------------------------------------------------
 
     def execute_motor_subroutine(self, motor_idx: str, subroutine_label: str):
-        """TODO"""
-        msg = f"{motor_idx}ex {subroutine_label}"
-        return self.query_half_duplex(msg)
+        """Execute a subroutine or program as flashed into the MDrive motor.
+
+        Args:
+            motor_idx (`str`):
+                Motor device name to send the intruction to.
+
+            subroutine_label (`str`):
+                Label of the subroutine or program as flashed into the MDrive
+                motor to be executed.
+
+        Returns:
+            `tuple`:
+                success (`bool`):
+                    True if successful, False otherwise.
+
+                reply (`str` | `None`):
+                    Reply received from the device as an ASCII string, `None` if
+                    unsuccessful.
+        """
+        return self.query_half_duplex(f"{motor_idx}ex {subroutine_label}")
 
 
 # ------------------------------------------------------------------------------
@@ -257,16 +310,17 @@ if __name__ == "__main__":
 
     dev.begin()
 
-    my_success, my_reply = dev.execute_motor_subroutine("2", "f1")
-    if my_success:
-        print(f"success: {my_reply}")
+    for motor_idx in dev.motor_idxs:
+        my_success, my_reply = dev.execute_motor_subroutine(motor_idx, "f1")
+        if my_success:
+            print(f"{motor_idx}ex f1: {my_reply}")
 
-    my_success, my_reply = dev.execute_motor_subroutine("2", "f2")
-    if my_success:
-        print(f"success: {my_reply}")
+    dev.query_user_variables()
 
     my_success, my_reply = dev.query_half_duplex('1PR "MV",MV,"P",P,"V",V')
     if my_success:
         print(f"success: {my_reply}")
+
+    dev.query_half_duplex("1mr 512000")
 
     dev.close()

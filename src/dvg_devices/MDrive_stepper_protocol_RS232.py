@@ -128,11 +128,11 @@ class MDrive_Controller(SerialDevice):
         # 1) Fast scanning for attached motors
         """
         Expected replies when motor is attached:
-          b"[IDX]\r\n>"  Reply when in full-duplex (EM = 0) without queued error
-          b"[IDX]\r\n?"  Reply when in full-duplex (EM = 0) with queued error
-          b"\r\n"        Reply when in half-duplex (EM = 1)
+          b"[DN]\r\n>"  Reply when in full-duplex (EM = 0) without queued error
+          b"[DN]\r\n?"  Reply when in full-duplex (EM = 0) with queued error
+          b"\r\n"       Reply when in half-duplex (EM = 1)
         Expected replies when motor not found:
-          b""            Reply for both half- and full-duplex
+          b""           Reply for both half- and full-duplex
           or a serial read time-out.
         """
         print("Scanning for attached motors...")
@@ -158,6 +158,10 @@ class MDrive_Controller(SerialDevice):
                     )
                     # Ditch any possible remaining '>', '?' chars in the buffer
                     self.flush_serial_out()
+
+        self.flush_serial_out()
+        for motor in self.motors:
+            motor.begin()
 
         """
         # 3) Init each motor and reset any errors in the queue
@@ -215,7 +219,9 @@ class MDrive_Controller(SerialDevice):
             reply = reply.replace("\n", "\t")
             return success, reply
 
-        print(f"MDRIVE COMMUNICATION ERROR: {reply}")
+        print("MDRIVE COMMUNICATION ERROR")
+        print(f"  trying to send: {msg}")
+        print(f"  received reply: {reply}")
         return False, ""
 
 
@@ -247,19 +253,19 @@ class MDrive_Motor:
     def __init__(self, controller: MDrive_Controller, device_name: str):
         self.controller = controller
         self.device_name = device_name  # Param DN
-
         self.config = self.Config()
         self.state = self.State()
-
-        # Set the echo mode to half-duplex. We don't care about the query reply.
-        _success, _reply = self.controller.query_half_duplex(
-            f"{device_name}em 1"
-        )
 
         # Short-hand
         self.query = self.controller.query_half_duplex
 
-        # self.query_config()
+    def begin(self):
+        """TODO"""
+        # Set the echo mode to half-duplex. We don't care about the reply.
+        self.query(f"{self.device_name}em 1")
+
+        self.query_config()
+        print(self.config.user_variables)
 
     # --------------------------------------------------------------------------
     #   query_config
@@ -340,8 +346,8 @@ if __name__ == "__main__":
         if my_success:
             print(f"{my_motor.device_name}ex f1: {my_reply}")
 
-        my_motor.query_config()
-        print(my_motor.config.user_variables)
+        # my_motor.query_config()
+        # print(my_motor.config.user_variables)
 
     my_success, my_reply = dev.query_half_duplex('1PR "MV",MV,"P",P,"V",V')
     if my_success:

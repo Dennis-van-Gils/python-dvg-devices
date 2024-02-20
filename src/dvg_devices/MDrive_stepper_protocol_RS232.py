@@ -22,6 +22,7 @@ AccuStep Motion Control Products" by IMS Inc. & Schneider Electric.
 
 Required flashed motor parameters:
 - No check-sum communication (param CK = 0)
+- Escape flag set to Esc-key (param ES = 1)
 - Echoing full-duplex        (param EM = 0)
   NOTE: EM must be 0 for Rindert Nauta's build-in controller to work correctly,
   but for this module we need EM = 1 (half-duplex). We'll adjust the EM
@@ -29,11 +30,13 @@ Required flashed motor parameters:
 - All motors are configured in the so-called 'party mode', i.e. param PY = 1,
   and each motor has been given a unique device name as a single integer digit,
   i.e. param DN = "1", DN = "2", etc.
+- Subroutine with label 'f1' should be present within each motor, effecting an
+  'init interface' routine.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "19-02-2024"
+__date__ = "20-02-2024"
 __version__ = "1.0.0"
 
 import sys
@@ -42,6 +45,9 @@ import numpy as np
 import serial
 
 from dvg_devices.BaseDevice import SerialDevice
+
+# Print extra debugging info to the terminal? Use only for troubleshooting.
+DEBUG = False
 
 # ------------------------------------------------------------------------------
 #   MDrive_Controller
@@ -117,15 +123,14 @@ class MDrive_Controller(SerialDevice):
     # --------------------------------------------------------------------------
 
     def begin(self):
-        """This method should be called directly after having established a
-        serial connection to the MDrive controller (e.g. via `auto_connect()`).
+        """Scan for any attached motors to the controller, set them up and store
+        them in the motor list `motors`.
 
-        The following will happen:
-        1) Scan for any attached motors and store them in the motor list.
-        2) Set the echo mode to half-duplex (EM = 1) for each motor.
+        This method should be called directly after having established a
+        serial connection to the MDrive controller (e.g. via `auto_connect()`).
         """
 
-        # 1) Fast scanning for attached motors
+        # Step 1: Scan for attached motors
         """
         Expected replies when motor is attached:
           b"[DN]\r\n>"  Reply when in full-duplex (EM = 0) without queued error
@@ -137,19 +142,15 @@ class MDrive_Controller(SerialDevice):
         """
         print("Scanning for attached motors...")
         for motor_idx in range(10):
-            print(f"  {motor_idx}: ", end="")
-
             try:
-                success, _reply = self.query(
-                    f"{motor_idx}", raises_on_timeout=True
-                )
+                success, _ = self.query(f"{motor_idx}", raises_on_timeout=True)
             except serial.SerialException:
                 # Due to a serial read time-out, or an empty bytes b"" reply.
                 # In both cases: There is no motor attached.
-                print("no motor")
+                pass
             else:
                 if success:
-                    print("motor detected")
+                    print(f"  - detected motor '{motor_idx}'")
                     self.motors.append(
                         MDrive_Motor(
                             controller=self,
@@ -159,16 +160,11 @@ class MDrive_Controller(SerialDevice):
                     # Ditch any possible remaining '>', '?' chars in the buffer
                     self.flush_serial_out()
 
-        self.flush_serial_out()
+        print("" if self.motors else "  NO MOTORS DETECTED")
+
+        # Set up each motor
         for motor in self.motors:
             motor.begin()
-
-        """
-        # 3) Init each motor and reset any errors in the queue
-        # Now we start caring about the query reply
-        for motor_idx in self.motor_idxs:
-            self.execute_motor_subroutine(motor_idx, "f1")
-        """
 
     # --------------------------------------------------------------------------
     #   close
@@ -213,6 +209,12 @@ class MDrive_Controller(SerialDevice):
                     Reply received from the device as an ASCII string.
         """
         success, reply = self.query(msg, returns_ascii=False)
+
+        if DEBUG:
+            print("DEBUG query_half_duplex()")
+            print(f"  msg  : {msg}")
+            print(f"  reply: {reply}")
+
         if isinstance(reply, bytes) and reply[-2:] == b"\r\n":
             reply = reply.decode().strip("\r\n")
             reply = reply.replace("\r", "\t")
@@ -260,12 +262,31 @@ class MDrive_Motor:
         self.query = self.controller.query_half_duplex
 
     def begin(self):
-        """TODO"""
+        """Set up the motor for operation.
+
+        The following will take place:
+        1) Set the echo mode to half-duplex (EM = 1).
+        2) Reset any errors by calling subroutine 'f1'.
+        3) Retrieve the configuration parameters of each motor.
+
+        This method should be called directly after having established a
+        serial connection to the MDrive controller (e.g. via `auto_connect()`).
+        """
         # Set the echo mode to half-duplex. We don't care about the reply.
         self.query(f"{self.device_name}em 1")
 
+        # Reset motor. Running this subroutine 'f1' is crucial, because the
+        # MDrive controller has a strange quirk that needs this reset to
+        # continue "normal" operation.
+        # In detail: The [Esc]-character we sent to auto-detect the controller
+        # seems to prepend any future query replies with '\r\n', i.e. instead
+        # of replying to '1pr p' with '0\r\n' the controller replies with
+        # '\r\n0\r\n'. The latter messes up our query methodology and a call to
+        # subroutine 'f1' seems to fix the issue.
+        self.execute_subroutine("f1")
+
         self.query_config()
-        print(self.config.user_variables)
+        # print(self.config.user_variables)
 
     # --------------------------------------------------------------------------
     #   query_config
@@ -274,11 +295,6 @@ class MDrive_Motor:
     def query_config(self):
         """Query the configuration parameters of the MDrive motor and store
         these inside member `config`.
-
-        Queried configuration parameters:
-        - Serial number (SN)
-        - Firmware version (VR)
-        - User variables (UV)
         """
 
         # Serial number
@@ -300,7 +316,7 @@ class MDrive_Motor:
         # reply buffer by sending blank queries until emptied.
         replies: list[str] = []
         success, reply = self.query(f"{self.device_name}pr uv")
-        while success and reply != "":
+        while isinstance(reply, str) and reply != "":
             replies.append(reply)
             success, reply = self.query("")
 
@@ -342,17 +358,10 @@ if __name__ == "__main__":
     dev.begin()
 
     for my_motor in dev.motors:
-        my_success, my_reply = my_motor.execute_subroutine("f1")
+        my_success, my_reply = dev.query_half_duplex(
+            f'{my_motor.device_name}PR "MV",MV,"P",P,"V",V'
+        )
         if my_success:
-            print(f"{my_motor.device_name}ex f1: {my_reply}")
-
-        # my_motor.query_config()
-        # print(my_motor.config.user_variables)
-
-    my_success, my_reply = dev.query_half_duplex('1PR "MV",MV,"P",P,"V",V')
-    if my_success:
-        print(f"success: {my_reply}")
-
-    dev.query_half_duplex("1mr 512000")
+            print(f"success: {my_reply}")
 
     dev.close()

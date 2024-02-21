@@ -150,7 +150,7 @@ class MDrive_Controller(SerialDevice):
                 pass
             else:
                 if success:
-                    print(f"  - detected motor '{motor_idx}'")
+                    print(f"  - Detected motor '{motor_idx}'")
                     self.motors.append(
                         MDrive_Motor(
                             controller=self,
@@ -236,9 +236,9 @@ class MDrive_Motor:
     class Config:
         # Container for the configuration parameters
         # fmt: off
-        serial_number    = ""           # Param SN
-        firmware_version = ""           # Param VR
-        user_variables: list[str] = []  # Param UV
+        serial_number    = ""                # Param SN
+        firmware_version = ""                # Param VR
+        user_variables: dict[str, int] = {}  # Param UV
         # fmt: on
 
     class State:
@@ -314,14 +314,22 @@ class MDrive_Motor:
         # pops a single reply of the stack for each subsequent query. Hence, we
         # send a single query for the user variables and have to empty out the
         # reply buffer by sending blank queries until emptied.
-        replies: list[str] = []
+        lines: list[str] = []  # Example ("V1 = G 512000", "SU = 100")
         success, reply = self.query(f"{self.device_name}pr uv")
         while isinstance(reply, str) and reply != "":
-            replies.append(reply)
+            lines.append(reply)
             success, reply = self.query("")
 
         if success:
-            self.config.user_variables = replies
+            # Parse each line into a dict pair: user variable name & int value
+            uv_dict = {}
+            for line in lines:
+                parts = line.split("=")
+                dict_key = parts[0].strip()
+                dict_val = int(parts[1].strip().strip("G").strip())
+                uv_dict[dict_key] = dict_val
+
+            self.config.user_variables = uv_dict
 
     # --------------------------------------------------------------------------
     #   execute_subroutine
@@ -358,10 +366,15 @@ if __name__ == "__main__":
     dev.begin()
 
     for my_motor in dev.motors:
+        uv = my_motor.config.user_variables
+        print(uv)
+
+        """
         my_success, my_reply = dev.query_half_duplex(
             f'{my_motor.device_name}PR "MV",MV,"P",P,"V",V'
         )
         if my_success:
             print(f"success: {my_reply}")
+        """
 
     dev.close()

@@ -30,8 +30,10 @@ Required flashed motor parameters:
 - All motors are configured in the so-called 'party mode', i.e. param PY = 1,
   and each motor has been given a unique device name as a single integer digit,
   i.e. param DN = "1", DN = "2", etc.
-- Subroutine with label 'f1' should be present within each motor, effecting an
-  'init interface' routine.
+- User subroutine with label 'F1' should be present within each motor, effecting
+  an 'init interface' routine, resetting all errors and stopping any motion.
+- User variable with label 'C0' should be present, indicating the [steps/mm]
+  calibration of the linear stage to which the MDrive is connected to.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
@@ -234,12 +236,38 @@ class MDrive_Controller(SerialDevice):
 
 class MDrive_Motor:
     class Config:
-        # Container for the configuration parameters
-        # fmt: off
-        serial_number    = ""                # Param SN
-        firmware_version = ""                # Param VR
-        user_variables: dict[str, int] = {}  # Param UV
-        # fmt: on
+        """Container for the MDrive configuration parameters."""
+
+        serial_number = ""
+        """Param SN"""
+        firmware_version = ""
+        """Param VR"""
+
+        user_variables: dict[str, int] = {}
+        """Param UV: Dictionary of user variables"""
+        user_subroutines: dict[str, int] = {}
+        """Param UV: Dictionary of user subroutines"""
+
+        motion_A = np.nan
+        """Acceleration [steps/sec^2]"""
+        motion_D = np.nan
+        """Deceleration [steps/sec^2]"""
+        motion_HC = np.nan
+        """Hold current [0-100 %]"""
+        motion_HT = np.nan
+        """Hold current delay time [msec]"""
+        motion_LM = np.nan
+        """Limit stop modes [1-6]"""
+        motion_MS = np.nan
+        """Microstep resolution select [microsteps per full motor step]"""
+        motion_MT = np.nan
+        """Motor settling delay time [msec]"""
+        motion_RC = np.nan
+        """Run current [0-100 %]"""
+        motion_VI = np.nan
+        """Initial velocity [steps/sec]"""
+        motion_VM = np.nan
+        """Maximum velocity [steps/sec]"""
 
     class State:
         # Container for the measurement variables
@@ -266,7 +294,7 @@ class MDrive_Motor:
 
         The following will take place:
         1) Set the echo mode to half-duplex (EM = 1).
-        2) Reset any errors by calling subroutine 'f1'.
+        2) Reset any errors by calling subroutine 'F1'.
         3) Retrieve the configuration parameters of each motor.
 
         This method should be called directly after having established a
@@ -275,18 +303,17 @@ class MDrive_Motor:
         # Set the echo mode to half-duplex. We don't care about the reply.
         self.query(f"{self.device_name}em 1")
 
-        # Reset motor. Running this subroutine 'f1' is crucial, because the
+        # Reset motor. Running this subroutine 'F1' is crucial, because the
         # MDrive controller has a strange quirk that needs this reset to
         # continue "normal" operation.
         # In detail: The [Esc]-character we sent to auto-detect the controller
         # seems to prepend any future query replies with '\r\n', i.e. instead
         # of replying to '1pr p' with '0\r\n' the controller replies with
         # '\r\n0\r\n'. The latter messes up our query methodology and a call to
-        # subroutine 'f1' seems to fix the issue.
-        self.execute_subroutine("f1")
+        # subroutine 'F1' seems to fix the issue.
+        self.execute_subroutine("F1")
 
         self.query_config()
-        # print(self.config.user_variables)
 
     # --------------------------------------------------------------------------
     #   query_config
@@ -296,14 +323,16 @@ class MDrive_Motor:
         """Query the configuration parameters of the MDrive motor and store
         these inside member `config`.
         """
+        # Short-hand
+        DN = self.device_name
 
         # Serial number
-        success, reply = self.query(f"{self.device_name}pr sn")
+        success, reply = self.query(f"{DN}pr sn")
         if success:
             self.config.serial_number = reply
 
         # Firmware version
-        success, reply = self.query(f"{self.device_name}pr vr")
+        success, reply = self.query(f"{DN}pr vr")
         if success:
             self.config.firmware_version = reply
 
@@ -315,21 +344,47 @@ class MDrive_Motor:
         # send a single query for the user variables and have to empty out the
         # reply buffer by sending blank queries until emptied.
         lines: list[str] = []  # Example ("V1 = G 512000", "SU = 100")
-        success, reply = self.query(f"{self.device_name}pr uv")
+        success, reply = self.query(f"{DN}pr uv")
         while isinstance(reply, str) and reply != "":
             lines.append(reply)
             success, reply = self.query("")
 
         if success:
-            # Parse each line into a dict pair: user variable name & int value
-            uv_dict = {}
+            # Parse each line into a dict pair: name & int value
+            dict_vars = {}
+            dict_subr = {}
             for line in lines:
                 parts = line.split("=")
                 dict_key = parts[0].strip()
-                dict_val = int(parts[1].strip().strip("G").strip())
-                uv_dict[dict_key] = dict_val
+                dict_val = parts[1].strip()
+                if dict_val[0] == "G":
+                    dict_vars[dict_key] = int(dict_val[1:].strip())
+                else:
+                    dict_subr[dict_key] = int(dict_val)
 
-            self.config.user_variables = uv_dict
+            self.config.user_variables = dict_vars
+            self.config.user_subroutines = dict_subr
+
+        # Motion variables
+        success, reply = self.query(f'{DN}pr A,"\t"D,"\t"HC,"\t"HT')
+        if success:
+            parts = reply.split("\t")
+            self.config.motion_A = int(parts[0].strip())
+            self.config.motion_D = int(parts[1].strip())
+            self.config.motion_HC = int(parts[2].strip())
+            self.config.motion_HT = int(parts[3].strip())
+        success, reply = self.query(f'{DN}pr LM,"\t"MS,"\t"MT,"\t"RC')
+        if success:
+            parts = reply.split("\t")
+            self.config.motion_LM = int(parts[0].strip())
+            self.config.motion_MS = int(parts[1].strip())
+            self.config.motion_MT = int(parts[2].strip())
+            self.config.motion_RC = int(parts[3].strip())
+        success, reply = self.query(f'{DN}pr VI,"\t"VM')
+        if success:
+            parts = reply.split("\t")
+            self.config.motion_VI = int(parts[0].strip())
+            self.config.motion_VM = int(parts[1].strip())
 
     # --------------------------------------------------------------------------
     #   execute_subroutine
@@ -366,8 +421,7 @@ if __name__ == "__main__":
     dev.begin()
 
     for my_motor in dev.motors:
-        uv = my_motor.config.user_variables
-        print(uv)
+        print(my_motor.config.motion_VI)
 
         """
         my_success, my_reply = dev.query_half_duplex(

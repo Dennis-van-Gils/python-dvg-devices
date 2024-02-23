@@ -38,7 +38,7 @@ Required flashed motor parameters:
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "20-02-2024"
+__date__ = "23-02-2024"
 __version__ = "1.0.0"
 
 import sys
@@ -152,21 +152,24 @@ class MDrive_Controller(SerialDevice):
                 pass
             else:
                 if success:
-                    print(f"  - Detected motor '{motor_idx}'")
                     self.motors.append(
                         MDrive_Motor(
                             controller=self,
                             device_name=f"{motor_idx}",
                         )
                     )
-                    # Ditch any possible remaining '>', '?' chars in the buffer
+
+                    # Flush possibly remaining '>', '?' chars left in the buffer
                     self.flush_serial_out()
 
-        print("" if self.motors else "  NO MOTORS DETECTED")
-
-        # Set up each motor
-        for motor in self.motors:
-            motor.begin()
+        if not self.motors:
+            print("NO MOTORS DETECTED")
+        else:
+            for motor in self.motors:
+                print(f"  - Detected motor '{motor.device_name}'")
+                motor.begin()
+                motor.print_config()
+                print("")
 
     # --------------------------------------------------------------------------
     #   close
@@ -238,9 +241,9 @@ class MDrive_Motor:
     class Config:
         """Container for the MDrive configuration parameters."""
 
-        serial_number = ""
+        serial_number: str = ""
         """Param SN"""
-        firmware_version = ""
+        firmware_version: str = ""
         """Param VR"""
 
         user_variables: dict[str, int] = {}
@@ -268,6 +271,15 @@ class MDrive_Motor:
         """Initial velocity [steps/sec]"""
         motion_VM = np.nan
         """Maximum velocity [steps/sec]"""
+
+        IO_S1: str = ""
+        """Setup IO Point 1"""
+        IO_S2: str = ""
+        """Setup IO Point 2"""
+        IO_S3: str = ""
+        """Setup IO Point 3"""
+        IO_S4: str = ""
+        """Setup IO Point 4"""
 
     class State:
         # Container for the measurement variables
@@ -386,6 +398,59 @@ class MDrive_Motor:
             self.config.motion_VI = int(parts[0].strip())
             self.config.motion_VM = int(parts[1].strip())
 
+        # IO variables
+        success, reply = self.query(f'{DN}pr S1,"\t"S2,"\t"S3,"\t"S4')
+        if success:
+            parts = reply.split("\t")
+            self.config.IO_S1 = parts[0].strip()
+            self.config.IO_S2 = parts[1].strip()
+            self.config.IO_S3 = parts[2].strip()
+            self.config.IO_S4 = parts[3].strip()
+
+    # --------------------------------------------------------------------------
+    #   print_config
+    # --------------------------------------------------------------------------
+
+    def print_config(self):
+        """Print the configuration parameters of the MDrive motor to the
+        terminal."""
+        C = self.config
+        print(f"    Serial    | {C.serial_number}")
+        print(f"    Firmware  | {C.firmware_version}")
+
+        print("    User subr | ", end="")
+        if len(C.user_subroutines) == 0:
+            print("[empty]")
+        else:
+            print(", ".join(C.user_subroutines.keys()))
+
+        print("    User vars | ", end="")
+        if len(C.user_variables) == 0:
+            print("[empty]")
+        else:
+            for idx, (key, val) in enumerate(C.user_variables.items()):
+                if idx > 0:
+                    print(" " * 16, end="")
+                print(f"{key} = {val}")
+
+        print("    Motion    | ", end="")
+        print(f"A  = {C.motion_A:<10} [steps/sec^2]")
+        print(f"{'':15} D  = {C.motion_D:<10} [steps/sec^2]")
+        print(f"{'':15} HC = {C.motion_HC:<10} [0-100 %]")
+        print(f"{'':15} HT = {C.motion_HT:<10} [msec]")
+        print(f"{'':15} LM = {C.motion_LM:<10} [1-6]")
+        print(f"{'':15} MS = {C.motion_MS:<10} [microsteps]")
+        print(f"{'':15} MT = {C.motion_MT:<10} [msec]")
+        print(f"{'':15} RC = {C.motion_RC:<10} [0-100 %]")
+        print(f"{'':15} VI = {C.motion_VI:<10} [steps/sec]")
+        print(f"{'':15} VM = {C.motion_VM:<10} [steps/sec]")
+
+        print("    IO        | ", end="")
+        print(f"S1 = {C.IO_S1}")
+        print(f"{'':15} S2 = {C.IO_S2}")
+        print(f"{'':15} S3 = {C.IO_S3}")
+        print(f"{'':15} S4 = {C.IO_S4}")
+
     # --------------------------------------------------------------------------
     #   execute_subroutine
     # --------------------------------------------------------------------------
@@ -420,15 +485,15 @@ if __name__ == "__main__":
 
     dev.begin()
 
+    """
     for my_motor in dev.motors:
-        print(my_motor.config.motion_VI)
+        print(my_motor.config.IO_S1)
 
-        """
         my_success, my_reply = dev.query_half_duplex(
             f'{my_motor.device_name}PR "MV",MV,"P",P,"V",V'
         )
         if my_success:
             print(f"success: {my_reply}")
-        """
+    """
 
     dev.close()

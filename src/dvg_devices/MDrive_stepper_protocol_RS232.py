@@ -101,9 +101,8 @@ class MDrive_Controller(SerialDevice):
     def ID_validation_query(
         self,
     ) -> tuple[str | bytes | None, str | bytes | None]:
-        r"""We are going to send the escape character "\x1b" which stops all
-        current motion of the MDrive controller to which we expect any of the
-        following replies::
+        r"""Sends the escape character "\x1b" which stops all current motion of
+        the MDrive controller to which we expect any of the following replies::
 
           b"#\r\n>"   Reply when in full-duplex (EM = 0) without queued error
           b"#\r\n?"   Reply when in full-duplex (EM = 0) with queued error
@@ -239,8 +238,13 @@ class MDrive_Controller(SerialDevice):
 
 class MDrive_Motor:
     class Config:
-        """Container for the MDrive configuration parameters."""
+        """Container for the MDrive configuration parameters.
 
+        [numpy.nan] values indicate that the parameter is not initialized or
+        that the last query was unsuccessful in communication."""
+
+        part_number: str = ""
+        "Param PN"
         serial_number: str = ""
         """Param SN"""
         firmware_version: str = ""
@@ -282,15 +286,25 @@ class MDrive_Motor:
         """Setup IO Point 4"""
 
     class State:
-        # Container for the measurement variables
-        # [numpy.nan] values indicate that the parameter is not initialized or
-        # that the last query was unsuccessful in communication.
+        """Container for the MDrive measurement variables.
 
-        # fmt: off
-        cur_pos = np.nan                # Param P : Position [mm]
-        cur_speed = np.nan              # Param V : Velocity [mm/s]
-        error_msg = np.nan              # Param ??: Error string message
-        # fmt: on
+        [numpy.nan] values indicate that the parameter is not initialized or
+        that the last query was unsuccessful in communication.
+        """
+
+        position = np.nan
+        """Param P: Read position [steps]"""
+        velocity = np.nan
+        """Param V: Read current velocity [steps/sec]"""
+        is_moving: bool = False
+        """Param MV: Moving flag [True/False]"""
+        is_velocity_changing = np.nan
+        """Param VC: Velocity changing flag [True/False]"""
+
+        has_error: bool = False
+        """Param EF: Error flag [True/False]"""
+        error: int = 0
+        """Param ER: Error number"""
 
     def __init__(self, controller: MDrive_Controller, device_name: str):
         self.controller = controller
@@ -299,6 +313,8 @@ class MDrive_Motor:
         self.state = self.State()
 
         # Short-hand
+        # TODO: Change `query()` into full method that already presets the motor
+        # DN into the query.
         self.query = self.controller.query_half_duplex
 
     def begin(self):
@@ -337,6 +353,11 @@ class MDrive_Motor:
         """
         # Short-hand
         DN = self.device_name
+
+        # Part number
+        success, reply = self.query(f"{DN}pr pn")
+        if success:
+            self.config.part_number = reply
 
         # Serial number
         success, reply = self.query(f"{DN}pr sn")
@@ -415,6 +436,7 @@ class MDrive_Motor:
         """Print the configuration parameters of the MDrive motor to the
         terminal."""
         C = self.config
+        print(f"    Part no.  | {C.part_number}")
         print(f"    Serial    | {C.serial_number}")
         print(f"    Firmware  | {C.firmware_version}")
 
@@ -452,6 +474,32 @@ class MDrive_Motor:
         print(f"{'':15} S4 = {C.IO_S4}")
 
     # --------------------------------------------------------------------------
+    #   query_state
+    # --------------------------------------------------------------------------
+
+    def query_state(self):
+        """Query the measurement parameters of the MDrive motor and store these
+        inside member `state`.
+        """
+        success, reply = self.query(
+            f'{self.device_name}pr P,"\t"V,"\t"MV,"\t"VC'
+        )
+        if success:
+            parts = reply.split("\t")
+            self.state.position = int(parts[0].strip())
+            self.state.velocity = int(parts[1].strip())
+            self.state.is_moving = bool(int(parts[2].strip()))
+            self.state.is_velocity_changing = bool(int(parts[3].strip()))
+
+    def query_is_moving(self):
+        """Query the "is_moving" parameter of the MDrive motor and store this
+        inside member `state`.
+        """
+        success, reply = self.query(f"{self.device_name}pr MV")
+        if success:
+            self.state.is_moving = bool(int(reply.strip()))
+
+    # --------------------------------------------------------------------------
     #   execute_subroutine
     # --------------------------------------------------------------------------
 
@@ -479,21 +527,41 @@ class MDrive_Motor:
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    import time
+
     dev = MDrive_Controller()
     if not dev.auto_connect():
         sys.exit(0)
 
     dev.begin()
 
-    """
-    for my_motor in dev.motors:
-        print(my_motor.config.IO_S1)
+    my_motor = dev.motors[0]
 
-        my_success, my_reply = dev.query_half_duplex(
-            f'{my_motor.device_name}PR "MV",MV,"P",P,"V",V'
-        )
-        if my_success:
-            print(f"success: {my_reply}")
-    """
+    print("Homing... ", end="")
+    sys.stdout.flush()
+
+    my_motor.execute_subroutine("F2")
+    my_motor.query_state()
+    while my_motor.state.is_moving:
+        my_motor.query_state()
+        time.sleep(0.01)
+    print("done.")
+
+    # my_motor.query("1ma 5120000")
+    print("Moving... ", end="")
+    sys.stdout.flush()
+
+    dev.query_half_duplex("1ma 512000")
+    my_motor.query_state()
+    t0 = time.perf_counter()
+    count = 0
+    while my_motor.state.is_moving:
+        count += 1
+        # my_motor.query_state()
+        my_motor.query_is_moving()
+        # time.sleep(0.001)
+    t1 = time.perf_counter()
+    print("done.")
+    print(f"Time per query: {(t1-t0)/count:.3f} s")
 
     dev.close()

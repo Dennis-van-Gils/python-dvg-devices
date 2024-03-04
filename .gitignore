@@ -133,3 +133,4 @@ dmypy.json
 .pyre/
 .vscode/settings.json
 src/dvg_devices/~$Julabo_GUI.xlsx
+src/dvg_devices/.vscode/settings.json

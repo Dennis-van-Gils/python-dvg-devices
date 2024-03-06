@@ -38,7 +38,7 @@ Required flashed motor parameters:
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "23-02-2024"
+__date__ = "06-03-2024"
 __version__ = "1.0.0"
 
 import sys
@@ -51,7 +51,7 @@ from dvg_debug_functions import dprint, ANSI
 from dvg_devices.BaseDevice import SerialDevice
 
 # Print extra debugging info to the terminal? Use only for troubleshooting.
-DEBUG = True
+DEBUG = False
 
 # ------------------------------------------------------------------------------
 #   MDrive_Controller
@@ -86,15 +86,19 @@ class MDrive_Controller(SerialDevice):
         self.motors: list[MDrive_Motor] = []
 
     # --------------------------------------------------------------------------
-    #   flush_serial_out
+    #   flush_serial_in
     # --------------------------------------------------------------------------
 
-    def flush_serial_out(self):
-        """Silently flush out the serial out buffer of the MDrive controller."""
+    def flush_serial_in(self):
+        """Silently flush the serial in buffer of the OS."""
         try:
+            # Ensure the MDrive has had enough time to write any pending bits
+            # into the serial buffer of the OS
             time.sleep(0.1)
+
             reply = self.ser.read_all()
-            dprint(f"flush: {reply}", ANSI.CYAN)
+            if DEBUG:
+                dprint(f"flush: {reply}", ANSI.CYAN)
         except:  # pylint: disable=bare-except
             pass
 
@@ -112,22 +116,25 @@ class MDrive_Controller(SerialDevice):
           b"#\r\n?"   Reply when in full-duplex (EM = 0) with queued error
           b"\r\n"     Reply when in half-duplex (EM = 1)
         """
-        print("")
-        self.flush_serial_out()
-        _success, reply = self.query("\x1b", returns_ascii=False)  # [Esc]
-        dprint(f"ID   : {reply}", ANSI.CYAN)
+        # `self.query()` reads until the '\n' character is encountered
+        _, reply = self.query("\x1b", returns_ascii=False)  # Sending [Esc]
+        if DEBUG:
+            dprint(f"\nID   : {reply}", ANSI.CYAN)
+
         if isinstance(reply, bytes):
-            if (
-                reply[:2] == b"\r\n"
-                or reply[:3] == b"#\r\n"
-                # or reply[:3] == b"?\r\n"
-            ):
-                # We have to flush the serial out buffer of the MDrive
-                # controller, because the [Esc] command can leave garbage behind
-                # in the buffer.
-                self.flush_serial_out()
+            if reply[:2] == b"\r\n" or reply[:3] == b"#\r\n":
+                # We have to flush the serial in buffer of the OS, because there
+                # might still be pending characters to be read. Namely '>' or
+                # '?', which we will ignore. Sometimes the remaining bits get
+                # garbled up, preventing decoding into ASCII characters. This
+                # could happen when multiple motors respond simultaneously on
+                # the same serial bus, garbling up the ASCII bit stream.
+                self.flush_serial_in()
+
+                # ID validation successful
                 return "MDrive", None
 
+        # ID validation failed
         return "", None
 
     # --------------------------------------------------------------------------
@@ -156,9 +163,12 @@ class MDrive_Controller(SerialDevice):
         for motor_idx in range(10):
             try:
                 success, reply = self.query(
-                    f"{motor_idx}", raises_on_timeout=True, returns_ascii=False
+                    f"{motor_idx}",
+                    raises_on_timeout=True,
+                    returns_ascii=False,
                 )
-                dprint(f"scan : {reply}", ANSI.CYAN)
+                if DEBUG:
+                    dprint(f"scan : {reply}", ANSI.CYAN)
             except serial.SerialException:
                 # Due to a serial read time-out, or an empty bytes b"" reply.
                 # In both cases: There is no motor attached.
@@ -173,16 +183,12 @@ class MDrive_Controller(SerialDevice):
                     )
 
                     # Flush possibly remaining '>', '?' chars left in the buffer
-                    self.flush_serial_out()
+                    # when the MDrive is in full-duplex mode (EM = 0).
+                    self.flush_serial_in()
 
         if not self.motors:
             print("NO MOTORS DETECTED")
         else:
-            self.ser.write("*em 1\n".encode())
-            time.sleep(0.1)
-            reply = self.ser.read_all()
-            dprint(f"*EM 1: {reply}", ANSI.CYAN)
-
             for motor in self.motors:
                 print(f"  - Detected motor '{motor.device_name}'")
                 motor.begin()
@@ -194,13 +200,12 @@ class MDrive_Controller(SerialDevice):
     # --------------------------------------------------------------------------
 
     def close(self, ignore_exceptions=False):
-        """Restore the echo mode back to full-duplex (EM = 0) for all attached
-        motors and close the serial port."""
-        self.write("*em 0")
-        self.flush_serial_out()
-        # for motor in self.motors:
-        # self.query_half_duplex(f"{motor.device_name}em 0")
-        # self.flush_serial_out()
+        """Stop any motion of all MDrive motors and close the serial port."""
+        if DEBUG:
+            dprint("Sending [Esc] to the MDrive controller.", ANSI.CYAN)
+
+        self.ser.write(b"\x1b")  # Sending [Esc] using low-level communication
+        self.flush_serial_in()  # We don't care about the reply, hence flush
 
         super().close(ignore_exceptions)
 
@@ -235,29 +240,26 @@ class MDrive_Controller(SerialDevice):
                 reply (`str`):
                     Reply received from the device as an ASCII string.
         """
-        success, reply = self.query(msg, returns_ascii=False)
+        _, reply = self.query(msg, returns_ascii=False)
 
         if DEBUG:
-            # print("DEBUG query_half_duplex()")
             dprint(f"msg: {msg}", ANSI.GREEN)
             dprint(f"└> {reply}", ANSI.YELLOW)
 
         if isinstance(reply, bytes) and reply[-2:] == b"\r\n":
             try:
                 reply = reply[:-2].decode()
-                # reply = reply.replace("\r", "")
-                # reply = reply.replace("\n", "")
-                return success, reply
+                return True, reply
 
             except UnicodeDecodeError:
-                dprint("/t/tMDRIVE COMMUNICATION ERROR", ANSI.RED)
-                print(f"  trying to send: {msg}")
-                print(f"  received reply: {reply}")
+                dprint("MDRIVE COMMUNICATION ERROR", ANSI.RED)
+                print(f"  Trying to send: {msg}")
+                print(f"  Received reply: {reply}")
                 return False, ""
 
-        dprint("/t/tMDRIVE COMMUNICATION ERROR", ANSI.RED)
-        print(f"  trying to send: {msg}")
-        print(f"  received reply: {reply}")
+        dprint("MDRIVE COMMUNICATION ERROR", ANSI.RED)
+        print(f"  Trying to send: {msg}")
+        print(f"  Received reply: {reply}")
         return False, ""
 
 
@@ -346,11 +348,10 @@ class MDrive_Motor:
         r"""Send a message to this particular MDrive motor and subsequently read
         the reply.
 
-        NOTE: The message string, when not empty, will automatically be
-        prepended with the device name of this particular motor, which is
-        assumed to be configured in party mode (PY = 1) and half-duplex mode
-        (EM = 1). This is the case when `MDrive_Controller.begin()` has ran
-        successfully.
+        NOTE: The message string will automatically be prepended with the device
+        name of this particular motor, which is assumed to be configured in
+        party mode (PY = 1) and half-duplex modeb(EM = 1). This is the case when
+        `MDrive_Controller.begin()` has ran successfully.
 
         Args:
             msg (`str`):
@@ -364,10 +365,7 @@ class MDrive_Motor:
                 reply (`str`):
                     Reply received from the device as an ASCII string.
         """
-        if msg != "":
-            msg = f"{self.device_name}{msg}"
-        # time.sleep(0.01)  # TODO: investigate necessity
-        return self.controller.query_half_duplex(msg)
+        return self.controller.query_half_duplex(f"{self.device_name}{msg}")
 
     def begin(self):
         """Set up the motor for operation.
@@ -381,7 +379,7 @@ class MDrive_Motor:
         serial connection to the MDrive controller (e.g. via `auto_connect()`).
         """
         # Set the echo mode to half-duplex. We don't care about the reply.
-        # self.query("em 1")
+        self.query("em 1")
 
         # Reset motor. Running this subroutine 'F1' is crucial, because the
         # MDrive controller has a strange quirk that needs this reset to
@@ -404,36 +402,41 @@ class MDrive_Motor:
         these inside member `config`.
         """
         # Part number
-        time.sleep(0.1)
         success, reply = self.query("pr pn")
         if success:
             self.config.part_number = reply
 
         # Serial number
-        time.sleep(0.1)
         success, reply = self.query("pr sn")
         if success:
             self.config.serial_number = reply
 
         # Firmware version
-        time.sleep(0.1)
         success, reply = self.query("pr vr")
         if success:
             self.config.firmware_version = reply
 
         # User variables
-        # This query is a special case, because the MDrive controller seems to
-        # treat each user variable that is defined in the MDrive motor as a
-        # single reply. It buffers all these separate replies internally and
-        # pops a single reply of the stack for each subsequent query. Hence, we
-        # send a single query for the user variables and have to empty out the
-        # reply buffer by sending blank queries until emptied.
-        time.sleep(0.1)
-        lines: list[str] = []  # Example ("V1 = G 512000", "SU = 100")
+        # This query is a special case, because the MDrive controller will
+        # return all defined user variables in one go, each delimited by '\r\n'
+        # characters. Hence, we send a single query for requesting all user
+        # variables and then have to empty out the serial in buffer, line for
+        # line, until we find the last empty '\r\n' line.
+        lines: list[str] = []  # E.g. lines = ("V1 = G 512000", "SU = 100")
         success, reply = self.query("pr uv")
         while isinstance(reply, str) and reply != "":
             lines.append(reply)
-            success, reply = self.query("")
+            reply = self.controller.ser.read_until(b"\n")
+
+            if DEBUG:
+                dprint(f"   {reply}", ANSI.YELLOW)
+
+            try:
+                reply = reply.decode().strip()
+            except UnicodeDecodeError:
+                dprint("MDRIVE COMMUNICATION ERROR", ANSI.RED)
+                print(f"  Failed to decode reply: {reply}")
+                reply = ""
 
         if success:
             # Parse each line into a dict pair: name & int value
@@ -452,7 +455,6 @@ class MDrive_Motor:
             self.config.user_subroutines = dict_subr
 
         # Motion variables
-        time.sleep(0.1)
         success, reply = self.query('pr A,"_"D,"_"HC,"_"HT')
         if success:
             parts = reply.split("_")
@@ -460,7 +462,7 @@ class MDrive_Motor:
             self.config.motion_D = int(parts[1].strip())
             self.config.motion_HC = int(parts[2].strip())
             self.config.motion_HT = int(parts[3].strip())
-        time.sleep(0.1)
+
         success, reply = self.query('pr LM,"_"MS,"_"MT,"_"RC')
         if success:
             parts = reply.split("_")
@@ -468,7 +470,7 @@ class MDrive_Motor:
             self.config.motion_MS = int(parts[1].strip())
             self.config.motion_MT = int(parts[2].strip())
             self.config.motion_RC = int(parts[3].strip())
-        time.sleep(0.1)
+
         success, reply = self.query('pr VI,"_"VM')
         if success:
             parts = reply.split("_")
@@ -476,7 +478,6 @@ class MDrive_Motor:
             self.config.motion_VM = int(parts[1].strip())
 
         # IO variables
-        time.sleep(0.1)
         success, reply = self.query('pr S1,"_"S2,"_"S3,"_"S4')
         if success:
             parts = reply.split("_")
@@ -544,9 +545,7 @@ class MDrive_Motor:
         if success:
             parts = reply.split("_")
             if len(parts) != 4:
-                dprint("\t\tquery_state() FAILED", ANSI.RED)
-                # It appears that the homing routine, once reaching home, sends
-                # out an empty b'\r\n` reply. Occurs intermittently.
+                dprint("query_state() FAILED", ANSI.RED)
             else:
                 self.state.position = int(parts[0].strip())
                 self.state.velocity = int(parts[1].strip())
@@ -557,7 +556,7 @@ class MDrive_Motor:
         """Query the `is_moving` parameter of the MDrive motor and store this
         inside member `state`.
 
-        Query takes ~0.013 s.
+        Query takes ~0.014 s.
         """
         success, reply = self.query("pr MV")
         if success:
@@ -591,7 +590,6 @@ class MDrive_Motor:
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import time
 
     dev = MDrive_Controller()
     if not dev.auto_connect():
@@ -599,41 +597,43 @@ if __name__ == "__main__":
 
     dev.begin()
 
-    if 0:
-        my_motor = dev.motors[0]
+    if 1:
+        my_motor = dev.motors[1]
+
+        # Test: Homing
+        # ------------
 
         print("Homing... ", end="")
         sys.stdout.flush()
 
         my_motor.execute_subroutine("F2")
-        t0 = time.perf_counter()
         count = 1
+        t0 = time.perf_counter()
         my_motor.query_state()
         while my_motor.state.is_moving:
             count += 1
             my_motor.query_state()
-            # time.sleep(0.01)
+
         t1 = time.perf_counter()
         print("done.")
-        print(f"Time per query: {(t1-t0)/count:.3f} s")
+        print(f"Time per query: {(t1 - t0)/count:.3f} s")
 
-        # my_motor.query("1ma 5120000")
+        # Test: Moving
+        # ------------
+
         print("Moving... ", end="")
         sys.stdout.flush()
 
-        # """
         my_motor.query("ma 64000")
-        t0 = time.perf_counter()
         count = 1
+        t0 = time.perf_counter()
         my_motor.query_is_moving()
         while my_motor.state.is_moving:
             count += 1
-            # my_motor.query_state()
             my_motor.query_is_moving()
-            # time.sleep(0.001)
+
         t1 = time.perf_counter()
         print("done.")
-        print(f"Time per query: {(t1-t0)/count:.3f} s")
-        # """
+        print(f"Time per query: {(t1 - t0)/count:.3f} s")
 
     dev.close()

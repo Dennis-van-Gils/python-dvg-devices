@@ -268,13 +268,13 @@ class MDrive_Controller(SerialDevice):
 
             except UnicodeDecodeError:
                 dprint("MDRIVE COMMUNICATION ERROR", ANSI.RED)
-                print(f"  Trying to send: {msg}")
-                print(f"  Received reply: {reply}")
+                dprint(f"  Trying to send: {msg}")
+                dprint(f"  Received reply: {reply}")
                 return False, ""
 
         dprint("MDRIVE COMMUNICATION ERROR", ANSI.RED)
-        print(f"  Trying to send: {msg}")
-        print(f"  Received reply: {reply}")
+        dprint(f"  Trying to send: {msg}")
+        dprint(f"  Received reply: {reply}")
         return False, ""
 
 
@@ -446,7 +446,7 @@ class MDrive_Motor:
                 reply = reply.decode().strip()
             except UnicodeDecodeError:
                 dprint("MDRIVE COMMUNICATION ERROR", ANSI.RED)
-                print(f"  Failed to decode reply: {reply}")
+                dprint(f"  `query_config()` failed to decode reply: {reply}")
                 reply = ""
 
         if success:
@@ -556,12 +556,18 @@ class MDrive_Motor:
         if success:
             parts = reply.split("_")
             if len(parts) != 4:
-                dprint("query_state() FAILED", ANSI.RED)
-            else:
+                dprint("MDRIVE COMMUNICATION ERROR", ANSI.RED)
+                dprint(f"  `query_state()` failed to split reply: {reply}")
+                return
+
+            try:
                 self.state.position = int(parts[0].strip())
                 self.state.velocity = int(parts[1].strip())
                 self.state.is_moving = bool(int(parts[2].strip()))
                 self.state.is_velocity_changing = bool(int(parts[3].strip()))
+            except ValueError:
+                dprint("MDRIVE COMMUNICATION ERROR", ANSI.RED)
+                dprint(f"  `query_state()` failed to parse reply: {reply}")
 
     # --------------------------------------------------------------------------
     #   query_is_moving
@@ -575,7 +581,11 @@ class MDrive_Motor:
         """
         success, reply = self.query("pr MV")
         if success:
-            self.state.is_moving = bool(int(reply.strip()))
+            try:
+                self.state.is_moving = bool(int(reply.strip()))
+            except ValueError:
+                dprint("MDRIVE COMMUNICATION ERROR", ANSI.RED)
+                dprint(f"  `query_is_moving()` failed to parse reply: {reply}")
 
     # --------------------------------------------------------------------------
     #   execute_subroutine

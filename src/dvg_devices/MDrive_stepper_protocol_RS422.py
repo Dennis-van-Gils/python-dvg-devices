@@ -74,6 +74,22 @@ DEBUG = False
 
 
 class MDrive_Controller(SerialDevice):
+    """Software controller class to interface with multiple MDrive motors set up
+    in party mode over a single serial port.
+
+    Main methods:
+    - auto_connect()
+    - begin()
+    - close()
+
+    Main members:
+    - ser (`serial.Serial` instance)
+    - motors (`list` of `MDrive_Motor` instances)
+
+    Inherits from `dvg_devices.BaseDevice.SerialDevice`. See there for more info
+    on other arguments, methods and members.
+    """
+
     def __init__(
         self,
         name="MDrive",
@@ -161,7 +177,8 @@ class MDrive_Controller(SerialDevice):
         `MDrive_Controller.motors` as a list of `MDrive_Motor` instances.
 
         This method should be called directly after having established a
-        serial connection to the motors, e.g. after method `auto_connect()`.
+        serial connection to the motors, e.g. after method
+        `MDrive_Controller.auto_connect()`.
         """
 
         # Step 1: Scan for attached motors
@@ -232,7 +249,7 @@ class MDrive_Controller(SerialDevice):
         r"""Send a message over the MDrive serial port and subsequently read the
         reply.
 
-        Wrapped version of method `[dvg_devices]BaseDevice.SerialDevice.query()`
+        Wrapped version of method `dvg_devices.BaseDevice.SerialDevice.query()`
         that requires all MDrive motors to be set up in half-duplex mode
         (EM = 1), which should be the case when a call to method `begin()` has
         been performed.
@@ -284,8 +301,33 @@ class MDrive_Controller(SerialDevice):
 
 
 class MDrive_Motor:
+    """Class to manage communication with a single MDrive motor set up in party
+    mode.
+
+    Main methods:
+    - begin()
+    - query()
+    - query_config()
+    - query_errors()
+    - query_state()
+    - query_is_moving()
+    - execute_subroutine()
+
+    Main members:
+    - config (`dataclass` container)
+    - state (`dataclass` container)
+
+    Args:
+        controller (`MDrive_Controller`):
+            Parent controller in charge of the serial port to which the MDrive
+            motor is connected to.
+
+        device_name (`str`):
+            Device name of this particular MDrive motor (param DN).
+    """
+
     class Config:
-        """Container for the MDrive configuration parameters."""
+        """Container for the MDrive motor configuration parameters."""
 
         part_number: str = ""
         "Param PN"
@@ -299,25 +341,25 @@ class MDrive_Motor:
         user_subroutines: dict[str, int] = {}
         """Param UV: Dictionary of user subroutines"""
 
-        motion_A = np.nan
+        motion_A: float | int = np.nan
         """Acceleration [steps/sec^2]"""
-        motion_D = np.nan
+        motion_D: float | int = np.nan
         """Deceleration [steps/sec^2]"""
-        motion_HC = np.nan
+        motion_HC: float | int = np.nan
         """Hold current [0-100 %]"""
-        motion_HT = np.nan
+        motion_HT: float | int = np.nan
         """Hold current delay time [msec]"""
-        motion_LM = np.nan
+        motion_LM: float | int = np.nan
         """Limit stop modes [1-6]"""
-        motion_MS = np.nan
+        motion_MS: float | int = np.nan
         """Microstep resolution select [microsteps per full motor step]"""
-        motion_MT = np.nan
+        motion_MT: float | int = np.nan
         """Motor settling delay time [msec]"""
-        motion_RC = np.nan
+        motion_RC: float | int = np.nan
         """Run current [0-100 %]"""
-        motion_VI = np.nan
+        motion_VI: float | int = np.nan
         """Initial velocity [steps/sec]"""
-        motion_VM = np.nan
+        motion_VM: float | int = np.nan
         """Maximum velocity [steps/sec]"""
 
         IO_S1: str = ""
@@ -330,11 +372,11 @@ class MDrive_Motor:
         """Setup IO Point 4"""
 
     class State:
-        """Container for the MDrive measurement variables."""
+        """Container for the MDrive motor measurement variables."""
 
-        position = np.nan
+        position: float | int = np.nan
         """Param P: Read position [steps]"""
-        velocity = np.nan
+        velocity: float | int = np.nan
         """Param V: Read current velocity [steps/sec]"""
         is_moving: bool = False
         """Param MV: Moving flag [True/False]"""
@@ -351,6 +393,10 @@ class MDrive_Motor:
         self.device_name = device_name  # Param DN
         self.config = self.Config()
         self.state = self.State()
+
+    # --------------------------------------------------------------------------
+    #   query
+    # --------------------------------------------------------------------------
 
     def query(self, msg: str) -> tuple[bool, str]:
         r"""Send a message to this particular MDrive motor and subsequently read
@@ -375,16 +421,22 @@ class MDrive_Motor:
         """
         return self.controller.query_half_duplex(f"{self.device_name}{msg}")
 
+    # --------------------------------------------------------------------------
+    #   begin
+    # --------------------------------------------------------------------------
+
     def begin(self):
         """Set up the MDrive motor for operation.
 
         The following will take place:
         1) Set the echo mode to half-duplex (EM = 1).
         2) Reset any errors by calling subroutine 'F1'.
-        3) Retrieve the configuration parameters of each motor.
+        3) Retrieve the configuration and initial measurement parameters of each
+        motor.
 
         This method should be called directly after having established a
-        serial connection to the motors, e.g. after method `auto_connect()`.
+        serial connection to the motors, e.g. after method
+        `MDrive_Controller.auto_connect()`.
         """
         # Set the echo mode to half-duplex. We don't care about the reply.
         self.query("em 1")
@@ -403,6 +455,8 @@ class MDrive_Motor:
         self.execute_subroutine("F1")
 
         self.query_config()
+        self.query_state()
+        self.query_errors()
 
     # --------------------------------------------------------------------------
     #   query_config
@@ -543,6 +597,35 @@ class MDrive_Motor:
         print(f"{'':15} S4 = {C.IO_S4}")
 
     # --------------------------------------------------------------------------
+    #   query_errors
+    # --------------------------------------------------------------------------
+
+    def query_errors(self):
+        """Query the error parameters of the MDrive motor and store these inside
+        member `MDrive_Motor.state`.
+
+        Updates:
+        - state.has_error
+        - state.error
+
+        Query takes ~0.024 s @ 9600 baud.
+        """
+        success, reply = self.query('pr EF,"_"ER')
+        if success:
+            parts = reply.split("_")
+            if len(parts) != 2:
+                dprint("MDRIVE COMMUNICATION ERROR", ANSI.RED)
+                dprint(f"  `query_errors()` failed to split reply: {reply}")
+                return
+
+            try:
+                self.state.has_error = bool(int(parts[0].strip()))
+                self.state.error = int(parts[1].strip())
+            except ValueError:
+                dprint("MDRIVE COMMUNICATION ERROR", ANSI.RED)
+                dprint(f"  `query_errors()` failed to parse reply: {reply}")
+
+    # --------------------------------------------------------------------------
     #   query_state
     # --------------------------------------------------------------------------
 
@@ -550,7 +633,13 @@ class MDrive_Motor:
         """Query the measurement parameters of the MDrive motor and store these
         inside member `MDrive_Motor.state`.
 
-        Query takes ~0.051 s.
+        Updates:
+        - state.position
+        - state.velocity
+        - state.is_moving
+        - state.is_velocity_changing
+
+        Query takes ~0.050 s @ 9600 baud.
         """
         success, reply = self.query('pr P,"_"V,"_"MV,"_"VC')
         if success:
@@ -577,7 +666,10 @@ class MDrive_Motor:
         """Query the `is_moving` parameter of the MDrive motor and store this
         inside member `MDrive_Motor.state`.
 
-        Query takes ~0.014 s.
+        Updates:
+        - state.is_moving
+
+        Query takes ~0.013 s @ 9600 baud.
         """
         success, reply = self.query("pr MV")
         if success:
@@ -615,7 +707,6 @@ class MDrive_Motor:
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
-
     dev = MDrive_Controller()
     if not dev.auto_connect():
         sys.exit(0)
@@ -640,8 +731,7 @@ if __name__ == "__main__":
             my_motor.query_state()
 
         t1 = time.perf_counter()
-        print("done.")
-        print(f"Time per query: {(t1 - t0)/count:.3f} s")
+        print(f"done.\nTime per `query_state()`    : {(t1 - t0)/count:.3f} s")
 
         # Test: Moving
         # ------------
@@ -658,7 +748,6 @@ if __name__ == "__main__":
             my_motor.query_is_moving()
 
         t1 = time.perf_counter()
-        print("done.")
-        print(f"Time per query: {(t1 - t0)/count:.3f} s")
+        print(f"done.\nTime per `query_is_moving()`: {(t1 - t0)/count:.3f} s")
 
     dev.close()

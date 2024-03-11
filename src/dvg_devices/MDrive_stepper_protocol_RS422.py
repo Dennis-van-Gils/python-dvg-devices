@@ -639,7 +639,9 @@ class MDrive_Motor:
         - state.is_moving
         - state.is_velocity_changing
 
-        Query takes ~0.050 s @ 9600 baud.
+        Query takes ~0.050 s @   9600 baud with TCO box.
+        Query takes ~0.062 s @   9600 baud with direct RS422-USB cable.
+        Query takes ~0.016 s @ 115200 baud with direct RS422-USB cable.
         """
         success, reply = self.query('pr P,"_"V,"_"MV,"_"VC')
         if success:
@@ -669,7 +671,9 @@ class MDrive_Motor:
         Updates:
         - state.is_moving
 
-        Query takes ~0.013 s @ 9600 baud.
+        Query takes ~0.013 s @   9600 baud with TCO box.
+        Query takes ~0.016 s @   9600 baud with direct RS422-USB cable.
+        Query takes ~0.016 s @ 115200 baud with direct RS422-USB cable.
         """
         success, reply = self.query("pr MV")
         if success:
@@ -713,8 +717,8 @@ if __name__ == "__main__":
 
     dev.begin()
 
-    if 1:
-        my_motor = dev.motors[1]
+    for my_motor in dev.motors:
+        # my_motor = dev.motors[motor_idx]
 
         # Test: Homing
         # ------------

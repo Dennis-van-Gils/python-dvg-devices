@@ -5,8 +5,8 @@ Schneider Electric) set up in party mode.
 
 Each MDrive motor has to be flashed using "Novanta Motion Terminal" software
 with specific parameters and subroutines set. See the manual
-"MCode Programming and Software Reference: MDrive, MForce and AccuStep Motion
-Control Products" by IMS Inc. & Schneider Electric.
+"Programming and Software Reference Manual, MCode, MDrive and MForce Products"
+by Novanta IMS.
 
 Required flashed motor parameters:
 - No check-sum communication: param CK = 0.
@@ -23,20 +23,20 @@ Required flashed motor parameters:
   an 'init interface' routine, resetting all errors and stopping any motion.
 - User variable with label 'C0' should be present, indicating the [steps/mm]
   calibration of the linear stage to which the MDrive is connected to.
-- TODO: Add support for rotary stages. Perhaps by adding user variable 'TY'
-  which signals either TY = 0 (linear stage, default) or TY = 1 (rotary stage).
-  The 'C0' parameter, when TY = 1, can now be interpreted as calibration factor
-  of the rotary stage in [steps/deg].
+- TODO: Add support for rotary stages by adding user variable 'CT' which signals
+  either CT = 0 (linear stage, default) or CT = 1 (rotary stage).
+  The 'C0' parameter, when CT = 1, can now be interpreted as calibration factor
+  of the rotary stage in [steps/revolution].
 
 Physical wiring:
 - Because we require each motor to operate in party-mode, the physical serial
   wiring looks as follows. Each TX-, TX+, RX- and RX+ wire per motor can be tied
   together, resulting in them sharing the same serial port. A single
   RS422-to-USB adapter can then be used to control all motors via this library.
-  The Novanta manual (MDrive Motion Control, chapter 'Multi-drop communication
-  connection`) recommends to have only one ground connection to motor 1 and
-  not to the other motors to prevent ground loops. Termination resistors are
-  necessary when the serial cable exceed 4.5 meters.
+  The Novanta manual (Hardware Manual MDrive Motion Control, chapter 'Multi-drop
+  communication connection`) recommends to have only one ground connection to
+  the first motor and not to the other motors to prevent ground loops.
+  Termination resistors are necessary when the serial cable exceed 4.5 meters.
 
 NOTE: Regarding the obsolete MDrive stepper control box designed by Rindert
 Nauta of the TCO department of the University of Twente. It is a custom-build
@@ -53,7 +53,7 @@ attached motor, allowing them to be flashed via a PC.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "07-03-2024"
+__date__ = "13-03-2024"
 __version__ = "1.0.0"
 
 import sys
@@ -430,7 +430,7 @@ class MDrive_Motor:
 
         The following will take place:
         1) Set the echo mode to half-duplex (EM = 1).
-        2) Reset any errors by calling subroutine 'F1'.
+        2) Stop all motion and reset any errors by calling subroutine 'F1'.
         3) Retrieve the configuration and initial measurement parameters of each
         motor.
 
@@ -441,17 +441,13 @@ class MDrive_Motor:
         # Set the echo mode to half-duplex. We don't care about the reply.
         self.query("em 1")
 
-        # Reset motor. Running this subroutine 'F1' is crucial, because the
-        # MDrive user-control box from TCO has a strange quirk that needs this
-        # reset to continue "normal" operation.
+        # Stop any motion and reset errors. Calling this subroutine 'F1' is
+        # crucial, because the MDrive motor has a strange quirk as follows.
         # In detail: The [Esc]-character we sent to auto-detect the controller
         # seems to prepend any future query replies with '\r\n', i.e. instead
-        # of replying to '1pr p' with '0\r\n' the controller replies with
+        # of replying to '1pr p' with '0\r\n' the MDrive motor replies with
         # '\r\n0\r\n'. The latter messes up our query methodology and a call to
-        # subroutine 'F1' seems to fix the issue.
-        # TODO: Investigate if this subroutine is still necessary to be called
-        # when /not/ using the user-control box of TCO, but using a direct
-        # RS422-to-USB adapter instead.
+        # \any\ subroutine seems to fix the issue. We use subroutine 'F1' here.
         self.execute_subroutine("F1")
 
         self.query_config()
@@ -689,6 +685,10 @@ class MDrive_Motor:
 
     def execute_subroutine(self, subroutine_label: str):
         """Execute a subroutine or program as flashed into the MDrive motor.
+
+        NOTE: Calling a subroutine inadvertently will reset any error that might
+        be pending inside the MDrive motor. This is by Novanta's design. Both
+        parameters 'EF' and 'ER' will be set to 0.
 
         Args:
             subroutine_label (`str`):

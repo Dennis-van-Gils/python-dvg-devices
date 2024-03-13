@@ -21,12 +21,16 @@ Required flashed motor parameters:
   adressed individually over a single shared serial port.
 - User subroutine with label 'F1' should be present within each motor, effecting
   an 'init interface' routine, resetting all errors and stopping any motion.
-- User variable with label 'C0' should be present, indicating the [steps/mm]
-  calibration of the linear stage to which the MDrive is connected to.
-- TODO: Add support for rotary stages by adding user variable 'CT' which signals
-  either CT = 0 (linear stage, default) or CT = 1 (rotary stage).
-  The 'C0' parameter, when CT = 1, can now be interpreted as calibration factor
-  of the rotary stage in [steps/revolution].
+  Minimal needed MCode::
+
+    LB F1             '--- Init interface
+        SL 0          'Stop any movement
+        BR M0         'Goto: Main loop
+
+- User variable with label 'C0' should be present, indicating the [steps/mm] or
+  [steps/rev] calibration factor of the stage the MDrive motor is connected to.
+- User variable with label 'CT' should be present, indicating the movement type
+  (0: linear, 1: angular) of the stage the MDrive motor is connected to.
 
 Physical wiring:
 - Because we require each motor to operate in party-mode, the physical serial
@@ -55,9 +59,11 @@ __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "13-03-2024"
 __version__ = "1.0.0"
+# pylint: disable=missing-function-docstring
 
 import sys
 import time
+from enum import Enum
 
 import numpy as np
 import serial
@@ -67,6 +73,16 @@ from dvg_devices.BaseDevice import SerialDevice
 
 # Print extra debugging info to the terminal? Use only for troubleshooting.
 DEBUG = False
+
+
+class Movement_type(Enum):
+    LINEAR = 0
+    ANGULAR = 1
+
+
+def print_warning(msg: str):
+    print(f"{ANSI.RED}{msg}{ANSI.WHITE}")
+
 
 # ------------------------------------------------------------------------------
 #   MDrive_Controller
@@ -224,7 +240,6 @@ class MDrive_Controller(SerialDevice):
             for motor in self.motors:
                 print(f"  - Detected motor '{motor.device_name}'")
                 motor.begin()
-                motor.print_config()
                 print("")
 
     # --------------------------------------------------------------------------
@@ -330,11 +345,20 @@ class MDrive_Motor:
         """Container for the MDrive motor configuration parameters."""
 
         part_number: str = ""
-        "Param PN"
+        """Param PN"""
         serial_number: str = ""
         """Param SN"""
         firmware_version: str = ""
         """Param VR"""
+
+        IO_S1: str = ""
+        """Setup IO Point 1"""
+        IO_S2: str = ""
+        """Setup IO Point 2"""
+        IO_S3: str = ""
+        """Setup IO Point 3"""
+        IO_S4: str = ""
+        """Setup IO Point 4"""
 
         user_variables: dict[str, int] = {}
         """Param UV: Dictionary of user variables"""
@@ -362,14 +386,12 @@ class MDrive_Motor:
         motion_VM: float | int = np.nan
         """Maximum velocity [steps/sec]"""
 
-        IO_S1: str = ""
-        """Setup IO Point 1"""
-        IO_S2: str = ""
-        """Setup IO Point 2"""
-        IO_S3: str = ""
-        """Setup IO Point 3"""
-        IO_S4: str = ""
-        """Setup IO Point 4"""
+        movement_type: Movement_type = Movement_type.LINEAR
+        """Taken from MDrive user variable 'CT'. 0: linear, 1: angular."""
+        steps_per_mm: float | int = np.nan
+        """Taken from MDrive user variable 'C0'."""
+        steps_per_rev: float | int = np.nan
+        """Taken from MDrive user variable 'C0'."""
 
     class State:
         """Container for the MDrive motor measurement variables."""
@@ -450,9 +472,54 @@ class MDrive_Motor:
         # \any\ subroutine seems to fix the issue. We use subroutine 'F1' here.
         self.execute_subroutine("F1")
 
+        # Initialize parameters
         self.query_config()
         self.query_state()
         self.query_errors()
+
+        self.print_config()
+        self.check_user_parameters()  # Also sets up the steps/mm calibration
+        self.print_motion_config()
+
+    # --------------------------------------------------------------------------
+    #   check_user_parameters
+    # --------------------------------------------------------------------------
+
+    def check_user_parameters(self):
+        """TODO: docstr. Should change to better method name?"""
+        if "F1" in self.config.user_subroutines:
+            print("    Found user subroutine F1: 'init interface'")
+        else:
+            print_warning(
+                "CRITICAL: User subroutine F1 as 'init interface' was not "
+                "found. Exiting."
+            )
+            sys.exit(0)
+
+        CT = self.config.user_variables.get("CT")
+        if CT is None:
+            self.config.movement_type = Movement_type.LINEAR
+            print_warning(
+                "WARNING: User variable CT as movement type linear/angular was "
+                "not found. Defaulting to linear."
+            )
+        else:
+            self.config.movement_type = Movement_type(CT)
+            print(f"    Found user variable   CT: {Movement_type(CT)}")
+
+        C0 = self.config.user_variables.get("C0")
+        if C0 is None:
+            print_warning(
+                "WARNING: User variable C0 as step calibration factor was "
+                "not found.",
+            )
+        else:
+            if self.config.movement_type == Movement_type.LINEAR:
+                self.config.steps_per_mm = C0
+                print("    Found user variable   C0: Calibration [steps/mm]")
+            else:
+                self.config.steps_per_rev = C0
+                print("    Found user variable   C0: Calibration [steps/rev]")
 
     # --------------------------------------------------------------------------
     #   query_config
@@ -559,6 +626,12 @@ class MDrive_Motor:
         print(f"    Serial    | {C.serial_number}")
         print(f"    Firmware  | {C.firmware_version}")
 
+        print("    IO        | ", end="")
+        print(f"S1 = {C.IO_S1}")
+        print(f"{'':15} S2 = {C.IO_S2}")
+        print(f"{'':15} S3 = {C.IO_S3}")
+        print(f"{'':15} S4 = {C.IO_S4}")
+
         print("    User subr | ", end="")
         if len(C.user_subroutines) == 0:
             print("[empty]")
@@ -574,23 +647,41 @@ class MDrive_Motor:
                     print(" " * 16, end="")
                 print(f"{key} = {val}")
 
-        print("    Motion    | ", end="")
-        print(f"A  = {C.motion_A:<10} [steps/sec^2]")
-        print(f"{'':15} D  = {C.motion_D:<10} [steps/sec^2]")
-        print(f"{'':15} HC = {C.motion_HC:<10} [0-100 %]")
-        print(f"{'':15} HT = {C.motion_HT:<10} [msec]")
-        print(f"{'':15} LM = {C.motion_LM:<10} [1-6]")
-        print(f"{'':15} MS = {C.motion_MS:<10} [microsteps]")
-        print(f"{'':15} MT = {C.motion_MT:<10} [msec]")
-        print(f"{'':15} RC = {C.motion_RC:<10} [0-100 %]")
-        print(f"{'':15} VI = {C.motion_VI:<10} [steps/sec]")
-        print(f"{'':15} VM = {C.motion_VM:<10} [steps/sec]")
+    # --------------------------------------------------------------------------
+    #   print_motion_config
+    # --------------------------------------------------------------------------
 
-        print("    IO        | ", end="")
-        print(f"S1 = {C.IO_S1}")
-        print(f"{'':15} S2 = {C.IO_S2}")
-        print(f"{'':15} S3 = {C.IO_S3}")
-        print(f"{'':15} S4 = {C.IO_S4}")
+    def print_motion_config(self):
+        """Print the motion configuration parameters of the MDrive motor to the
+        terminal."""
+        C = self.config
+        print("    Motion    | ")
+        if C.movement_type == Movement_type.LINEAR:
+            print(
+                f"{'':5} Acceleration   A  = {C.motion_A:<10} [steps/sec^2] "
+                f"= {C.motion_A / C.steps_per_mm:<9.4f} [mm/sec^2]"
+            )
+            print(
+                f"{'':5} Deceleration   D  = {C.motion_D:<10} [steps/sec^2] "
+                f"= {C.motion_D/C.steps_per_mm:<9.4f} [mm/sec^2]"
+            )
+            print(
+                f"{'':5} Initial veloc. VI = {C.motion_VI:<10} [steps/sec]   "
+                f"= {C.motion_VI/C.steps_per_mm:<9.4f} [mm/sec]"
+            )
+            print(
+                f"{'':5} Maximum veloc. VM = {C.motion_VM:<10} [steps/sec]   "
+                f"= {C.motion_VM/C.steps_per_mm:<9.4f} [mm/sec]"
+            )
+        else:
+            # TODO
+            pass
+        print(f"{'':5} Microsteps     MS = {C.motion_MS:<10} [microsteps]")
+        print(f"{'':5} Limit stop     LM = {C.motion_LM:<10} [mode 1-6]")
+        print(f"{'':5} Run current    RC = {C.motion_RC:<10} [0-100 %]")
+        print(f"{'':5} Hold current   HC = {C.motion_HC:<10} [0-100 %]")
+        print(f"{'':5} Hold delay     HT = {C.motion_HT:<10} [msec]")
+        print(f"{'':5} Settling delay MT = {C.motion_MT:<10} [msec]")
 
     # --------------------------------------------------------------------------
     #   query_errors
@@ -717,8 +808,8 @@ if __name__ == "__main__":
 
     dev.begin()
 
+    """
     for my_motor in dev.motors:
-        # my_motor = dev.motors[motor_idx]
 
         # Test: Homing
         # ------------
@@ -753,5 +844,6 @@ if __name__ == "__main__":
 
         t1 = time.perf_counter()
         print(f"done.\nTime per `query_is_moving()`: {(t1 - t0)/count:.3f} s")
+    """
 
     dev.close()

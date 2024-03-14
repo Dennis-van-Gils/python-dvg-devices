@@ -84,6 +84,55 @@ def print_warning(msg: str):
     print(f"{ANSI.RED}{msg}{ANSI.WHITE}")
 
 
+def shortest_path_on_unit_circle(from_rev: float, to_rev: float) -> float:
+    """Return the relative distance on a unit circle that results in the
+    shortest path starting from position `from_rev` to ending position `to_rev`
+    expressed in unit revolutions.
+
+    Returns:
+        dist (`float`):
+            The relative distance ranging from (-0.5, 0.5] on a unit circle
+            where a positive sign indicates CCW rotation and a negative sign CW
+            rotation.
+
+    NOTE: Floating point rounding errors are unavoidable, e.g.,
+    ``shortest_path_on_unit_circle(0.1, 0.3) = 0.19999999999999998``
+    """
+    # Normalize each to [0, 1)
+    from_rev %= 1
+    to_rev %= 1
+
+    dist = (to_rev - from_rev) % 1  # CCW
+    dist_CW = 1 - dist
+
+    if dist > dist_CW:
+        dist = -dist_CW
+
+    return dist
+
+
+def test_shortest_path_on_unit_circle():
+    eps = 1e-16  # Max. acceptable rounding error
+
+    # Test case 1: Same starting and ending position
+    assert shortest_path_on_unit_circle(0, 0) < eps
+    assert shortest_path_on_unit_circle(1.1, 0.1) < eps
+
+    # Test case 2: Shortest path is CCW rotation
+    assert shortest_path_on_unit_circle(0, 0.25) - 0.25 < eps
+    assert shortest_path_on_unit_circle(0.75, 0) - 0.25 < eps
+
+    # Test case 3: Shortest path is CW rotation
+    assert shortest_path_on_unit_circle(0.25, 0) + 0.25 < eps
+    assert shortest_path_on_unit_circle(0, 0.75) + 0.25 < eps
+
+    # Test case 4: Shortest path crosses 0 degrees
+    assert shortest_path_on_unit_circle(0.9, 0.1) - 0.2 < eps
+    assert shortest_path_on_unit_circle(0.1, 0.9) + 0.2 < eps
+
+    print("All test cases passed!")
+
+
 # ------------------------------------------------------------------------------
 #   MDrive_Controller
 # ------------------------------------------------------------------------------
@@ -235,10 +284,13 @@ class MDrive_Controller(SerialDevice):
                     self.flush_serial_in()
 
         if not self.motors:
-            print("NO MOTORS DETECTED")
+            print_warning("NO MOTORS DETECTED")
         else:
             for motor in self.motors:
-                print(f"  - Detected motor '{motor.device_name}'")
+                print(
+                    f"{ANSI.YELLOW}  - DETECTED MOTOR '{motor.device_name}'"
+                    f"{ANSI.WHITE}"
+                )
                 motor.begin()
                 print("")
 
@@ -655,27 +707,32 @@ class MDrive_Motor:
         """Print the motion configuration parameters of the MDrive motor to the
         terminal."""
         C = self.config
-        print("    Motion    | ")
         if C.movement_type == Movement_type.LINEAR:
-            print(
-                f"{'':5} Acceleration   A  = {C.motion_A:<10} [steps/sec^2] "
-                f"= {C.motion_A / C.steps_per_mm:<9.4f} [mm/sec^2]"
-            )
-            print(
-                f"{'':5} Deceleration   D  = {C.motion_D:<10} [steps/sec^2] "
-                f"= {C.motion_D/C.steps_per_mm:<9.4f} [mm/sec^2]"
-            )
-            print(
-                f"{'':5} Initial veloc. VI = {C.motion_VI:<10} [steps/sec]   "
-                f"= {C.motion_VI/C.steps_per_mm:<9.4f} [mm/sec]"
-            )
-            print(
-                f"{'':5} Maximum veloc. VM = {C.motion_VM:<10} [steps/sec]   "
-                f"= {C.motion_VM/C.steps_per_mm:<9.4f} [mm/sec]"
-            )
+            calib_unit = C.steps_per_mm
+            calib_unit_A = "[mm/sec^2]"
+            calib_unit_V = "[mm/sec]"
         else:
-            # TODO
-            pass
+            calib_unit = C.steps_per_rev
+            calib_unit_A = "[rev/sec^2]"
+            calib_unit_V = "[rev/sec]"
+
+        print("    Motion    | ")
+        print(
+            f"{'':5} Acceleration   A  = {C.motion_A:<10} [steps/sec^2] "
+            f"= {C.motion_A / calib_unit:<9.4f} {calib_unit_A}"
+        )
+        print(
+            f"{'':5} Deceleration   D  = {C.motion_D:<10} [steps/sec^2] "
+            f"= {C.motion_D/calib_unit:<9.4f} {calib_unit_A}"
+        )
+        print(
+            f"{'':5} Initial veloc. VI = {C.motion_VI:<10} [steps/sec]   "
+            f"= {C.motion_VI/calib_unit:<9.4f} {calib_unit_V}"
+        )
+        print(
+            f"{'':5} Maximum veloc. VM = {C.motion_VM:<10} [steps/sec]   "
+            f"= {C.motion_VM/calib_unit:<9.4f} {calib_unit_V}"
+        )
         print(f"{'':5} Microsteps     MS = {C.motion_MS:<10} [microsteps]")
         print(f"{'':5} Limit stop     LM = {C.motion_LM:<10} [mode 1-6]")
         print(f"{'':5} Run current    RC = {C.motion_RC:<10} [0-100 %]")
@@ -795,6 +852,37 @@ class MDrive_Motor:
                     Reply received from the device as an ASCII string.
         """
         return self.query(f"ex {subroutine_label}")
+
+    # --------------------------------------------------------------------------
+    #   _move
+    # --------------------------------------------------------------------------
+
+    def _move(
+        self,
+        x: float = 0,
+        relative: bool = False,
+        in_units_of_step: bool = False,
+    ):
+        """TODO: docstr
+        Args:
+            x (`float`):
+                Position or distance
+        """
+        C = self.config
+
+        # Safety check
+        if np.isnan(x):
+            return
+
+        """
+        if in_units_of_step:
+            x = np.round(x)
+        else:
+            if C.movement_type == Movement_type.LINEAR:
+                x = np.round(x * C.steps_per_mm)
+            else:
+                x = np.round(x * C.steps_per_rev)
+        """
 
 
 # ------------------------------------------------------------------------------

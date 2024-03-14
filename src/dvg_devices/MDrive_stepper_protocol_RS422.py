@@ -29,6 +29,8 @@ Required flashed motor parameters:
 
 - User variable with label 'C0' should be present, indicating the [steps/mm] or
   [steps/rev] calibration factor of the stage the MDrive motor is connected to.
+  NOTE: This library only supports integer values for 'C0'. Fractional values
+  are not supported.
 - User variable with label 'CT' should be present, indicating the movement type
   (0: linear, 1: angular) of the stage the MDrive motor is connected to.
 
@@ -59,7 +61,7 @@ __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "13-03-2024"
 __version__ = "1.0.0"
-# pylint: disable=missing-function-docstring
+# pylint: disable=missing-function-docstring, too-many-lines
 
 import sys
 import time
@@ -82,6 +84,36 @@ class Movement_type(Enum):
 
 def print_warning(msg: str):
     print(f"{ANSI.RED}{msg}{ANSI.WHITE}")
+
+
+def shortest_path_on_step_circle(
+    from_step: int,
+    to_step: int,
+    steps_per_rev: int,
+) -> int:
+    """Return the relative integer step distance on a circle consisting of
+    `steps_per_rev` steps per full revolution that results in the shortest path
+    starting from position `from_step` to ending position `to_step`.
+
+    Returns:
+        dist (`int`):
+            The relative integer step distance ranging from
+            `(-steps_per_rev // 2, steps_per_rev // 2]` where a positive sign
+            indicates CCW rotation and a negative sign CW rotation.
+
+    NOTE: No floating point rounding errors. All integer maths.
+    """
+    # Normalize each to [0, steps_per_rev)
+    from_step %= steps_per_rev
+    to_step %= steps_per_rev
+
+    dist = (to_step - from_step) % steps_per_rev  # CCW
+    dist_CW = steps_per_rev - dist
+
+    if dist > dist_CW:
+        dist = -dist_CW
+
+    return dist
 
 
 def shortest_path_on_unit_circle(from_rev: float, to_rev: float) -> float:
@@ -109,28 +141,6 @@ def shortest_path_on_unit_circle(from_rev: float, to_rev: float) -> float:
         dist = -dist_CW
 
     return dist
-
-
-def test_shortest_path_on_unit_circle():
-    eps = 1e-16  # Max. acceptable rounding error
-
-    # Test case 1: Same starting and ending position
-    assert shortest_path_on_unit_circle(0, 0) < eps
-    assert shortest_path_on_unit_circle(1.1, 0.1) < eps
-
-    # Test case 2: Shortest path is CCW rotation
-    assert shortest_path_on_unit_circle(0, 0.25) - 0.25 < eps
-    assert shortest_path_on_unit_circle(0.75, 0) - 0.25 < eps
-
-    # Test case 3: Shortest path is CW rotation
-    assert shortest_path_on_unit_circle(0.25, 0) + 0.25 < eps
-    assert shortest_path_on_unit_circle(0, 0.75) + 0.25 < eps
-
-    # Test case 4: Shortest path crosses 0 degrees
-    assert shortest_path_on_unit_circle(0.9, 0.1) - 0.2 < eps
-    assert shortest_path_on_unit_circle(0.1, 0.9) + 0.2 < eps
-
-    print("All test cases passed!")
 
 
 # ------------------------------------------------------------------------------
@@ -859,30 +869,184 @@ class MDrive_Motor:
 
     def _move(
         self,
-        x: float = 0,
-        relative: bool = False,
-        in_units_of_step: bool = False,
+        x: float,
+        relative: bool = True,
+        in_units_of_step: bool = True,
     ):
-        """TODO: docstr
+        """
+        TODO: docstr
+
         Args:
             x (`float`):
-                Position or distance
+                Relative distance to move away from current position, or
+                absolute position to move to.
+
+            relative (`bool`, optional):
+                When True, move relative distance `x` away from current
+                position. When False, move to absolute position `x`.
+
+                Default: True.
+
+            in_units_of_step (`bool`, optional):
+                When True, `x` is given in units of motor steps. When False, `x`
+                is given in units of [mm] for linear movement and [rev] for
+                angular movement.
+
+                Default: True.
+
+        Returns:
+            ...
         """
         C = self.config
 
+        # Ensure x is in units of motor steps from now on
+        if not in_units_of_step:
+            if C.movement_type == Movement_type.LINEAR:
+                x = x * C.steps_per_mm
+            else:
+                x = x * C.steps_per_rev
+
         # Safety check
         if np.isnan(x):
-            return
+            print_warning(
+                "WARNING: _move() tripped because x=nan. Movement got "
+                "cancelled."
+            )
+            return False
 
-        """
-        if in_units_of_step:
-            x = np.round(x)
+        # Calculate movement
+        if relative:
+            # Relative movement
+            distance = int(np.round(x))
+            msg = f"MR {distance}"
+
         else:
+            # Absolute movement
             if C.movement_type == Movement_type.LINEAR:
-                x = np.round(x * C.steps_per_mm)
+                position = int(np.round(x))
+                msg = f"MA {position}"
             else:
-                x = np.round(x * C.steps_per_rev)
-        """
+                # Special case: Absolute angular movement. Must solve for
+                # shortest path, turning it into a relative movement command.
+
+                # Ensure integer math
+                if np.isnan(self.state.position):
+                    print_warning(
+                        "WARNING: _move() tripped because position=nan. "
+                        "Movement got cancelled."
+                    )
+                    return False
+
+                if np.isnan(C.steps_per_rev):
+                    print_warning(
+                        "WARNING: _move() tripped because steps_per_rev=nan. "
+                        "Movement got cancelled."
+                    )
+                    return False
+
+                distance = shortest_path_on_step_circle(
+                    from_step=int(self.state.position),
+                    to_step=int(np.round(x)),
+                    steps_per_rev=int(C.steps_per_rev),
+                )
+                msg = f"MR {distance}"
+
+        # Send move command to motor
+        success, _reply = self.query(msg)
+        return success
+
+    def move_absolute_steps(self, x: float):
+        return self._move(x, relative=False, in_units_of_step=True)
+
+    def move_relative_steps(self, x: float):
+        return self._move(x, relative=True, in_units_of_step=True)
+
+    def move_absolute_mm(self, x: float):
+        if not self.config.movement_type == Movement_type.LINEAR:
+            print_warning(
+                "WARNING: move_absolute_mm() got called while "
+                "movement type is angular."
+            )
+        return self._move(x, relative=False, in_units_of_step=False)
+
+    def move_relative_mm(self, x: float):
+        if not self.config.movement_type == Movement_type.LINEAR:
+            print_warning(
+                "WARNING: move_relative_mm() got called while "
+                "movement type is angular."
+            )
+        return self._move(x, relative=True, in_units_of_step=False)
+
+    def move_absolute_rev(self, x: float):
+        if not self.config.movement_type == Movement_type.ANGULAR:
+            print_warning(
+                "WARNING: move_absolute_rev() got called while "
+                "movement type is linear."
+            )
+        return self._move(x, relative=False, in_units_of_step=False)
+
+    def move_relative_rev(self, x: float):
+        if not self.config.movement_type == Movement_type.ANGULAR:
+            print_warning(
+                "WARNING: move_relative_rev() got called while "
+                "movement type is linear."
+            )
+        return self._move(x, relative=True, in_units_of_step=False)
+
+
+# ------------------------------------------------------------------------------
+#   tests
+# ------------------------------------------------------------------------------
+
+
+def test_shortest_path_on_step_circle():
+    spr = 6400  # steps_per_rev
+
+    # Test case 1: Same starting and ending position
+    assert shortest_path_on_step_circle(0, 0, spr) == 0
+    assert shortest_path_on_step_circle(spr + 10, 10, spr) == 0
+
+    # Test case 2: Shortest path is CCW rotation
+    assert shortest_path_on_step_circle(0, spr // 4, spr) == spr // 4
+    assert shortest_path_on_step_circle(spr * 3 // 4, 0, spr) == spr // 4
+
+    # Test case 3: Shortest path is CW rotation
+    assert shortest_path_on_step_circle(spr // 4, 0, spr) == -spr // 4
+    assert shortest_path_on_step_circle(0, spr * 3 // 4, spr) == -spr // 4
+
+    # Test case 4: Shortest path crosses 0 degrees
+    assert (
+        shortest_path_on_step_circle(spr * 9 // 10, spr // 10, spr)
+        == spr * 2 // 10
+    )
+    assert (
+        shortest_path_on_step_circle(spr // 10, spr * 9 // 10, spr)
+        == -spr * 2 // 10
+    )
+
+    print("All test cases passed!")
+
+
+def test_shortest_path_on_unit_circle():
+    eps = 1e-16  # Max. acceptable rounding error
+
+    # Test case 1: Same starting and ending position
+    assert shortest_path_on_unit_circle(0, 0) < eps
+    assert shortest_path_on_unit_circle(1.1, 0.1) < eps
+
+    # Test case 2: Shortest path is CCW rotation
+    assert shortest_path_on_unit_circle(0, 0.25) - 0.25 < eps
+    assert shortest_path_on_unit_circle(0.75, 0) - 0.25 < eps
+
+    # Test case 3: Shortest path is CW rotation
+    assert shortest_path_on_unit_circle(0.25, 0) + 0.25 < eps
+    assert shortest_path_on_unit_circle(0, 0.75) + 0.25 < eps
+
+    # Test case 4: Shortest path crosses 0 degrees
+    assert shortest_path_on_unit_circle(0.9, 0.1) - 0.2 < eps
+    assert shortest_path_on_unit_circle(0.1, 0.9) + 0.2 < eps
+
+    print("All test cases passed!")
 
 
 # ------------------------------------------------------------------------------
@@ -890,13 +1054,16 @@ class MDrive_Motor:
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    test_shortest_path_on_step_circle()
+    test_shortest_path_on_unit_circle()
+
     dev = MDrive_Controller()
     if not dev.auto_connect():
         sys.exit(0)
 
     dev.begin()
 
-    """
+    # """
     for my_motor in dev.motors:
 
         # Test: Homing
@@ -922,7 +1089,7 @@ if __name__ == "__main__":
         print("Moving... ", end="")
         sys.stdout.flush()
 
-        my_motor.query("ma 64000")
+        my_motor.move_absolute_mm(10)
         count = 1
         t0 = time.perf_counter()
         my_motor.query_is_moving()
@@ -932,6 +1099,7 @@ if __name__ == "__main__":
 
         t1 = time.perf_counter()
         print(f"done.\nTime per `query_is_moving()`: {(t1 - t0)/count:.3f} s")
-    """
+        my_motor.query_state()
+    # """
 
     dev.close()

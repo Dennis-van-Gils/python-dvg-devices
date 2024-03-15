@@ -25,6 +25,7 @@ Required flashed motor parameters:
 
     LB F1             '--- Init interface
         SL 0          'Stop any movement
+        H             'Wait for movement to finish
         BR M0         'Goto: Main loop
 
 - User variable with label 'C0' should be present, indicating the [steps/mm] or
@@ -155,12 +156,13 @@ class MDrive_Controller(SerialDevice):
     Main methods:
     - auto_connect()
     - begin()
+    - STOP()
+    - RESET()
     - close()
 
     Main members:
-    - ser (`serial.Serial` instance)
-    - motors (`dict` of `MDrive_Motor` instances, addressable by their device
-      name)
+    - ser
+    - motors
 
     Inherits from `dvg_devices.BaseDevice.SerialDevice`. See there for more info
     on other arguments, methods and members.
@@ -339,17 +341,51 @@ class MDrive_Controller(SerialDevice):
             )
 
     # --------------------------------------------------------------------------
+    #   STOP
+    # --------------------------------------------------------------------------
+
+    def STOP(self):
+        """Emergency stop any motion of all MDrive motors.
+
+        NOTE: To resume normal operation after an emergency stop it is necessary
+        to call method `RESET()`.
+        """
+        if DEBUG:
+            dprint("STOP! Sending [Esc] to all MDrive motors.", ANSI.CYAN)
+
+        self.ser.write(b"\x1b")  # [Esc]
+
+        # We flush because multiple MDrives can respond simultaneously, garbling
+        # up the serial bit stream. No point in trying to read the reply.
+        self.flush_serial_in()
+
+    # --------------------------------------------------------------------------
+    #   RESET
+    # --------------------------------------------------------------------------
+
+    def RESET(self):
+        """Reset all MDrive motors. It allows for normal operation to resume
+        after an emergency stop via method `STOP()` was issued. Reset will also
+        effect a controlled stop of any motion of all motors.
+
+        NOTE: User subroutine 'F1' will be executed by all MDrive motors.
+        """
+        if DEBUG:
+            dprint("RESET! Sending 'EX F1' to all MDrive motors.", ANSI.CYAN)
+
+        self.ser.write(b"*EX F1\n")
+
+        # We flush because multiple MDrives can respond simultaneously, garbling
+        # up the serial bit stream. No point in trying to read the reply.
+        self.flush_serial_in()
+
+    # --------------------------------------------------------------------------
     #   close
     # --------------------------------------------------------------------------
 
     def close(self, ignore_exceptions=False):
-        """Stop any motion of all MDrive motors and close the serial port."""
-        if DEBUG:
-            dprint("Sending [Esc] to the MDrive motors.", ANSI.CYAN)
-
-        self.ser.write(b"\x1b")  # Sending [Esc] using low-level communication
-        self.flush_serial_in()  # We don't care about the reply, hence flush
-
+        """Controlled-stop any motion of all motors and close the serial port."""
+        self.RESET()
         super().close(ignore_exceptions)
 
     # --------------------------------------------------------------------------
@@ -415,18 +451,9 @@ class MDrive_Motor:
     """Class to manage communication with a single MDrive motor set up in party
     mode.
 
-    Main methods:
-    - begin()
-    - query()
-    - query_config()
-    - query_errors()
-    - query_state()
-    - query_is_moving()
-    - execute_subroutine()
-
     Main members:
-    - config (`dataclass` container)
-    - state (`dataclass` container)
+    - config
+    - state
 
     Args:
         controller (`MDrive_Controller`):
@@ -1092,6 +1119,10 @@ class MDrive_Motor:
             )
         return self._slew(v, in_units_of_step=False)
 
+    def controlled_stop(self) -> bool:
+        """Bring the motor to a controlled stop."""
+        return self._slew(0)
+
 
 # ------------------------------------------------------------------------------
 #   tests
@@ -1189,8 +1220,8 @@ if __name__ == "__main__":
             # ------------
             print(f"Moving '{DN}'... ", end="")
             sys.stdout.flush()
-            motor.move_absolute_mm(20)
-            # motor.slew_mm_per_sec(10)
+            # motor.move_absolute_mm(20)
+            motor.slew_mm_per_sec(10)
 
             count = 1
             t0 = time.perf_counter()
@@ -1198,8 +1229,10 @@ if __name__ == "__main__":
             while motor.state.is_moving:
                 count += 1
                 motor.query_is_moving()
-                # if count > 300:
-                #     motor.execute_subroutine("F1")
+                if count == 100:
+                    # mdrive.STOP()
+                    # mdrive.RESET()
+                    motor.controlled_stop()
 
             t1 = time.perf_counter()
             print(

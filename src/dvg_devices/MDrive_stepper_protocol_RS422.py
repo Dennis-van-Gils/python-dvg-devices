@@ -892,7 +892,7 @@ class MDrive_Motor:
         return self.query(f"ex {subroutine_label}")
 
     # --------------------------------------------------------------------------
-    #   Movement commands
+    #   Move commands
     # --------------------------------------------------------------------------
 
     def _move(
@@ -901,7 +901,7 @@ class MDrive_Motor:
         relative: bool = True,
         in_units_of_step: bool = True,
     ) -> bool:
-        """Base method to send a movement command to the MDrive motor.
+        """Base method to send a move command ('MA' or 'MR') to the motor.
 
         Args:
             x (`float`):
@@ -915,19 +915,19 @@ class MDrive_Motor:
                 Default: True.
 
             in_units_of_step (`bool`, optional):
-                When True, `x` is given in units of motor steps. When False, `x`
+                When True, `x` is given in units of [steps]. When False, `x`
                 is given in units of [mm] for linear movement and [rev] for
                 angular movement.
 
                 Default: True.
 
         Returns ('bool'):
-            True if the movement command was successfully send to the motor,
-            False otherwise.
+            True if the command was successfully send to the motor, False
+            otherwise.
         """
         C = self.config
 
-        # Ensure x is in units of motor steps from now on
+        # Ensure x is in units of [steps] from now on
         if not in_units_of_step:
             if C.movement_type == Movement_type.LINEAR:
                 x = x * C.steps_per_mm
@@ -979,7 +979,7 @@ class MDrive_Motor:
                 )
                 msg = f"MR {distance}"
 
-        # Send move command to motor
+        # Send command to motor
         success, _reply = self.query(msg)
         return success
 
@@ -1020,6 +1020,77 @@ class MDrive_Motor:
                 "movement type is linear."
             )
         return self._move(x, relative=True, in_units_of_step=False)
+
+    # --------------------------------------------------------------------------
+    #   Slew commands
+    # --------------------------------------------------------------------------
+
+    def _slew(
+        self,
+        v: float,
+        in_units_of_step: bool = True,
+    ) -> bool:
+        """Base method to send a slew command ('SL') to the motor.
+
+        Args:
+            v (`float`):
+                Velocity to reach. Takes the acceleration and deceleration
+                parameters ('A' and 'D') into account.
+
+            in_units_of_step (`bool`, optional):
+                When True, `v` is given in units of [steps/sec]. When False,
+                `v` is given in units of [mm/sec] for linear movement and
+                [rev/sec] for angular movement.
+
+                Default: True.
+
+        Returns ('bool'):
+            True if the command was successfully send to the motor, False
+            otherwise.
+        """
+        C = self.config
+
+        # Ensure v is in units of [steps/sec] from now on
+        if not in_units_of_step:
+            if C.movement_type == Movement_type.LINEAR:
+                v = v * C.steps_per_mm
+            else:
+                v = v * C.steps_per_rev
+
+        # Safety check
+        if np.isnan(v):
+            print_warning(
+                "WARNING: _slew() tripped because v=nan. Movement got "
+                "cancelled."
+            )
+            return False
+
+        # Calculate movement
+        velocity = int(np.round(v))
+        msg = f"SL {velocity}"
+
+        # Send command to motor
+        success, _reply = self.query(msg)
+        return success
+
+    def slew_steps_per_sec(self, v: float) -> bool:
+        return self._slew(v, in_units_of_step=True)
+
+    def slew_mm_per_sec(self, v: float) -> bool:
+        if not self.config.movement_type == Movement_type.LINEAR:
+            print_warning(
+                "WARNING: slew_mm_per_sec() got called while movement type is "
+                "angular."
+            )
+        return self._slew(v, in_units_of_step=False)
+
+    def slew_rev_per_sec(self, v: float) -> bool:
+        if not self.config.movement_type == Movement_type.ANGULAR:
+            print_warning(
+                "WARNING: slew_rev_per_sec() got called while movement type is "
+                "linear."
+            )
+        return self._slew(v, in_units_of_step=False)
 
 
 # ------------------------------------------------------------------------------
@@ -1118,7 +1189,8 @@ if __name__ == "__main__":
             # ------------
             print(f"Moving '{DN}'... ", end="")
             sys.stdout.flush()
-            motor.move_absolute_mm(10)
+            motor.move_absolute_mm(20)
+            # motor.slew_mm_per_sec(10)
 
             count = 1
             t0 = time.perf_counter()
@@ -1126,6 +1198,8 @@ if __name__ == "__main__":
             while motor.state.is_moving:
                 count += 1
                 motor.query_is_moving()
+                # if count > 300:
+                #     motor.execute_subroutine("F1")
 
             t1 = time.perf_counter()
             print(

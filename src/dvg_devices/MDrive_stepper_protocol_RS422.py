@@ -16,8 +16,8 @@ Required flashed motor parameters:
   to auto-detect the MDrive serial port. This library will change the mode to
   EM = 1 (half-duplex) when method `MDrive_Controller.begin()` has been called.
 - All motors must be configured in the so-called 'party mode': param PY = 1.
-  Each motor must have been given a unique device name as a single integer
-  digit, e.g. param DN = "1", DN = "2", etc. This allows the motors to be
+  Each motor must have been given a unique device name as a single alphanumeric
+  character, e.g. param DN = "x", DN = "1", etc. This allows the motors to be
   adressed individually over a single shared serial port.
 - User subroutine with label 'F1' should be present within each motor, effecting
   an 'init interface' routine, resetting all errors and stopping any motion.
@@ -59,7 +59,7 @@ attached motor, allowing them to be flashed via a PC.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "13-03-2024"
+__date__ = "15-03-2024"
 __version__ = "1.0.0"
 # pylint: disable=missing-function-docstring, too-many-lines
 
@@ -117,9 +117,9 @@ def shortest_path_on_step_circle(
 
 
 def shortest_path_on_unit_circle(from_rev: float, to_rev: float) -> float:
-    """Return the relative distance on a unit circle that results in the
-    shortest path starting from position `from_rev` to ending position `to_rev`
-    expressed in unit revolutions.
+    """Return the relative distance on a unit circumference circle that results
+    in the shortest path starting from position `from_rev` to ending position
+    `to_rev` expressed in unit revolutions.
 
     Returns:
         dist (`float`):
@@ -159,7 +159,8 @@ class MDrive_Controller(SerialDevice):
 
     Main members:
     - ser (`serial.Serial` instance)
-    - motors (`list` of `MDrive_Motor` instances)
+    - motors (`dict` of `MDrive_Motor` instances, addressable by their device
+      name)
 
     Inherits from `dvg_devices.BaseDevice.SerialDevice`. See there for more info
     on other arguments, methods and members.
@@ -188,8 +189,8 @@ class MDrive_Controller(SerialDevice):
             valid_ID_specific=None,
         )
 
-        # List of `MDrive_Motor` instances, one for each attached motor
-        self.motors: list[MDrive_Motor] = []
+        # Dictionary of all detected motors, addressable by their device name
+        self.motors: dict[str, MDrive_Motor] = {}
 
     # --------------------------------------------------------------------------
     #   flush_serial_in
@@ -247,13 +248,27 @@ class MDrive_Controller(SerialDevice):
     #   begin
     # --------------------------------------------------------------------------
 
-    def begin(self):
-        """Scan for all connected motors, set them up and store them in member
-        `MDrive_Controller.motors` as a list of `MDrive_Motor` instances.
+    def begin(
+        self,
+        device_names_to_scan: str | None = None,
+    ):
+        """Scan for connected motors, set them up and store them in member
+        `MDrive_Controller.motors` as a dictionary of `MDrive_Motor` instances,
+        addressable by their device name.
 
         This method should be called directly after having established a
         serial connection to the motors, e.g. after method
         `MDrive_Controller.auto_connect()`.
+
+        Args:
+            device_names_to_scan (`str`, optional):
+                List of alphanumeric characters that should be scanned over to
+                detect motors by their device name. When omitted, will scan over
+                all 62 alphanumeric characters, taking ~7 seconds. To speed up
+                the scan, one can limit the list to specific device names if
+                they are known a-priori, e.g., "xyza".
+
+                Default: All alphanumeric characters [0-9][a-z][A-Z].
         """
 
         # Step 1: Scan for attached motors
@@ -266,43 +281,62 @@ class MDrive_Controller(SerialDevice):
           b""           Reply for both half- and full-duplex
           or a serial read time-out.
         """
-        print("Scanning for attached motors...")
-        for motor_idx in range(10):
+
+        if device_names_to_scan is None:
+            device_names_to_scan = (
+                "0123456789"
+                "abcdefghijklmnopqrstuvwxyz"
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            )
+            print("Scanning for all motors. Takes ~7 seconds...")
+        else:
+            print(f"Scanning for motors in list '{device_names_to_scan}'...")
+
+        for scan_DN in device_names_to_scan:
             try:
                 success, reply = self.query(
-                    f"{motor_idx}",
+                    scan_DN,
                     raises_on_timeout=True,
                     returns_ascii=False,
                 )
                 if DEBUG:
                     dprint(f"scan : {reply}", ANSI.CYAN)
+
             except serial.SerialException:
                 # Due to a serial read time-out, or an empty bytes b"" reply.
                 # In both cases: There is no motor attached.
                 pass
+
             else:
                 if success:
-                    self.motors.append(
-                        MDrive_Motor(
-                            controller=self,
-                            device_name=f"{motor_idx}",
-                        )
-                    )
-
                     # Flush possibly remaining '>', '?' chars left in the buffer
                     # when the MDrive is in full-duplex mode (EM = 0).
                     self.flush_serial_in()
 
-        if not self.motors:
-            print_warning("NO MOTORS DETECTED")
+                    print(
+                        f"{ANSI.YELLOW}  - DETECTED MOTOR '{scan_DN}'"
+                        f"{ANSI.WHITE}"
+                    )
+
+                    self.motors[scan_DN] = MDrive_Motor(
+                        controller=self,
+                        device_name=scan_DN,
+                    )
+                    self.motors[scan_DN].begin()
+
+                    print("")
+
+        # Report
+        print("Done scanning for motors. ", end="")
+        N_motors = len(self.motors)
+        if N_motors == 0:
+            print_warning("NO MOTORS DETECTED.\n")
         else:
-            for motor in self.motors:
-                print(
-                    f"{ANSI.YELLOW}  - DETECTED MOTOR '{motor.device_name}'"
-                    f"{ANSI.WHITE}"
-                )
-                motor.begin()
-                print("")
+            pretty_list = ", ".join([f"'{DN}'" for DN in self.motors])
+            print(
+                f"Detected {N_motors} motor{'s' if N_motors > 1 else ''}: "
+                f"{pretty_list}.\n"
+            )
 
     # --------------------------------------------------------------------------
     #   close
@@ -1054,52 +1088,55 @@ def test_shortest_path_on_unit_circle():
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    test_shortest_path_on_step_circle()
-    test_shortest_path_on_unit_circle()
+    # test_shortest_path_on_step_circle()
+    # test_shortest_path_on_unit_circle()
 
-    dev = MDrive_Controller()
-    if not dev.auto_connect():
+    mdrive = MDrive_Controller()
+    if not mdrive.auto_connect(
+        filepath_last_known_port="config/port_MDrive.txt"
+    ):
         sys.exit(0)
 
-    dev.begin()
+    # mdrive.begin()
+    mdrive.begin(device_names_to_scan="xyza")
 
-    # """
-    for my_motor in dev.motors:
+    if input("Proceed with motor movement? [y/N]").lower() == "y":
+        for DN, motor in mdrive.motors.items():
+            # Test: Homing
+            # ------------
+            print(f"Homing '{DN}'... ", end="")
+            sys.stdout.flush()
+            motor.execute_subroutine("F2")
 
-        # Test: Homing
-        # ------------
+            count = 1
+            t0 = time.perf_counter()
+            motor.query_state()
+            while motor.state.is_moving:
+                count += 1
+                motor.query_state()
 
-        print("Homing... ", end="")
-        sys.stdout.flush()
+            t1 = time.perf_counter()
+            print(
+                f"done.\nTime per `query_state()`    : {(t1 - t0)/count:.3f} s"
+            )
 
-        my_motor.execute_subroutine("F2")
-        count = 1
-        t0 = time.perf_counter()
-        my_motor.query_state()
-        while my_motor.state.is_moving:
-            count += 1
-            my_motor.query_state()
+            # Test: Moving
+            # ------------
+            print(f"Moving '{DN}'... ", end="")
+            sys.stdout.flush()
+            motor.move_absolute_mm(10)
 
-        t1 = time.perf_counter()
-        print(f"done.\nTime per `query_state()`    : {(t1 - t0)/count:.3f} s")
+            count = 1
+            t0 = time.perf_counter()
+            motor.query_is_moving()
+            while motor.state.is_moving:
+                count += 1
+                motor.query_is_moving()
 
-        # Test: Moving
-        # ------------
+            t1 = time.perf_counter()
+            print(
+                f"done.\nTime per `query_is_moving()`: {(t1 - t0)/count:.3f} s"
+            )
+            motor.query_state()
 
-        print("Moving... ", end="")
-        sys.stdout.flush()
-
-        my_motor.move_absolute_mm(10)
-        count = 1
-        t0 = time.perf_counter()
-        my_motor.query_is_moving()
-        while my_motor.state.is_moving:
-            count += 1
-            my_motor.query_is_moving()
-
-        t1 = time.perf_counter()
-        print(f"done.\nTime per `query_is_moving()`: {(t1 - t0)/count:.3f} s")
-        my_motor.query_state()
-    # """
-
-    dev.close()
+    mdrive.close()

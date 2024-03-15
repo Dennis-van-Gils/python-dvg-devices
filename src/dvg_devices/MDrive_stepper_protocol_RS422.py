@@ -574,15 +574,7 @@ class MDrive_Motor:
         self.query_errors()
 
         self.print_config()
-        self.check_user_parameters()  # Also sets up the steps/mm calibration
-        self.print_motion_config()
 
-    # --------------------------------------------------------------------------
-    #   check_user_parameters
-    # --------------------------------------------------------------------------
-
-    def check_user_parameters(self):
-        """TODO: docstr. Should change to better method name?"""
         if "F1" in self.config.user_subroutines:
             print("    Found user subroutine F1: 'init interface'")
         else:
@@ -616,6 +608,8 @@ class MDrive_Motor:
             else:
                 self.config.steps_per_rev = C0
                 print("    Found user variable   C0: Calibration [steps/rev]")
+
+        self.print_motion_config()
 
     # --------------------------------------------------------------------------
     #   query_config
@@ -898,7 +892,7 @@ class MDrive_Motor:
         return self.query(f"ex {subroutine_label}")
 
     # --------------------------------------------------------------------------
-    #   _move
+    #   Movement commands
     # --------------------------------------------------------------------------
 
     def _move(
@@ -906,9 +900,8 @@ class MDrive_Motor:
         x: float,
         relative: bool = True,
         in_units_of_step: bool = True,
-    ):
-        """
-        TODO: docstr
+    ) -> bool:
+        """Base method to send a movement command to the MDrive motor.
 
         Args:
             x (`float`):
@@ -928,8 +921,9 @@ class MDrive_Motor:
 
                 Default: True.
 
-        Returns:
-            ...
+        Returns ('bool'):
+            True if the movement command was successfully send to the motor,
+            False otherwise.
         """
         C = self.config
 
@@ -989,13 +983,13 @@ class MDrive_Motor:
         success, _reply = self.query(msg)
         return success
 
-    def move_absolute_steps(self, x: float):
+    def move_absolute_steps(self, x: float) -> bool:
         return self._move(x, relative=False, in_units_of_step=True)
 
-    def move_relative_steps(self, x: float):
+    def move_relative_steps(self, x: float) -> bool:
         return self._move(x, relative=True, in_units_of_step=True)
 
-    def move_absolute_mm(self, x: float):
+    def move_absolute_mm(self, x: float) -> bool:
         if not self.config.movement_type == Movement_type.LINEAR:
             print_warning(
                 "WARNING: move_absolute_mm() got called while "
@@ -1003,7 +997,7 @@ class MDrive_Motor:
             )
         return self._move(x, relative=False, in_units_of_step=False)
 
-    def move_relative_mm(self, x: float):
+    def move_relative_mm(self, x: float) -> bool:
         if not self.config.movement_type == Movement_type.LINEAR:
             print_warning(
                 "WARNING: move_relative_mm() got called while "
@@ -1011,7 +1005,7 @@ class MDrive_Motor:
             )
         return self._move(x, relative=True, in_units_of_step=False)
 
-    def move_absolute_rev(self, x: float):
+    def move_absolute_rev(self, x: float) -> bool:
         if not self.config.movement_type == Movement_type.ANGULAR:
             print_warning(
                 "WARNING: move_absolute_rev() got called while "
@@ -1019,7 +1013,7 @@ class MDrive_Motor:
             )
         return self._move(x, relative=False, in_units_of_step=False)
 
-    def move_relative_rev(self, x: float):
+    def move_relative_rev(self, x: float) -> bool:
         if not self.config.movement_type == Movement_type.ANGULAR:
             print_warning(
                 "WARNING: move_relative_rev() got called while "

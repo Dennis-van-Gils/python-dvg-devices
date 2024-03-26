@@ -9,6 +9,7 @@ with specific parameters and subroutines set. See the manual
 by Novanta IMS.
 
 Required flashed motor parameters:
+
 - No check-sum communication: param CK = 0.
 - Escape flag set to [Esc]-key: param ES = 1.
 - The echo mode - param EM - must be either: 0 (full-duplex), 1 (half-duplex) or
@@ -20,13 +21,34 @@ Required flashed motor parameters:
   character, e.g. param DN = "x", DN = "1", etc. This allows the motors to be
   adressed individually over a single shared serial port.
 - User subroutine with label 'F1' should be present within each motor, effecting
-  an 'init interface' routine, resetting all errors and stopping any motion.
+  an 'init interface' routine where the MDrive motor should be scripted to stop
+  any motion. Advertently, any pending errors of the MDrive get reset by default
+  when any subroutine gets executed as per MDrive design.
+
   Minimal needed MCode::
 
     LB F1             '--- Init interface
         SL 0          'Stop any movement
         H             'Wait for movement to finish
         BR M0         'Goto: Main loop
+
+- User subroutine with label 'F2' should be present within each motor, effecting
+  a 'home' routine where the MDrive motor should be scripted to perform a homing
+  operation and have the internal step counter be reset to 0.
+
+  Minimal needed MCode::
+
+    LB F2             '--- Home
+        SL 0            'Stop any movement
+        H               'Wait for movement to finish
+        HM 1            'Home using method 1 (adjust method to your needs)
+        H               'Wait for movement to finish
+        R1 = P & 1023
+        R2 = 1024 - R1
+        MR R2           'Optionally: Move tiny amount away from home again
+        H               'Wait for movement to finish
+        P = 0           'Redefine position to == 0
+        BR M0           'Goto: Main loop
 
 - User variable with label 'C0' should be present, indicating the [steps/mm] or
   [steps/rev] calibration factor of the stage the MDrive motor is connected to.
@@ -36,6 +58,7 @@ Required flashed motor parameters:
   (0: linear, 1: angular) of the stage the MDrive motor is connected to.
 
 Physical wiring:
+
 - Because we require each motor to operate in party-mode, the physical serial
   wiring looks as follows. Each TX-, TX+, RX- and RX+ wire per motor can be tied
   together, resulting in them sharing the same serial port. A single
@@ -603,11 +626,19 @@ class MDrive_Motor:
         self.print_config()
 
         if "F1" in self.config.user_subroutines:
-            print("    Found user subroutine F1: 'init interface'")
+            print("    Found user subroutine F1: 'Init interface'")
         else:
             print_warning(
-                "CRITICAL: User subroutine F1 as 'init interface' was not "
-                "found. Exiting."
+                "CRITICAL: User subroutine F1 ('Init interface') was not found."
+                " Exiting."
+            )
+            sys.exit(0)
+
+        if "F2" in self.config.user_subroutines:
+            print("    Found user subroutine F2: 'Home'")
+        else:
+            print_warning(
+                "CRITICAL: User subroutine F2 ('Home') was not found. Exiting."
             )
             sys.exit(0)
 
@@ -941,6 +972,25 @@ class MDrive_Motor:
         return x * self.config.steps_per_rev / 360
 
     # --------------------------------------------------------------------------
+    #   home
+    # --------------------------------------------------------------------------
+
+    def home(self) -> bool:
+        """Perform a homing routine by calling user subroutine 'F2'.
+        Additionally, the measurement and error parameters of the MDrive motor
+        get queried and stored inside member `MDrive_Motor.state`.
+
+        Returns ('bool'):
+            True if the command was successfully send to the motor, False
+            otherwise.
+        """
+        success, _reply = self.execute_subroutine("F2")
+        self.query_state()
+        self.query_errors()
+
+        return success
+
+    # --------------------------------------------------------------------------
     #   Move commands
     # --------------------------------------------------------------------------
 
@@ -1141,6 +1191,10 @@ class MDrive_Motor:
             )
         return self._slew(v, in_units_of_step=False)
 
+    # ------------------------------------------------------------------------------
+    #   controlled_stop
+    # ------------------------------------------------------------------------------
+
     def controlled_stop(self) -> bool:
         """Bring the motor to a controlled stop."""
         return self._slew(0)
@@ -1224,33 +1278,37 @@ if __name__ == "__main__":
             # ------------
             print(f"Homing '{DN}'... ", end="")
             sys.stdout.flush()
-            motor.execute_subroutine("F2")
 
-            motor.query_state()
+            motor.home()
             while motor.state.is_moving:
-                motor.query_state()  # Approach 1: Query full state
-            motor.query_state()
-
+                motor.query_is_moving()
             print("done.")
+
+            # Update full state
+            motor.query_state()
+            motor.query_errors()
 
             # Test: Moving
             # ------------
             print(f"Moving '{DN}'... ", end="")
             sys.stdout.flush()
+
             # motor.move_absolute_mm(20)
             motor.slew_mm_per_sec(10)
 
             count = 1
             motor.query_is_moving()
             while motor.state.is_moving:
+                motor.query_is_moving()
                 count += 1
-                motor.query_is_moving()  # Approach 2: Query only `is_moving`
                 if count == 100:
                     # mdrive.STOP()
                     # mdrive.RESET()
                     motor.controlled_stop()
-
             print("done.")
+
+            # Update full state
             motor.query_state()
+            motor.query_errors()
 
     mdrive.close()

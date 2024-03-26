@@ -1078,8 +1078,12 @@ class MDrive_Motor:
                 )
                 msg = f"MR {distance}"
 
-        # Send command to motor
+        # Send movement command to motor
         success, _reply = self.query(msg)
+
+        # Query and update movement flag
+        self.query_is_moving()
+
         return success
 
     def move_absolute_steps(self, x: float) -> bool:
@@ -1168,8 +1172,12 @@ class MDrive_Motor:
         velocity = int(np.round(v))
         msg = f"SL {velocity}"
 
-        # Send command to motor
+        # Send movement command to motor
         success, _reply = self.query(msg)
+
+        # Query and update movement flag
+        self.query_is_moving()
+
         return success
 
     def slew_steps_per_sec(self, v: float) -> bool:
@@ -1292,19 +1300,17 @@ if __name__ == "__main__":
             # ------------
             print(f"Moving '{DN}'... ", end="")
             sys.stdout.flush()
+            count = 1
 
             # motor.move_absolute_mm(20)
             motor.slew_mm_per_sec(10)
-
-            count = 1
-            motor.query_is_moving()
             while motor.state.is_moving:
-                motor.query_is_moving()
                 count += 1
                 if count == 100:
                     # mdrive.STOP()
                     # mdrive.RESET()
                     motor.controlled_stop()
+                motor.query_is_moving()
             print("done.")
 
             # Update full state

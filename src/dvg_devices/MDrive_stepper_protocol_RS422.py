@@ -919,6 +919,28 @@ class MDrive_Motor:
         return self.query(f"ex {subroutine_label}")
 
     # --------------------------------------------------------------------------
+    #   Transformations
+    # --------------------------------------------------------------------------
+
+    def steps2mm(self, x: float) -> float:
+        return x / self.config.steps_per_mm
+
+    def steps2rev(self, x: float) -> float:
+        return x / self.config.steps_per_rev
+
+    def steps2degrees(self, x: float) -> float:
+        return x / self.config.steps_per_rev * 360
+
+    def mm2steps(self, x: float) -> float:
+        return x * self.config.steps_per_mm
+
+    def rev2steps(self, x: float) -> float:
+        return x * self.config.steps_per_rev
+
+    def degrees2steps(self, x: float) -> float:
+        return x * self.config.steps_per_rev / 360
+
+    # --------------------------------------------------------------------------
     #   Move commands
     # --------------------------------------------------------------------------
 
@@ -957,9 +979,9 @@ class MDrive_Motor:
         # Ensure x is in units of [steps] from now on
         if not in_units_of_step:
             if C.movement_type == Movement_type.LINEAR:
-                x = x * C.steps_per_mm
+                x = self.mm2steps(x)
             else:
-                x = x * C.steps_per_rev
+                x = self.rev2steps(x)
 
         # Safety check
         if np.isnan(x):
@@ -1080,9 +1102,9 @@ class MDrive_Motor:
         # Ensure v is in units of [steps/sec] from now on
         if not in_units_of_step:
             if C.movement_type == Movement_type.LINEAR:
-                v = v * C.steps_per_mm
+                v = self.mm2steps(v)
             else:
-                v = v * C.steps_per_rev
+                v = self.rev2steps(v)
 
         # Safety check
         if np.isnan(v):

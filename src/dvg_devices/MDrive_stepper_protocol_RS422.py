@@ -611,18 +611,15 @@ class MDrive_Motor:
 
         # Stop any motion and reset errors. Calling this subroutine 'F1' is
         # crucial, because the MDrive motor has a strange quirk as follows.
+        #
         # In detail: The [Esc]-character we sent to auto-detect the controller
         # seems to prepend any future query replies with '\r\n', i.e. instead
         # of replying to '1pr p' with '0\r\n' the MDrive motor replies with
         # '\r\n0\r\n'. The latter messes up our query methodology and a call to
         # \any\ subroutine seems to fix the issue. We use subroutine 'F1' here.
-        self.execute_subroutine("F1")
+        self.init_interface()
 
-        # Initialize parameters
         self.query_config()
-        self.query_state()
-        self.query_errors()
-
         self.print_config()
 
         if "F1" in self.config.user_subroutines:
@@ -970,6 +967,26 @@ class MDrive_Motor:
 
     def degrees2steps(self, x: float) -> float:
         return x * self.config.steps_per_rev / 360
+
+    # --------------------------------------------------------------------------
+    #   init_interface
+    # --------------------------------------------------------------------------
+
+    def init_interface(self) -> bool:
+        """Perform an init interface routine by calling user subroutine 'F1'
+        which stops any motion and resets any errors. Additionally, the
+        measurement and error parameters of the MDrive motor get queried and
+        stored inside member `MDrive_Motor.state`.
+
+        Returns ('bool'):
+            True if the command was successfully send to the motor, False
+            otherwise.
+        """
+        success, _reply = self.execute_subroutine("F1")
+        self.query_state()
+        self.query_errors()
+
+        return success
 
     # --------------------------------------------------------------------------
     #   home

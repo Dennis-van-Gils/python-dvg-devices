@@ -60,7 +60,7 @@ attached motor, allowing them to be flashed via a PC.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "15-03-2024"
+__date__ = "26-03-2024"
 __version__ = "1.0.0"
 # pylint: disable=missing-function-docstring, too-many-lines
 
@@ -1204,17 +1204,12 @@ if __name__ == "__main__":
             sys.stdout.flush()
             motor.execute_subroutine("F2")
 
-            count = 1
-            t0 = time.perf_counter()
             motor.query_state()
             while motor.state.is_moving:
-                count += 1
-                motor.query_state()
+                motor.query_state()  # Approach 1: Query full state
+            motor.query_state()
 
-            t1 = time.perf_counter()
-            print(
-                f"done.\nTime per `query_state()`    : {(t1 - t0)/count:.3f} s"
-            )
+            print("done.")
 
             # Test: Moving
             # ------------
@@ -1224,20 +1219,16 @@ if __name__ == "__main__":
             motor.slew_mm_per_sec(10)
 
             count = 1
-            t0 = time.perf_counter()
             motor.query_is_moving()
             while motor.state.is_moving:
                 count += 1
-                motor.query_is_moving()
+                motor.query_is_moving()  # Approach 2: Query only `is_moving`
                 if count == 100:
                     # mdrive.STOP()
                     # mdrive.RESET()
                     motor.controlled_stop()
 
-            t1 = time.perf_counter()
-            print(
-                f"done.\nTime per `query_is_moving()`: {(t1 - t0)/count:.3f} s"
-            )
+            print("done.")
             motor.query_state()
 
     mdrive.close()

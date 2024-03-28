@@ -81,21 +81,21 @@ elif QT_LIB == PYSIDE6:
 
 import dvg_pyqt_controls as controls
 
-# from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
-# from dvg_devices.MDrive_stepper_protocol_RS422 import MDrive_Controller
+from dvg_qdeviceio import QDeviceIO
+from dvg_devices.MDrive_stepper_protocol_RS422 import MDrive_Controller
 
 
-class MDrive_Controller_qdev:
+class MDrive_Controller_qdev(QDeviceIO):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)  # Pass kwargs onto QtCore.QObject()
 
-        self.create_GUI()
+        self._create_GUI()
 
     # --------------------------------------------------------------------------
     #   create GUI
     # --------------------------------------------------------------------------
 
-    def create_GUI(self):
+    def _create_GUI(self):
 
         SS_TABS = (
             "QTabWidget::pane {"
@@ -254,9 +254,7 @@ class MDrive_Controller_qdev:
 
 
 class MainWindow(QtWid.QWidget):
-    def __init__(
-        self, mdrive_qdev: MDrive_Controller_qdev, parent=None, **kwargs
-    ):
+    def __init__(self, qdev: MDrive_Controller_qdev, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
         self.setWindowTitle("MDrive control")
@@ -272,7 +270,7 @@ class MainWindow(QtWid.QWidget):
         self.pbtn_exit.setMinimumHeight(30)
 
         hbox = QtWid.QHBoxLayout()
-        hbox.addLayout(mdrive_qdev.hbox, stretch=1)
+        hbox.addLayout(qdev.hbox, stretch=1)
         hbox.addWidget(
             self.pbtn_exit, alignment=QtCore.Qt.AlignmentFlag.AlignTop
         )
@@ -284,34 +282,47 @@ class MainWindow(QtWid.QWidget):
 
 
 # ------------------------------------------------------------------------------
-#   about_to_quit
-# ------------------------------------------------------------------------------
-
-
-@Slot()
-def about_to_quit():
-    print("About to quit")
-    app.processEvents()
-    # julabo_qdev.quit()
-    # julabo.close()
-
-
-# ------------------------------------------------------------------------------
 #   Main
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
 
     # --------------------------------------------------------------------------
+    #   Connect to MDrive Controller
+    # --------------------------------------------------------------------------
+
+    mdrive = MDrive_Controller()
+    if mdrive.auto_connect(filepath_last_known_port="config/port_MDrive.txt"):
+        mdrive.begin()
+
+    # --------------------------------------------------------------------------
     #   Create application
     # --------------------------------------------------------------------------
+
     QtCore.QThread.currentThread().setObjectName("MAIN")  # For DEBUG info
     app = QtWid.QApplication(sys.argv)
+
+    # --------------------------------------------------------------------------
+    #   Set up communication threads for the MDrive Controller
+    # --------------------------------------------------------------------------
+
+    mdrive_qdev = MDrive_Controller_qdev()
+    # mdrive_qdev.start()
+
+    # --------------------------------------------------------------------------
+    #   Start the main GUI event loop
+    # --------------------------------------------------------------------------
+
+    # About to quit
+    @Slot()
+    def about_to_quit():
+        print("About to quit")
+        app.processEvents()
+        mdrive_qdev.quit()
+        mdrive.close()
+
     app.aboutToQuit.connect(about_to_quit)
 
-    qdev = MDrive_Controller_qdev()
-    window = MainWindow(mdrive_qdev=qdev)
-
-    # Start the main GUI event loop
+    window = MainWindow(qdev=mdrive_qdev)
     window.show()
     sys.exit(app.exec())

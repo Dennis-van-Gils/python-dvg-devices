@@ -11,15 +11,15 @@ __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "27-03-2024"
 __version__ = "1.0.0"
-# pylint: disable=broad-except, try-except-raise, missing-function-docstring, multiple-statements
+# pylint: disable=broad-except, try-except-raise, missing-function-docstring
+# pylint: disable=multiple-statements, wrong-import-position
 
 import os
 import sys
 
-# TODO: Force use of PySide6 during developing. Delete when releasing code.
-from PySide6 import QtCore, QtGui, QtWidgets as QtWid
+# TODO: Delete when releasing code. For now: Force PySide6 during developing.
+from PySide6 import QtCore, QtWidgets as QtWid
 from PySide6.QtCore import Slot
-from PySide6.QtCore import Signal
 
 # Mechanism to support both PyQt and PySide
 # -----------------------------------------
@@ -81,10 +81,8 @@ elif QT_LIB == PYSIDE6:
 
 import dvg_pyqt_controls as controls
 
-# from dvg_debug_functions import print_fancy_traceback as pft
-
 # from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
-# from dvg_devices.Julabo_circulator_protocol_RS232 import Julabo_circulator
+# from dvg_devices.MDrive_stepper_protocol_RS422 import MDrive_Controller
 
 
 class MDrive_Controller_qdev:
@@ -134,35 +132,35 @@ class MDrive_Controller_qdev:
         #   Tab page: Control
         # ---------------------
 
-        self.led_is_home_known = controls.create_tiny_LED(checked=True)
-        self.led_is_moving = controls.create_tiny_LED(checked=True)
+        # fmt: off
+        self.led_is_home_known        = controls.create_tiny_LED(checked=True)
+        self.led_is_moving            = controls.create_tiny_LED(checked=True)
         self.led_is_velocity_changing = controls.create_tiny_LED(checked=True)
 
         p1 = {"alignment": QtCore.Qt.AlignmentFlag.AlignRight}
         p2 = {"alignment": QtCore.Qt.AlignmentFlag.AlignRight, "readOnly": True}
-        self.error_status = QtWid.QLineEdit("0", **p2)
-        self.current_position = QtWid.QLineEdit("nan", **p2)
-        self.current_velocity = QtWid.QLineEdit("nan", **p2)
-        self.software_max_position = QtWid.QLineEdit("320", **p1)
-        self.software_min_position = QtWid.QLineEdit("0", **p1)
-        self.wanted_position = QtWid.QLineEdit("0", **p1)
-        self.wanted_velocity = QtWid.QLineEdit("0", **p1)
-        self.step_size_1 = QtWid.QLineEdit("1", **p1)
-        self.step_size_2 = QtWid.QLineEdit("10", **p1)
+        self.error_status          = QtWid.QLineEdit("0"  , **p2)
+        self.current_position      = QtWid.QLineEdit("nan", **p2)
+        self.current_velocity      = QtWid.QLineEdit("nan", **p2)
+        self.software_max_position = QtWid.QLineEdit("320", **p1)  # type: ignore
+        self.software_min_position = QtWid.QLineEdit("0"  , **p1)  # type: ignore
+        self.wanted_position       = QtWid.QLineEdit("0"  , **p1)  # type: ignore
+        self.wanted_velocity       = QtWid.QLineEdit("0"  , **p1)  # type: ignore
+        self.step_size_1           = QtWid.QLineEdit("1"  , **p1)  # type: ignore
+        self.step_size_2           = QtWid.QLineEdit("10" , **p1)  # type: ignore
 
-        self.pbtn_init_interface = QtWid.QPushButton("Init interface")
-        self.pbtn_home = QtWid.QPushButton("Home")
-        self.pbtn_move_to_position = QtWid.QPushButton("Move to position")
+        self.pbtn_init_interface     = QtWid.QPushButton("Init interface")
+        self.pbtn_home               = QtWid.QPushButton("Home")
+        self.pbtn_move_to_position   = QtWid.QPushButton("Move to position")
         self.pbtn_move_with_velocity = QtWid.QPushButton("Move with velocity")
-        self.pbtn_controlled_stop = QtWid.QPushButton("Controlled stop")
-        self.pbtn_step_1_plus = QtWid.QPushButton("Step+")
-        self.pbtn_step_2_plus = QtWid.QPushButton("Step++")
-        self.pbtn_step_1_minus = QtWid.QPushButton("Step-")
-        self.pbtn_step_2_minus = QtWid.QPushButton("Step--")
-        self.pbtn_STOP = QtWid.QPushButton("\nEMERGENCY STOP\n")
+        self.pbtn_controlled_stop    = QtWid.QPushButton("Controlled stop")
+        self.pbtn_step_1_plus        = QtWid.QPushButton("Step+")
+        self.pbtn_step_2_plus        = QtWid.QPushButton("Step++")
+        self.pbtn_step_1_minus       = QtWid.QPushButton("Step-")
+        self.pbtn_step_2_minus       = QtWid.QPushButton("Step--")
+        self.pbtn_STOP               = QtWid.QPushButton("\nEMERGENCY STOP\n")
 
         i = 0
-        # fmt: off
         grid = QtWid.QGridLayout()
         grid.setVerticalSpacing(2)
 
@@ -311,8 +309,8 @@ if __name__ == "__main__":
     app = QtWid.QApplication(sys.argv)
     app.aboutToQuit.connect(about_to_quit)
 
-    mdrive_qdev = MDrive_Controller_qdev()
-    window = MainWindow(mdrive_qdev=mdrive_qdev)
+    qdev = MDrive_Controller_qdev()
+    window = MainWindow(mdrive_qdev=qdev)
 
     # Start the main GUI event loop
     window.show()

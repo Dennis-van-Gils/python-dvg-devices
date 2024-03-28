@@ -83,7 +83,7 @@ attached motor, allowing them to be flashed via a PC.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "26-03-2024"
+__date__ = "28-03-2024"
 __version__ = "1.0.0"
 # pylint: disable=missing-function-docstring, too-many-lines
 
@@ -408,7 +408,8 @@ class MDrive_Controller(SerialDevice):
 
     def close(self, ignore_exceptions=False):
         """Controlled-stop any motion of all motors and close the serial port."""
-        self.RESET()
+        if self.is_alive:
+            self.RESET()
         super().close(ignore_exceptions)
 
     # --------------------------------------------------------------------------

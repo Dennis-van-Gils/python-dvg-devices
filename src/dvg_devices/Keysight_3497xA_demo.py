@@ -6,12 +6,42 @@ Agilent) 34970A/34972A data acquisition/switch unit.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "28-10-2022"
-__version__ = "1.0.0"
-# pylint: disable=bare-except
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=wrong-import-position, missing-function-docstring, bare-except
 
 import os
 import sys
+
+# VISA address of the Keysight 3497xA data acquisition/switch unit containing a
+# multiplexer plug-in module. Hence, we simply call this device a 'mux'.
+# MUX_VISA_ADDRESS = "USB0::0x0957::0x2007::MY49018071::INSTR"
+MUX_VISA_ADDRESS = "GPIB0::9::INSTR"
+
+# SCPI commands to be send to the mux to set up the scan cycle.
+"""
+scan_list = "(@101:112)"
+MUX_SCPI_COMMANDS = [
+            f"rout:open {scan_list}",
+            f"conf:temp TC,J,{scan_list}",
+            f"unit:temp C,{scan_list}",
+            f"sens:temp:tran:tc:rjun:type INT,{scan_list}",
+            f"sens:temp:tran:tc:check ON,{scan_list}",
+            f"sens:temp:nplc 1,{scan_list}",
+            f"rout:scan {scan_list}",
+]
+"""
+
+scan_list = "(@101:110)"
+MUX_SCPI_COMMANDS = [
+    f"rout:open {scan_list}",
+    f"conf:res 1e6,{scan_list}",
+    f"sens:res:nplc 1,{scan_list}",
+    f"rout:scan {scan_list}",
+]
+
+# A scan will be performed by the mux every N milliseconds
+DAQ_INTERVAL_MS = 1000  # [ms]
 
 # Mechanism to support both PyQt and PySide
 # -----------------------------------------
@@ -48,7 +78,7 @@ if QT_LIB is None:
             pass
 
 if QT_LIB is None:
-    this_file = __file__.split(os.sep)[-1]
+    this_file = __file__.rsplit(os.sep, maxsplit=1)[-1]
     raise ImportError(
         f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
         "none of these packages could be imported."
@@ -71,10 +101,13 @@ elif QT_LIB == PYSIDE6:
 # -----------------------------------------------
 
 import pyvisa
-from dvg_pyqt_controls import SS_TEXTBOX_READ_ONLY
 
+import dvg_pyqt_controls as controls
 from dvg_devices.Keysight_3497xA_protocol_SCPI import Keysight_3497xA
 from dvg_devices.Keysight_3497xA_qdev import Keysight_3497xA_qdev
+
+# Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
+DEBUG = False
 
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -82,16 +115,22 @@ from dvg_devices.Keysight_3497xA_qdev import Keysight_3497xA_qdev
 
 
 class MainWindow(QtWid.QWidget):
-    def __init__(self, parent=None, **kwargs):
+    def __init__(self, qdev: Keysight_3497xA_qdev, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
-        self.setGeometry(600, 120, 0, 0)
         self.setWindowTitle("Keysight 3497xA control")
+        self.setGeometry(40, 60, 0, 0)
+        self.setFont(QtGui.QFont("Arial", 9))
+        self.setStyleSheet(
+            controls.SS_TEXTBOX_READ_ONLY
+            + controls.SS_GROUP
+            + controls.SS_HOVER
+        )
 
         # Top grid
-        self.qlbl_title = QtWid.QLabel(
-            "Keysight 3497xA control",
-            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Weight.Bold),
+        self.qlbl_title = QtWid.QLabel("Keysight 3497xA control")
+        self.qlbl_title.setFont(
+            QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Weight.Bold)
         )
         self.qpbt_exit = QtWid.QPushButton("Exit")
         self.qpbt_exit.clicked.connect(self.close)
@@ -105,9 +144,9 @@ class MainWindow(QtWid.QWidget):
 
         # Bottom grid
         hbox1 = QtWid.QHBoxLayout()
-        hbox1.addWidget(mux_qdev.qgrp)
+        hbox1.addWidget(qdev.qgrp)
         hbox1.addStretch(1)
-        hbox1.setAlignment(mux_qdev.qgrp, QtCore.Qt.AlignmentFlag.AlignTop)
+        hbox1.setAlignment(qdev.qgrp, QtCore.Qt.AlignmentFlag.AlignTop)
 
         # Round up full window
         vbox = QtWid.QVBoxLayout(self)
@@ -117,86 +156,42 @@ class MainWindow(QtWid.QWidget):
 
 
 # ------------------------------------------------------------------------------
-#   about_to_quit
-# ------------------------------------------------------------------------------
-
-
-def about_to_quit():
-    print("About to quit")
-    app.processEvents()
-    mux_qdev.quit()
-    try:
-        mux.close()
-    except:
-        pass
-    try:
-        rm.close()
-    except:
-        pass
-
-
-# ------------------------------------------------------------------------------
 #   Main
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    # VISA address of the Keysight 3497xA data acquisition/switch unit
-    # containing a multiplexer plug-in module. Hence, we simply call this device
-    # a 'mux'.
-    MUX_VISA_ADDRESS = "USB0::0x0957::0x2007::MY49018071::INSTR"
-    # MUX_VISA_ADDRESS = "GPIB0::9::INSTR"
-
-    # A scan will be performed by the mux every N milliseconds
-    MUX_SCANNING_INTERVAL_MS = 1000  # [ms]
-
-    # SCPI commands to be send to the 3497xA to set up the scan cycle.
-    """
-    scan_list = "(@301:312)"
-    MUX_SCPI_COMMANDS = [
-                "rout:open %s" % scan_list,
-                "conf:temp TC,J,%s" % scan_list,
-                "unit:temp C,%s" % scan_list,
-                "sens:temp:tran:tc:rjun:type INT,%s" % scan_list,
-                "sens:temp:tran:tc:check ON,%s" % scan_list,
-                "sens:temp:nplc 1,%s" % scan_list,
-                "rout:scan %s" % scan_list]
-    """
-
-    scan_list = "(@101)"
-    MUX_SCPI_COMMANDS = [
-        "rout:open %s" % scan_list,
-        "conf:res 1e5,%s" % scan_list,
-        "sens:res:nplc 1,%s" % scan_list,
-        "rout:scan %s" % scan_list,
-    ]
 
     # --------------------------------------------------------------------------
     #   Connect to Keysight 3497xA (mux)
     # --------------------------------------------------------------------------
 
     rm = pyvisa.ResourceManager()
+    mux = Keysight_3497xA(MUX_VISA_ADDRESS, "MUX")
 
-    mux = Keysight_3497xA(MUX_VISA_ADDRESS, "MUX_1")
-    if mux.connect(rm):
-        mux.begin(MUX_SCPI_COMMANDS)
+    try:
+        if mux.connect(rm):
+            mux.begin(MUX_SCPI_COMMANDS)
+    except ValueError as e:
+        # No connection could be made to the VISA device because module
+        # dependencies are missing. Print error, not raise and continue to
+        # show the GUI.
+        print(e)
 
     # --------------------------------------------------------------------------
     #   Create application
     # --------------------------------------------------------------------------
-    QtCore.QThread.currentThread().setObjectName("MAIN")  # For DEBUG info
 
-    app = 0  # Work-around for kernel crash when using Spyder IDE
+    QtCore.QThread.currentThread().setObjectName("MAIN")  # For DEBUG info
     app = QtWid.QApplication(sys.argv)
-    app.setFont(QtGui.QFont("Arial", 9))
-    app.setStyleSheet(SS_TEXTBOX_READ_ONLY)
-    app.aboutToQuit.connect(about_to_quit)
 
     # --------------------------------------------------------------------------
     #   Set up communication threads for the mux
     # --------------------------------------------------------------------------
 
     mux_qdev = Keysight_3497xA_qdev(
-        dev=mux, DAQ_interval_ms=MUX_SCANNING_INTERVAL_MS
+        dev=mux,
+        DAQ_interval_ms=DAQ_INTERVAL_MS,
+        debug=DEBUG,
     )
     mux_qdev.start()
 
@@ -204,8 +199,23 @@ if __name__ == "__main__":
     #   Start the main GUI event loop
     # --------------------------------------------------------------------------
 
-    window = MainWindow()
+    def about_to_quit():
+        print("About to quit")
+        app.processEvents()
+        mux_qdev.quit()
+        try:
+            mux.close()
+        except:
+            pass
+        try:
+            rm.close()
+        except:
+            pass
+
+    app.aboutToQuit.connect(about_to_quit)
+    window = MainWindow(qdev=mux_qdev)
     window.show()
+
     if QT_LIB in (PYQT5, PYSIDE2):
         sys.exit(app.exec_())
     else:

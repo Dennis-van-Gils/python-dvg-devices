@@ -9,8 +9,8 @@ TODO: WORK IN PROGRESS
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "27-03-2024"
-__version__ = "1.0.0"
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
 # pylint: disable=broad-except, try-except-raise, missing-function-docstring
 # pylint: disable=multiple-statements, wrong-import-position
 
@@ -18,8 +18,7 @@ import os
 import sys
 
 # TODO: Delete when releasing code. For now: Force PySide6 during developing.
-from PySide6 import QtCore, QtWidgets as QtWid
-from PySide6.QtCore import Slot
+from PySide6 import QtCore, QtGui, QtWidgets as QtWid
 
 # Mechanism to support both PyQt and PySide
 # -----------------------------------------
@@ -258,7 +257,8 @@ class MainWindow(QtWid.QWidget):
         super().__init__(parent, **kwargs)
 
         self.setWindowTitle("MDrive control")
-        self.setGeometry(600, 120, 0, 0)
+        self.setGeometry(40, 60, 0, 0)
+        self.setFont(QtGui.QFont("Arial", 9))
         self.setStyleSheet(
             controls.SS_TEXTBOX_READ_ONLY
             + controls.SS_GROUP
@@ -286,13 +286,15 @@ class MainWindow(QtWid.QWidget):
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    # Config file containing COM port address
+    PATH_PORT = "config/port_MDrive.txt"
 
     # --------------------------------------------------------------------------
     #   Connect to MDrive Controller
     # --------------------------------------------------------------------------
 
     mdrive = MDrive_Controller()
-    if mdrive.auto_connect(filepath_last_known_port="config/port_MDrive.txt"):
+    if mdrive.auto_connect(filepath_last_known_port=PATH_PORT):
         mdrive.begin()
 
     # --------------------------------------------------------------------------
@@ -313,8 +315,6 @@ if __name__ == "__main__":
     #   Start the main GUI event loop
     # --------------------------------------------------------------------------
 
-    # About to quit
-    @Slot()
     def about_to_quit():
         print("About to quit")
         app.processEvents()
@@ -322,7 +322,7 @@ if __name__ == "__main__":
         mdrive.close()
 
     app.aboutToQuit.connect(about_to_quit)
-
     window = MainWindow(qdev=mdrive_qdev)
     window.show()
+
     sys.exit(app.exec())

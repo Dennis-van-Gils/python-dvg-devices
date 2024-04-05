@@ -15,49 +15,48 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "28-10-2022"
-__version__ = "1.0.0"
-# pylint: disable=bare-except, broad-except, try-except-raise, pointless-string-statement
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=missing-function-docstring, pointless-string-statement
 
 import sys
-from typing import Union, Tuple
+
 import numpy as np
 
 from dvg_devices.BaseDevice import SerialDevice
 
 
 class Compax3_servo(SerialDevice):
-    """Containers for the process and measurement variables
-    [numpy.nan] values indicate that the parameter is not initialized or that
-    the last query was unsuccessful in communication.
-    """
-
     class Status_word_1:
-        # Container for Status word 1
+        """[numpy.nan] values indicate that the parameter is not initialized or
+        that the last query was unsuccessful in communication."""
+
         # fmt: off
-        I0 = np.nan                 # bit 0
-        I1 = np.nan                 # bit 1
-        I2 = np.nan                 # bit 2
-        I3 = np.nan                 # bit 3
-        I4 = np.nan                 # bit 4
-        I5 = np.nan                 # bit 5
-        I6 = np.nan                 # bit 6
-        I7 = np.nan                 # bit 7 'open motor holding brake'
-        no_error           = np.nan # bit 8
-        pos_reached        = np.nan # bit 9
-        powerless          = np.nan # bit 10
-        powered_stationary = np.nan # bit 11 'standstill'
-        zero_pos_known     = np.nan # bit 12
-        PSB0 = np.nan               # bit 13
-        PSB1 = np.nan               # bit 14
-        PSB2 = np.nan               # bit 15
+        I0                : float | bool = np.nan  # bit 0
+        I1                : float | bool = np.nan  # bit 1
+        I2                : float | bool = np.nan  # bit 2
+        I3                : float | bool = np.nan  # bit 3
+        I4                : float | bool = np.nan  # bit 4
+        I5                : float | bool = np.nan  # bit 5
+        I6                : float | bool = np.nan  # bit 6
+        I7                : float | bool = np.nan  # bit 7 'open motor holding brake'
+        no_error          : float | bool = np.nan  # bit 8
+        pos_reached       : float | bool = np.nan  # bit 9
+        powerless         : float | bool = np.nan  # bit 10
+        powered_stationary: float | bool = np.nan  # bit 11 'standstill'
+        zero_pos_known    : float | bool = np.nan  # bit 12
+        PSB0              : float | bool = np.nan  # bit 13
+        PSB1              : float | bool = np.nan  # bit 14
+        PSB2              : float | bool = np.nan  # bit 15
         # fmt: on
 
     class State:
-        # Container for the process and measurement variables
+        """[numpy.nan] values indicate that the parameter is not initialized or
+        that the last query was unsuccessful in communication."""
+
         # fmt: off
-        cur_pos = np.nan            # position [mm]
-        error_msg = np.nan          # error string message
+        cur_pos: float = np.nan  # position [mm]
+        error_msg: str = ""      # error string message
         # fmt: on
 
     def __init__(
@@ -88,7 +87,7 @@ class Compax3_servo(SerialDevice):
         self.status_word_1 = self.Status_word_1()
         self.state = self.State()
 
-        self.serial_str = None  # Serial number of the Compax3
+        self.serial_str = ""  # Serial number of the Compax3
 
     # --------------------------------------------------------------------------
     #   OVERRIDE: query
@@ -96,15 +95,15 @@ class Compax3_servo(SerialDevice):
 
     def query(
         self,
-        msg: Union[str, bytes],
+        msg: str | bytes,
         raises_on_timeout: bool = False,
         returns_ascii: bool = True,
-    ) -> Tuple[bool, Union[str, bytes, None]]:
+    ) -> tuple[bool, str | bytes | None]:
         success, reply = super().query(msg, raises_on_timeout, returns_ascii)
 
         # The Compax3 is more complex in its replies than the average device.
         # Hence:
-        if success:
+        if isinstance(reply, str):
             if reply[0] == ">":
                 # Successful operation without meaningful reply
                 pass
@@ -122,11 +121,18 @@ class Compax3_servo(SerialDevice):
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> Tuple[str, str]:
+    def ID_validation_query(self) -> tuple[str, str | None]:
+        broad_reply = ""
+        specific_reply = None
+
         _success, reply = self.query("_?")
-        broad_reply = reply[:7]  # Expected: "Compax3"
+        if isinstance(reply, str):
+            broad_reply = reply[:7]  # Expected: "Compax3"
+
         _success, reply = self.query("o1.4")
-        specific_reply = reply  # Serial number
+        if isinstance(reply, str):
+            specific_reply = reply  # Serial number
+
         return broad_reply, specific_reply
 
     # --------------------------------------------------------------------------
@@ -158,15 +164,15 @@ class Compax3_servo(SerialDevice):
         # have to exclude the possibility that another device will reply with
         # an error message to the serial number request, which then could be
         # mistaken for /the/ serial number.
-        success, reply = self.query("_?")
-        if success and reply.startswith("Compax3"):
+        _success, reply = self.query("_?")
+        if isinstance(reply, str) and reply.startswith("Compax3"):
             # Now we can query the serial number
-            success, reply = self.query("o1.4")
-            if success:
+            _success, reply = self.query("o1.4")
+            if isinstance(reply, str):
                 self.serial_str = reply
                 return True
 
-        self.serial_str = None
+        self.serial_str = ""
         return False
 
     def query_position(self) -> bool:
@@ -176,13 +182,13 @@ class Compax3_servo(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query("o680.5")
-        if success:
+        _success, reply = self.query("o680.5")
+        if isinstance(reply, str):
             self.state.cur_pos = float(reply)
-        else:
-            self.state.cur_pos = np.nan
+            return True
 
-        return success
+        self.state.cur_pos = np.nan
+        return False
 
     def query_error(self) -> bool:
         """Query the last error and store in the class member 'state.error_msg'
@@ -191,35 +197,35 @@ class Compax3_servo(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query("o550.1")
-        if success:
+        _success, reply = self.query("o550.1")
+        if isinstance(reply, str):
             # Translate error codes to more meaningful messages
             if reply == "1":
                 self.state.error_msg = ""
             elif reply == "17168":
-                self.state.error_msg = "%s: Motor temperature" % reply
+                self.state.error_msg = f"{reply}: Motor temperature"
             elif reply == "29472":
-                self.state.error_msg = "%s: Following error" % reply
+                self.state.error_msg = f"{reply}: Following error"
             elif reply == "29475":
                 self.state.error_msg = (
-                    "%s: Target or actual position "
-                    "exceeds positive end limit" % reply
+                    f"{reply}: Target or actual position "
+                    "exceeds positive end limit"
                 )
             elif reply == "29476":
                 self.state.error_msg = (
-                    "%s: Target or actual position "
-                    "exceeds negative end limit" % reply
+                    f"{reply}: Target or actual position "
+                    "exceeds negative end limit"
                 )
             elif reply == "29479":
                 self.state.error_msg = (
-                    "%s: Change of direction during " "movement" % reply
+                    f"{reply}: Change of direction during " "movement"
                 )
             else:
                 self.state.error_msg = reply
-        else:
-            self.state.error_msg = np.nan
+            return True
 
-        return success
+        self.state.error_msg = ""
+        return False
 
     def query_status_word_1(self) -> bool:
         """Query the status word 1 and store in the class member 'status_word_1'
@@ -296,56 +302,44 @@ class Compax3_servo(SerialDevice):
             Movement mode is fixed to absolute, not relative.
         """
         mode = 1  # Overrule, set movement mode to absolute position
+        p = profile_number  # Shorthand
 
-        print("  Profile number: %d" % profile_number)
-        print("    pos   = %.2f" % target_position)
-        print("    vel   = %.2f" % velocity)
-        print("    mode  = %d (fixed to absolute)" % mode)
-        print("    accel = %.2f" % accel)
-        print("    decel = %.2f" % decel)
-        print("    jerk  = %.2f\n" % jerk)
+        print(f"  Profile number: {p}")
+        print(f"    pos   = {target_position:.2f}")
+        print(f"    vel   = {velocity:.2f}")
+        print(f"    mode  = {mode:d} (fixed to absolute)")
+        print(f"    accel = {accel:.2f}")
+        print(f"    decel = {decel:.2f}")
+        print(f"    jerk  = {jerk:.2f}\n")
 
-        success, _reply = self.query(
-            "o1901.%d=%.2f" % (profile_number, target_position)
-        )
+        success, _reply = self.query(f"o1901.{p:d}={target_position:.2f}")
         if success:
-            success, _reply = self.query(
-                "o1902.%d=%.2f" % (profile_number, velocity)
-            )
+            success, _reply = self.query(f"o1902.{p:d}={velocity:.2f}")
         if success:
-            success, _reply = self.query("o1905.%d=%d" % (profile_number, mode))
+            success, _reply = self.query(f"o1905.{p:d}={mode:d}")
         if success:
-            success, _reply = self.query(
-                "o1906.%d=%.2f" % (profile_number, accel)
-            )
+            success, _reply = self.query(f"o1906.{p:d}={accel:.2f}")
         if success:
-            success, _reply = self.query(
-                "o1907.%d=%.2f" % (profile_number, decel)
-            )
+            success, _reply = self.query(f"o1907.{p:d}={decel:.2f}")
         if success:
-            success, _reply = self.query(
-                "o1908.%d=%.2f" % (profile_number, jerk)
-            )
+            success, _reply = self.query(f"o1908.{p:d}={jerk:.2f}")
         if success:
-            success, _reply = self.query(
-                "o1904.%d=$32" % (profile_number)
-            )  # Store profile
+            success, _reply = self.query(f"o1904.{p:d}=$32")  # Store profile
 
         return success
 
     def activate_motion_profile(self, profile_number=2) -> bool:
-        """ """
         # Control word (CW) for activating the passed profile number
         # First send: quit/motor bit (bit 0) high
         #             stop bits (bits 1, 14) high
         #             start bit (bit 13) low
         CW_LO = 0b0100000000000011
         CW_LO = CW_LO + (profile_number << 8)
-        success, _reply = self.query("o1100.3=%d" % CW_LO)
+        success, _reply = self.query(f"o1100.3={CW_LO:d}")
         if success:
             # Then send start bit (bit 13) high
             CW_HI = CW_LO + (1 << 13)
-            success, _reply = self.query("o1100.3=%d" % CW_HI)
+            success, _reply = self.query(f"o1100.3={CW_HI:d}")
 
         return success
 
@@ -358,7 +352,7 @@ class Compax3_servo(SerialDevice):
         """
         # Send new target position
         success, _reply = self.query(
-            "o1901.%d=%.2f" % (profile_number, target_position)
+            f"o1901.{profile_number:d}={target_position:.2f}"
         )
 
         if success:
@@ -367,38 +361,34 @@ class Compax3_servo(SerialDevice):
         return success
 
     def jog_plus(self) -> bool:
-        """ """
         # Control word (CW) for activating the jog+
         CW_LO = 0b0100000000000011
-        success, _reply = self.query("o1100.3=%d" % CW_LO)
+        success, _reply = self.query(f"o1100.3={CW_LO:d}")
         if success:
             # Then send jog+ bit (bit 2) high
             CW_HI = CW_LO + (1 << 2)
-            success, _reply = self.query("o1100.3=%d" % CW_HI)
+            success, _reply = self.query(f"o1100.3={CW_HI:d}")
 
         return success
 
     def jog_minus(self) -> bool:
-        """ """
         # Control word (CW) for activating the jog-
         CW_LO = 0b0100000000000011
-        success, _reply = self.query("o1100.3=%d" % CW_LO)
+        success, _reply = self.query(f"o1100.3={CW_LO:d}")
         if success:
             # Then send jog- bit (bit 3) high
             CW_HI = CW_LO + (1 << 3)
-            success, _reply = self.query("o1100.3=%d" % CW_HI)
+            success, _reply = self.query(f"o1100.3={CW_HI:d}")
 
         return success
 
     def stop_motion_but_keep_power(self) -> bool:
-        """ """
         CW_LO = 0b0100000000000011
-        success, _reply = self.query("o1100.3=%d" % CW_LO)
+        success, _reply = self.query(f"o1100.3={CW_LO:d}")
 
         return success
 
     def stop_motion_and_remove_power(self) -> bool:
-        """ """
         success, _reply = self.query("o1100.3=0")
 
         return success
@@ -420,42 +410,40 @@ class Compax3_servo(SerialDevice):
         return success
 
     def report_status_word_1(self, compact=False):
-        """ """
+        SW = self.status_word_1  # Shorthand
         if not compact:
             print("Status word 1:")
-            print("  %-6s: I0" % self.status_word_1.I0)
-            print("  %-6s: I1" % self.status_word_1.I1)
-            print("  %-6s: I2" % self.status_word_1.I2)
-            print("  %-6s: I3" % self.status_word_1.I3)
-            print("  %-6s: I4" % self.status_word_1.I4)
-            print("  %-6s: I5" % self.status_word_1.I5)
-            print("  %-6s: I6" % self.status_word_1.I6)
-            print("  %-6s: I7" % self.status_word_1.I7)
-            print("  %-6s: no_error" % self.status_word_1.no_error)
-            print("  %-6s: pos_reached" % self.status_word_1.pos_reached)
-            print("  %-6s: powerless" % self.status_word_1.powerless)
-            print(
-                "  %-6s: powered_stat" % self.status_word_1.powered_stationary
-            )
-            print("  %-6s: zero_pos_known" % self.status_word_1.zero_pos_known)
-            print("  %-6s: PSB0" % self.status_word_1.PSB1)
-            print("  %-6s: PSB1" % self.status_word_1.PSB1)
-            print("  %-6s: PSB2" % self.status_word_1.PSB2)
+            print(f"  {SW.I0:-6s}: I0")
+            print(f"  {SW.I1:-6s}: I1")
+            print(f"  {SW.I2:-6s}: I2")
+            print(f"  {SW.I3:-6s}: I3")
+            print(f"  {SW.I4:-6s}: I4")
+            print(f"  {SW.I5:-6s}: I5")
+            print(f"  {SW.I6:-6s}: I6")
+            print(f"  {SW.I7:-6s}: I7")
+            print(f"  {SW.no_error:-6s}: no_error")
+            print(f"  {SW.pos_reached:-6s}: pos_reached")
+            print(f"  {SW.powerless:-6s}: powerless")
+            print(f"  {SW.powered_stationary:-6s}: powered_stat")
+            print(f"  {SW.zero_pos_known:-6s}: zero_pos_known")
+            print(f"  {SW.PSB0:-6s}: PSB0")
+            print(f"  {SW.PSB1:-6s}: PSB1")
+            print(f"  {SW.PSB2:-6s}: PSB2")
         else:
-            if not self.status_word_1.no_error:
+            if not SW.no_error:
                 print("  ERROR!")
-            if self.status_word_1.powerless:
+            if SW.powerless:
                 print("  Axis    : unpowered")
             else:
-                if self.status_word_1.powered_stationary:
+                if SW.powered_stationary:
                     print("  Axis    : POWERED STANDSTILL")
                 else:
                     print("  Axis    : POWERED")
-            if self.status_word_1.zero_pos_known:
+            if SW.zero_pos_known:
                 print("  Zero pos: known")
             else:
                 print("  Zero pos: UNKNOWN")
-            if self.status_word_1.pos_reached:
+            if SW.pos_reached:
                 print("  Position: REACHED")
             else:
                 print("  Position: unreached")
@@ -472,8 +460,8 @@ if __name__ == "__main__":
     # Specific connection settings of each traverse axis of our setup
     class Trav_connection_params:
         # Serial number of the Compax3 servo controller to connect to.
-        # Set to '' or None to connect to any Compax3.
-        serial = None
+        # Set to "" to connect to any Compax3.
+        serial = ""
         # Display name
         name = "TRAV"
         # Path to the config textfile containing the (last used) RS232 port
@@ -501,7 +489,8 @@ if __name__ == "__main__":
 
     # Create connection to Compax3 servo controller over RS232
     trav = Compax3_servo(
-        name=trav_conn.name, connect_to_serial_number=trav_conn.serial
+        name=trav_conn.name,
+        connect_to_serial_number=trav_conn.serial,
     )
 
     if trav.auto_connect(filepath_last_known_port=trav_conn.path_config):
@@ -510,8 +499,8 @@ if __name__ == "__main__":
         time.sleep(1)
         sys.exit(0)
 
-    print("Error msg: %s" % trav.state.error_msg)
-    print("Current position: %.2f" % trav.state.cur_pos)
+    print(f"Error msg: {trav.state.error_msg}")
+    print(f"Current position: {trav.state.cur_pos:.2f}")
     trav.report_status_word_1(compact=True)
 
     trav.acknowledge_error()
@@ -546,7 +535,7 @@ if __name__ == "__main__":
     time.sleep(2);
 
     trav.query_position()
-    print("Current position: %.2f" % trav.state.cur_pos)
+    print(f"Current position: {trav.state.cur_pos:.2f}")
 
     trav.query("o1100.3=$400b")      # jog-
     time.sleep(2);
@@ -557,7 +546,7 @@ if __name__ == "__main__":
 
     for i in range(14):
         trav.query_position()
-        print("Current position: %.2f" % trav.state.cur_pos)
+        print(f"Current position: {trav.state.cur_pos:.2f}")
         trav.query_status_word_1()
         trav.report_status_word_1(compact=True)
         time.sleep(0.2)
@@ -572,8 +561,8 @@ if __name__ == "__main__":
     trav.query_position()
     trav.query_status_word_1()
 
-    print("Error msg: %s" % trav.state.error_msg)
-    print("Current position: %.2f" % trav.state.cur_pos)
+    print(f"Error msg: {trav.state.error_msg}")
+    print(f"Current position: {trav.state.cur_pos:.2f}")
     trav.report_status_word_1(compact=True)
 
     # Close

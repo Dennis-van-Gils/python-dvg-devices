@@ -2,13 +2,20 @@
 # -*- coding: utf-8 -*-
 """PyQt/PySide module to provide multithreaded communication and periodical data
 acquisition for a Keysight N8700 power supply (PSU).
+
+TODO: Right now, a PID controller on the power output is injected into the
+device instance as a object member. We should have the PID controller already
+be defined at the class level of 'Keysight_N8700_protocol_SCPI.Keysight_N8700`.
+We should also have the PID parameters be passed as arguments, instead of
+hard-coded here.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "28-10-2022"
-__version__ = "1.0.0"
-# pylint: disable=try-except-raise, broad-except
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=wrong-import-position, missing-function-docstring
+# pylint: disable=multiple-statements, broad-except
 
 import os
 import sys
@@ -40,7 +47,7 @@ if QT_LIB is None:
             pass
 
 if QT_LIB is None:
-    this_file = __file__.split(os.sep)[-1]
+    this_file = __file__.rsplit(os.sep, maxsplit=1)[-1]
     raise ImportError(
         f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
         "none of these packages could be imported."
@@ -72,12 +79,7 @@ elif QT_LIB == PYSIDE6:
 
 import numpy as np
 
-from dvg_pyqt_controls import (
-    create_Toggle_button,
-    create_tiny_error_LED,
-    SS_TEXTBOX_ERRORS,
-    SS_GROUP,
-)
+import dvg_pyqt_controls as controls
 from dvg_debug_functions import dprint, print_fancy_traceback as pft
 from dvg_pid_controller import PID_Controller
 
@@ -133,9 +135,13 @@ class Keysight_N8700_qdev(QDeviceIO):
         **kwargs,
     ):
         super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
+        self.dev: Keysight_N8700  # Enforce type: removes `_NoDevice()`
 
         # Add PID controller on the power output
         # DvG, 25-06-2018: Kp=0.5, Ki=2, Kd=0
+        # TODO: Remove hard-coded PID values and have them passed as arguments
+        # via a to-be-written class method inside `Keysight_N8700_protocol_SCPI.
+        # Keysight_N8700`.
         self.dev.PID_power = PID_Controller(Kp=0.5, Ki=2, Kd=0)
 
         self.create_worker_DAQ(
@@ -152,8 +158,8 @@ class Keysight_N8700_qdev(QDeviceIO):
         self.create_GUI()
         self.signal_DAQ_updated.connect(self.update_GUI)
         self.signal_GUI_input_field_update.connect(self.update_GUI_input_field)
-        self.connect_signals_to_slots()
 
+        # Update GUI immediately, instead of waiting for the first refresh
         self.update_GUI()
         self.update_GUI_input_field()
 
@@ -168,7 +174,9 @@ class Keysight_N8700_qdev(QDeviceIO):
 
         # Clear input and output buffers of the device. Seems to resolve
         # intermittent communication time-outs.
-        self.dev.device.clear()
+        if self.dev.device is not None:
+            self.dev.device.clear()
+            time.sleep(0.01)
 
         # Finish all operations at the device first
         if not self.dev.wait_for_OPC():
@@ -238,17 +246,17 @@ class Keysight_N8700_qdev(QDeviceIO):
 
         if DEBUG_local:
             tock = time.perf_counter()
-            dprint("%s: done in %i" % (self.dev.name, tock - tick))
+            dprint(f"{self.dev.name}: done in {tock - tick:.3f}")
 
         # Check if there are errors in the device queue and retrieve all
         # if any and append these to 'dev.state.all_errors'.
         if DEBUG_local:
-            dprint("%s: query errors" % self.dev.name)
+            dprint(f"{self.dev.name}: query errors")
             tick = time.perf_counter()
         self.dev.query_all_errors_in_queue()
         if DEBUG_local:
             tock = time.perf_counter()
-            dprint("%s: stb done in %i" % (self.dev.name, tock - tick))
+            dprint(f"{self.dev.name}: stb done in {tock - tick:.3f}")
 
         return True
 
@@ -288,40 +296,53 @@ class Keysight_N8700_qdev(QDeviceIO):
             "maximumWidth": 60,
             "alignment": QtCore.Qt.AlignmentFlag.AlignRight,
         }
-        self.pbtn_ENA_output = create_Toggle_button("Output OFF")
+        self.pbtn_ENA_output = controls.create_Toggle_button("Output OFF")
+        self.pbtn_ENA_output.clicked.connect(self.process_pbtn_ENA_output)
         self.V_source = QtWid.QLineEdit("0.00", **p)
         self.I_source = QtWid.QLineEdit("0.000", **p)
         self.P_source = QtWid.QLineEdit("0.00", **p)
-        self.pbtn_ENA_PID = create_Toggle_button(
-            "OFF", minimumHeight=28, minimumWidth=60
+        self.V_source.editingFinished.connect(self.send_V_source_from_textbox)
+        self.I_source.editingFinished.connect(self.send_I_source_from_textbox)
+        self.P_source.editingFinished.connect(self.set_P_source_from_textbox)
+        self.pbtn_ENA_PID = controls.create_Toggle_button(
+            "OFF",
+            minimumHeight=28,
+            minimumWidth=60,
         )
+        self.pbtn_ENA_PID.clicked.connect(self.process_pbtn_ENA_PID)
 
         # Protection
         self.OVP_level = QtWid.QLineEdit("0.000", **p)
-        self.pbtn_ENA_OCP = create_Toggle_button(
-            "OFF", minimumHeight=28, minimumWidth=60
+        self.OVP_level.editingFinished.connect(self.send_OVP_level_from_textbox)
+        self.pbtn_ENA_OCP = controls.create_Toggle_button(
+            "OFF",
+            minimumHeight=28,
+            minimumWidth=60,
         )
+        self.pbtn_ENA_OCP.clicked.connect(self.process_pbtn_ENA_OCP)
 
         # Questionable condition status registers
-        self.status_QC_OV = create_tiny_error_LED()
-        self.status_QC_OC = create_tiny_error_LED()
-        self.status_QC_PF = create_tiny_error_LED()
-        self.status_QC_OT = create_tiny_error_LED()
-        self.status_QC_INH = create_tiny_error_LED()
-        self.status_QC_UNR = create_tiny_error_LED()
+        self.status_QC_OV = controls.create_tiny_error_LED()
+        self.status_QC_OC = controls.create_tiny_error_LED()
+        self.status_QC_PF = controls.create_tiny_error_LED()
+        self.status_QC_OT = controls.create_tiny_error_LED()
+        self.status_QC_INH = controls.create_tiny_error_LED()
+        self.status_QC_UNR = controls.create_tiny_error_LED()
 
         # Operation condition status registers
-        self.status_OC_WTG = create_tiny_error_LED()
-        self.status_OC_CV = create_tiny_error_LED()
-        self.status_OC_CC = create_tiny_error_LED()
+        self.status_OC_WTG = controls.create_tiny_error_LED()
+        self.status_OC_CV = controls.create_tiny_error_LED()
+        self.status_OC_CC = controls.create_tiny_error_LED()
 
         # Final elements
         self.errors = QtWid.QLineEdit("")
-        self.errors.setStyleSheet(SS_TEXTBOX_ERRORS)
+        self.errors.setStyleSheet(controls.SS_TEXTBOX_ERRORS)
         self.pbtn_ackn_errors = QtWid.QPushButton("Acknowledge errors")
+        self.pbtn_ackn_errors.clicked.connect(self.process_pbtn_ackn_errors)
         self.pbtn_reinit = QtWid.QPushButton("Reinitialize")
+        self.pbtn_reinit.clicked.connect(self.process_pbtn_reinit)
         self.pbtn_save_defaults = QtWid.QPushButton("Save")
-        self.pbtn_debug_test = QtWid.QPushButton("Debug test")
+        self.pbtn_save_defaults.clicked.connect(self.process_pbtn_save_defaults)
         self.lbl_update_counter = QtWid.QLabel("0")
 
         i = 0
@@ -407,7 +428,6 @@ class Keysight_N8700_qdev(QDeviceIO):
         grid.addLayout(hbox                              , i, 0, 1, 4); i+=1
         grid.addItem(QtWid.QSpacerItem(1, 4)             , i, 0)      ; i+=1
         grid.addWidget(self.lbl_update_counter           , i, 0, 1, 4); i+=1
-        # grid.addWidget(self.pbtn_debug_test              , i, 0, 1, 4); i+=1
         # fmt: on
 
         grid.setColumnStretch(0, 0)
@@ -418,8 +438,7 @@ class Keysight_N8700_qdev(QDeviceIO):
         # grid.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         self.grid = grid
 
-        self.grpb = QtWid.QGroupBox("%s" % self.dev.name)
-        self.grpb.setStyleSheet(SS_GROUP)
+        self.grpb = QtWid.QGroupBox(f"{self.dev.name}")
         self.grpb.setLayout(self.grid)
 
     # --------------------------------------------------------------------------
@@ -439,7 +458,7 @@ class Keysight_N8700_qdev(QDeviceIO):
                 self.pbtn_ENA_PID.setChecked(True)
                 self.pbtn_ENA_PID.setText("ON")
                 self.V_source.setReadOnly(True)
-                self.V_source.setText("%.2f" % self.dev.state.V_source)
+                self.V_source.setText(f"{self.dev.state.V_source:.2f}")
             else:
                 self.pbtn_ENA_PID.setChecked(False)
                 self.pbtn_ENA_PID.setText("OFF")
@@ -452,10 +471,10 @@ class Keysight_N8700_qdev(QDeviceIO):
                 self.P_meas.setText("")
             else:
                 # fmt: off
-                self.V_meas.setText("%.2f  V   " % self.dev.state.V_meas)
-                self.I_meas.setText("%.3f A   "  % self.dev.state.I_meas)
+                self.V_meas.setText(f"{self.dev.state.V_meas:.2f}  V   ")
+                self.I_meas.setText(f"{self.dev.state.I_meas:.3f} A   ")
                 self.I_meas.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
-                self.P_meas.setText("%.2f  W   " % self.dev.state.P_meas)
+                self.P_meas.setText(f"{self.dev.state.P_meas:.2f}  W   ")
                 # fmt: on
 
             self.pbtn_ENA_output.setChecked(self.dev.state.ENA_output)
@@ -482,9 +501,9 @@ class Keysight_N8700_qdev(QDeviceIO):
             self.status_OC_CC.setChecked(self.dev.state.status_OC_CC)
 
             self.errors.setReadOnly(self.dev.state.all_errors != [])
-            self.errors.setText("%s" % ";".join(self.dev.state.all_errors))
+            self.errors.setText(";".join(self.dev.state.all_errors))
 
-            self.lbl_update_counter.setText("%s" % self.update_counter_DAQ)
+            self.lbl_update_counter.setText(f"{self.update_counter_DAQ}")
         else:
             self.V_meas.setText("")
             self.I_meas.setText("Offline")
@@ -500,34 +519,35 @@ class Keysight_N8700_qdev(QDeviceIO):
     @Slot(int)
     def update_GUI_input_field(self, GUI_input_field=GUI_input_fields.ALL):
         if GUI_input_field == GUI_input_fields.OVP_level:
-            self.OVP_level.setText("%.2f" % self.dev.state.OVP_level)
+            self.OVP_level.setText(f"{self.dev.state.OVP_level:.2f}")
             self.dev.PID_power.set_output_limits(
                 0, self.dev.state.OVP_level * 0.95
             )
 
         elif GUI_input_field == GUI_input_fields.V_source:
-            self.V_source.setText("%.2f" % self.dev.state.V_source)
+            self.V_source.setText(f"{self.dev.state.V_source:.2f}")
 
         elif GUI_input_field == GUI_input_fields.I_source:
-            self.I_source.setText("%.3f" % self.dev.state.I_source)
+            self.I_source.setText(f"{self.dev.state.I_source:.3f}")
 
         elif GUI_input_field == GUI_input_fields.P_source:
-            self.P_source.setText("%.2f" % self.dev.state.P_source)
+            self.P_source.setText(f"{self.dev.state.P_source:.2f}")
 
         else:
-            self.OVP_level.setText("%.2f" % self.dev.state.OVP_level)
+            self.OVP_level.setText(f"{self.dev.state.OVP_level:.2f}")
             self.dev.PID_power.set_output_limits(
                 0, self.dev.state.OVP_level * 0.95
             )
 
-            self.V_source.setText("%.2f" % self.dev.state.V_source)
-            self.I_source.setText("%.3f" % self.dev.state.I_source)
-            self.P_source.setText("%.2f" % self.dev.state.P_source)
+            self.V_source.setText(f"{self.dev.state.V_source:.2f}")
+            self.I_source.setText(f"{self.dev.state.I_source:.3f}")
+            self.P_source.setText(f"{self.dev.state.P_source:.2f}")
 
     # --------------------------------------------------------------------------
     #   GUI functions
     # --------------------------------------------------------------------------
 
+    @Slot()
     def process_pbtn_ENA_output(self):
         if self.pbtn_ENA_output.isChecked():
             # Clear output protection, if triggered and turn on output
@@ -536,31 +556,39 @@ class Keysight_N8700_qdev(QDeviceIO):
             # Turn off output
             self.send(self.dev.turn_off)
 
+    @Slot()
     def process_pbtn_ENA_PID(self):
         self.dev.state.ENA_PID = self.pbtn_ENA_PID.isChecked()
 
+    @Slot()
     def process_pbtn_ENA_OCP(self):
         self.send(self.dev.set_ENA_OCP, self.pbtn_ENA_OCP.isChecked())
 
+    @Slot()
     def process_pbtn_ackn_errors(self):
         # Lock the dev mutex because string operations are not atomic
-        locker = QtCore.QMutexLocker(self.dev.mutex)
+        locker = QtCore.QMutexLocker(self.dev.mutex)  # type: ignore
         self.dev.state.all_errors = []
         self.errors.setText("")
         self.errors.setReadOnly(False)  # To change back to regular colors
         locker.unlock()
 
+    @Slot()
     def process_pbtn_reinit(self):
-        str_msg = "Are you sure you want reinitialize the power supply?"
-        reply = QtWid.QMessageBox.question(
-            None,
-            ("Reinitialize %s" % self.dev.name),
-            str_msg,
-            QtWid.QMessageBox.Yes | QtWid.QMessageBox.No,
-            QtWid.QMessageBox.No,
+        title = f"Reinitialize {self.dev.name}"
+        msg = "Are you sure you want reinitialize the power supply?"
+        msgbox = QtWid.QMessageBox()
+        msgbox.setIcon(QtWid.QMessageBox.Icon.Question)
+        msgbox.setWindowTitle(title)
+        msgbox.setText(msg)
+        msgbox.setStandardButtons(
+            QtWid.QMessageBox.StandardButton.Yes
+            | QtWid.QMessageBox.StandardButton.No
         )
+        msgbox.setDefaultButton(QtWid.QMessageBox.StandardButton.No)
+        reply = msgbox.exec()
 
-        if reply == QtWid.QMessageBox.Yes:
+        if reply == QtWid.QMessageBox.StandardButton.Yes:
             self.dev.read_config_file()
             self.add_to_jobs_queue(self.dev.reinitialize)
             self.add_to_jobs_queue(
@@ -570,9 +598,10 @@ class Keysight_N8700_qdev(QDeviceIO):
 
             self.dev.state.ENA_PID = False
 
+    @Slot()
     def process_pbtn_save_defaults(self):
-        str_title = "Save defaults %s" % self.dev.name
-        str_msg = (
+        title = f"Save defaults {self.dev.name}"
+        msg = (
             "Are you sure you want to save the current values:\n\n"
             "  - Source voltage\n"
             "  - Source current\n"
@@ -582,38 +611,39 @@ class Keysight_N8700_qdev(QDeviceIO):
             "as default?\n"
             "These will then automatically be loaded next time."
         )
-        reply = QtWid.QMessageBox.question(
-            None,
-            str_title,
-            str_msg,
-            QtWid.QMessageBox.Yes | QtWid.QMessageBox.No,
-            QtWid.QMessageBox.No,
+        msgbox = QtWid.QMessageBox()
+        msgbox.setIcon(QtWid.QMessageBox.Icon.Question)
+        msgbox.setWindowTitle(title)
+        msgbox.setText(msg)
+        msgbox.setStandardButtons(
+            QtWid.QMessageBox.StandardButton.Yes
+            | QtWid.QMessageBox.StandardButton.No
         )
+        msgbox.setDefaultButton(QtWid.QMessageBox.StandardButton.No)
+        reply = msgbox.exec()
 
-        if reply == QtWid.QMessageBox.Yes:
+        if reply == QtWid.QMessageBox.StandardButton.Yes:
             if self.dev.write_config_file():
-                QtWid.QMessageBox.information(
-                    None,
-                    str_title,
-                    "Successfully saved to disk:\n%s" % self.dev.path_config,
-                )
+                icon = QtWid.QMessageBox.Icon.Information
+                msg = f"Successfully saved to disk:\n{self.dev.path_config}"
             else:
-                QtWid.QMessageBox.critical(
-                    None,
-                    str_title,
-                    "Failed to save to disk:\n%s" % self.dev.path_config,
-                )
+                icon = QtWid.QMessageBox.Icon.Critical
+                msg = f"Failed to save to disk:\n{self.dev.path_config}"
 
-    def process_pbtn_debug_test(self):
-        pass
+            msgbox = QtWid.QMessageBox()
+            msgbox.setIcon(icon)
+            msgbox.setWindowTitle(title)
+            msgbox.setText(msg)
+            msgbox.exec()
 
+    @Slot()
     def send_V_source_from_textbox(self):
         try:
             voltage = float(self.V_source.text())
         except (TypeError, ValueError):
             voltage = 0.0
-        except:
-            raise
+        except Exception as err:
+            raise err
 
         self.add_to_jobs_queue(self.dev.set_V_source, max(voltage, 0))
         self.add_to_jobs_queue(self.dev.query_V_source)
@@ -622,13 +652,14 @@ class Keysight_N8700_qdev(QDeviceIO):
         )
         self.process_jobs_queue()
 
+    @Slot()
     def send_I_source_from_textbox(self):
         try:
             current = float(self.I_source.text())
         except (TypeError, ValueError):
             current = 0.0
-        except:
-            raise
+        except Exception as err:
+            raise err
 
         self.add_to_jobs_queue(self.dev.set_I_source, max(current, 0))
         self.add_to_jobs_queue(self.dev.query_I_source)
@@ -637,24 +668,26 @@ class Keysight_N8700_qdev(QDeviceIO):
         )
         self.process_jobs_queue()
 
+    @Slot()
     def set_P_source_from_textbox(self):
         try:
             power = float(self.P_source.text())
         except (TypeError, ValueError):
             power = 0.0
-        except:
-            raise
+        except Exception as err:
+            raise err
 
         self.dev.state.P_source = max(power, 0)
         self.update_GUI_input_field(GUI_input_fields.P_source)
 
+    @Slot()
     def send_OVP_level_from_textbox(self):
         try:
             OVP_level = float(self.OVP_level.text())
         except (TypeError, ValueError):
             OVP_level = 0.0
-        except:
-            raise
+        except Exception as err:
+            raise err
 
         self.add_to_jobs_queue(self.dev.set_OVP_level, OVP_level)
         self.add_to_jobs_queue(self.dev.query_OVP_level)
@@ -662,21 +695,3 @@ class Keysight_N8700_qdev(QDeviceIO):
             "signal_GUI_input_field_update", GUI_input_fields.OVP_level
         )
         self.process_jobs_queue()
-
-    # --------------------------------------------------------------------------
-    #   connect_signals_to_slots
-    # --------------------------------------------------------------------------
-
-    def connect_signals_to_slots(self):
-        self.pbtn_ENA_output.clicked.connect(self.process_pbtn_ENA_output)
-        self.pbtn_ENA_PID.clicked.connect(self.process_pbtn_ENA_PID)
-        self.pbtn_ENA_OCP.clicked.connect(self.process_pbtn_ENA_OCP)
-        self.pbtn_ackn_errors.clicked.connect(self.process_pbtn_ackn_errors)
-        self.pbtn_reinit.clicked.connect(self.process_pbtn_reinit)
-        self.pbtn_save_defaults.clicked.connect(self.process_pbtn_save_defaults)
-        self.pbtn_debug_test.clicked.connect(self.process_pbtn_debug_test)
-
-        self.V_source.editingFinished.connect(self.send_V_source_from_textbox)
-        self.I_source.editingFinished.connect(self.send_I_source_from_textbox)
-        self.P_source.editingFinished.connect(self.set_P_source_from_textbox)
-        self.OVP_level.editingFinished.connect(self.send_OVP_level_from_textbox)

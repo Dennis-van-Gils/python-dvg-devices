@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Multithreaded PyQt/PySide GUI to interface with a Julabo circulating bath."""
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "28-10-2022"
-__version__ = "1.0.0"
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=wrong-import-position, missing-function-docstring
 
 import os
 import sys
@@ -44,7 +46,7 @@ if QT_LIB is None:
             pass
 
 if QT_LIB is None:
-    this_file = __file__.split(os.sep)[-1]
+    this_file = __file__.rsplit(os.sep, maxsplit=1)[-1]
     raise ImportError(
         f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
         "none of these packages could be imported."
@@ -66,7 +68,7 @@ elif QT_LIB == PYSIDE6:
 # \end[Mechanism to support both PyQt and PySide]
 # -----------------------------------------------
 
-from dvg_pyqt_controls import SS_TEXTBOX_READ_ONLY, SS_GROUP
+import dvg_pyqt_controls as controls
 from dvg_devices.Julabo_circulator_protocol_RS232 import Julabo_circulator
 from dvg_devices.Julabo_circulator_qdev import Julabo_circulator_qdev
 
@@ -79,18 +81,24 @@ DEBUG = False
 
 
 class MainWindow(QtWid.QWidget):
-    def __init__(self, parent=None, **kwargs):
+    def __init__(self, qdev: Julabo_circulator_qdev, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
-        self.setGeometry(600, 120, 0, 0)
         self.setWindowTitle("Julabo control")
+        self.setGeometry(40, 60, 0, 0)
+        self.setFont(QtGui.QFont("Arial", 9))
+        self.setStyleSheet(
+            controls.SS_TEXTBOX_READ_ONLY
+            + controls.SS_GROUP
+            + controls.SS_HOVER
+        )
 
         self.pbtn_exit = QtWid.QPushButton("Exit")
         self.pbtn_exit.clicked.connect(self.close)
         self.pbtn_exit.setMinimumHeight(30)
 
         hbox = QtWid.QHBoxLayout()
-        hbox.addWidget(julabo_qdev.grpb)
+        hbox.addWidget(qdev.grpb)
         hbox.addWidget(
             self.pbtn_exit, alignment=QtCore.Qt.AlignmentFlag.AlignTop
         )
@@ -99,18 +107,6 @@ class MainWindow(QtWid.QWidget):
         vbox = QtWid.QVBoxLayout(self)
         vbox.addLayout(hbox)
         vbox.addStretch(1)
-
-
-# ------------------------------------------------------------------------------
-#   about_to_quit
-# ------------------------------------------------------------------------------
-
-
-def about_to_quit():
-    print("About to quit")
-    app.processEvents()
-    julabo_qdev.quit()
-    julabo.close()
 
 
 # ------------------------------------------------------------------------------
@@ -135,19 +131,18 @@ if __name__ == "__main__":
     # --------------------------------------------------------------------------
     #   Create application
     # --------------------------------------------------------------------------
-    QtCore.QThread.currentThread().setObjectName("MAIN")  # For DEBUG info
 
+    QtCore.QThread.currentThread().setObjectName("MAIN")  # For DEBUG info
     app = QtWid.QApplication(sys.argv)
-    app.setFont(QtGui.QFont("Arial", 9))
-    app.setStyleSheet(SS_TEXTBOX_READ_ONLY + SS_GROUP)
-    app.aboutToQuit.connect(about_to_quit)
 
     # --------------------------------------------------------------------------
     #   Set up communication threads for the Julabo
     # --------------------------------------------------------------------------
 
     julabo_qdev = Julabo_circulator_qdev(
-        dev=julabo, DAQ_interval_ms=DAQ_INTERVAL_MS, debug=DEBUG
+        dev=julabo,
+        DAQ_interval_ms=DAQ_INTERVAL_MS,
+        debug=DEBUG,
     )
     julabo_qdev.start()
 
@@ -155,8 +150,16 @@ if __name__ == "__main__":
     #   Start the main GUI event loop
     # --------------------------------------------------------------------------
 
-    window = MainWindow()
+    def about_to_quit():
+        print("About to quit")
+        app.processEvents()
+        julabo_qdev.quit()
+        julabo.close()
+
+    app.aboutToQuit.connect(about_to_quit)
+    window = MainWindow(qdev=julabo_qdev)
     window.show()
+
     if QT_LIB in (PYQT5, PYSIDE2):
         sys.exit(app.exec_())
     else:

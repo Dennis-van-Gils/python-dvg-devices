@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Provides higher-level general I/O methods for communicating with an
+Arduino(-like) board over the serial connection."""
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "14-09-2022"
-__version__ = "1.0.0"
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=missing-function-docstring
 
 import sys
-from typing import Tuple
 
 from dvg_devices.BaseDevice import SerialDevice
 
@@ -71,12 +73,16 @@ class Arduino(SerialDevice):
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> Tuple[str, str]:
+    def ID_validation_query(self) -> tuple[str, str | None]:
         # Expected: reply = "Arduino, [specific ID]"
         _success, reply = self.query("id?")
-        reply = reply.split(",")
-        reply_broad = reply[0].strip()  # "Arduino"
-        reply_specific = reply[1].strip() if len(reply) > 1 else None
+        if isinstance(reply, str):
+            reply = reply.split(",")
+            reply_broad = reply[0].strip()  # "Arduino"
+            reply_specific = reply[1].strip() if len(reply) > 1 else None
+        else:
+            reply_broad = ""
+            reply_specific = None
 
         return reply_broad, reply_specific
 
@@ -98,7 +104,7 @@ if __name__ == "__main__":
     _success, readings = ard.query_ascii_values("?")
     print(readings)
 
-    _success, reply = ard.query("?")
-    print(reply)
+    _success, my_reply = ard.query("?")
+    print(my_reply)
 
     ard.close()

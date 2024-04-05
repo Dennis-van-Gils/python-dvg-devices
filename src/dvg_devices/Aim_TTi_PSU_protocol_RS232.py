@@ -9,14 +9,13 @@ Note:
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "28-10-2022"
-__version__ = "1.0.0"
-# pylint: disable=bare-except, broad-except, try-except-raise
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=broad-except, missing-function-docstring, multiple-statements
 
 import os
 import sys
 import time
-from typing import AnyStr, Tuple
 from pathlib import Path
 
 import numpy as np
@@ -30,35 +29,35 @@ class Aim_TTi_PSU(SerialDevice):
         """Container for the process and measurement variables."""
 
         # fmt: off
-        V_source = 0            # Voltage to be sourced         [V]
-        I_source = 0            # Current to be sourced (limit) [A]
+        V_source: float = 0            # Voltage to be sourced         [V]
+        I_source: float = 0            # Current to be sourced (limit) [A]
 
-        V_meas = np.nan         # Measured output voltage [V]
-        I_meas = np.nan         # Measured output current [A]
-        P_meas = np.nan         # Derived output power    [W]
+        V_meas: float = np.nan         # Measured output voltage [V]
+        I_meas: float = np.nan         # Measured output current [A]
+        P_meas: float = np.nan         # Derived output power    [W]
 
-        OVP_level  = np.nan     # Over-voltage protection level [V]
-        OCP_level  = np.nan     # Over-current protection level [A]
-        ENA_output = False      # Is power output enabled (by software)?
+        OVP_level:  float = np.nan      # Over-voltage protection level [V]
+        OCP_level:  float = np.nan      # Over-current protection level [A]
+        ENA_output: bool  = False       # Is power output enabled (by software)?
 
         # Limit Event Status Register (LSR)
-        LSR_is_tripped = False    # True if any LSR tripped, ignoring mode
-        LSR_TRIP_AUX = False      # Aux output trip                   , bit 7
-        LSR_MODE_AUX_CC = False   # Aux output constant-current mode  , bit 6
-        LSR_TRIP_SENSE = False    # Sense trip                        , bit 5
-        LSR_TRIP_OTP = False      # Over-temperature trip             , bit 4
-        LSR_TRIP_OCP = False      # Over-current trip                 , bit 3
-        LSR_TRIP_OVP = False      # Over-voltage trip                 , bit 2
-        LSR_MODE_CC = False       # Constant-current mode             , bit 1
-        LSR_MODE_CV = False       # Constant-voltage mode             , bit 0
+        LSR_is_tripped:  bool = False  # True if any LSR tripped, ignoring mode
+        LSR_TRIP_AUX:    bool = False  # Aux output trip                 , bit 7
+        LSR_MODE_AUX_CC: bool = False  # Aux output constant-current mode, bit 6
+        LSR_TRIP_SENSE:  bool = False  # Sense trip                      , bit 5
+        LSR_TRIP_OTP:    bool = False  # Over-temperature trip           , bit 4
+        LSR_TRIP_OCP:    bool = False  # Over-current trip               , bit 3
+        LSR_TRIP_OVP:    bool = False  # Over-voltage trip               , bit 2
+        LSR_MODE_CC:     bool = False  # Constant-current mode           , bit 1
+        LSR_MODE_CV:     bool = False  # Constant-voltage mode           , bit 0
         # fmt: on
 
     class Config:
         # fmt: off
-        V_source  = 10   # Voltage to be sourced         [V]
-        I_source  = 0.5  # Current to be sourced (limit) [A]
-        OVP_level = 12   # Over-voltage protection level [V]
-        OCP_level = 1    # Over-current protection level [A]
+        V_source:  float = 10   # Voltage to be sourced         [V]
+        I_source:  float = 0.5  # Current to be sourced (limit) [A]
+        OVP_level: float = 12   # Over-voltage protection level [V]
+        OCP_level: float = 1    # Over-current protection level [A]
         # fmt: on
 
     # --------------------------------------------------------------------------
@@ -93,9 +92,9 @@ class Aim_TTi_PSU(SerialDevice):
         self.state = self.State()
         self.config = self.Config()
 
-        self.idn_str = None  # Identity response of the device
-        self.serial_str = None  # Serial number of the device
-        self.model_str = None  # Model of the device
+        self.idn_str = ""  # Identity response of the device
+        self.serial_str = ""  # Serial number of the device
+        self.model_str = ""  # Model of the device
 
         # Location of the configuration file
         self.path_config = Path(path_config)
@@ -105,7 +104,9 @@ class Aim_TTi_PSU(SerialDevice):
     # --------------------------------------------------------------------------
 
     def write_and_wait_for_opc(
-        self, msg: AnyStr, raises_on_timeout: bool = False
+        self,
+        msg: str | bytes,
+        raises_on_timeout: bool = False,
     ) -> bool:
         """For proper synchronization we have to wait for the Operation Complete
         status of the device for the majority of the `set` commands. Hence this
@@ -121,7 +122,7 @@ class Aim_TTi_PSU(SerialDevice):
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> Tuple[bool, str]:
+    def ID_validation_query(self) -> tuple[bool, str]:
         success = self.query_IDN()
         return success, self.serial_str
 
@@ -129,7 +130,7 @@ class Aim_TTi_PSU(SerialDevice):
     #   begin
     # --------------------------------------------------------------------------
 
-    def begin(self):
+    def begin(self) -> bool:
         """This function should run directly after having established a
         connection to the device.
 
@@ -149,10 +150,19 @@ class Aim_TTi_PSU(SerialDevice):
         return success
 
     # --------------------------------------------------------------------------
+    #   flush_serial_input_and_output
+    # --------------------------------------------------------------------------
+
+    def flush_serial_input_and_output(self):
+        # Flush the serial input and output buffers
+        self.ser.flushInput()  # type: ignore
+        self.ser.flushOutput()  # type: ignore
+
+    # --------------------------------------------------------------------------
     #   reinitialize
     # --------------------------------------------------------------------------
 
-    def reinitialize(self):
+    def reinitialize(self) -> bool:
         """Reinitialize the PSU, including clear and reset
 
         Returns: True if all messages were sent and received successfully,
@@ -163,9 +173,7 @@ class Aim_TTi_PSU(SerialDevice):
             print("ERROR: Device is not connected yet or already closed.")
             return False
 
-        # Flush the serial input and output buffers
-        self.ser.flushInput()
-        self.ser.flushOutput()
+        self.flush_serial_input_and_output()
 
         success = self.clear_and_reset()
         success &= self.set_OVP_level(self.config.OVP_level)
@@ -193,15 +201,19 @@ class Aim_TTi_PSU(SerialDevice):
         Returns: True if successful, False otherwise.
         """
         success, reply = self.query("*idn?")
-        if success and reply[:19] == "THURLBY THANDAR, QL":
+        if (
+            success
+            and isinstance(reply, str)
+            and reply[:19] == "THURLBY THANDAR, QL"
+        ):
             self.idn_str = reply
             self.serial_str = reply.split(",")[2].strip()
             self.model_str = reply.split(",")[1].strip()
             return True
 
-        self.idn_str = None
-        self.serial_str = None
-        self.model_str = None
+        self.idn_str = ""
+        self.serial_str = ""
+        self.model_str = ""
         return False
 
     # --------------------------------------------------------------------------
@@ -241,7 +253,7 @@ class Aim_TTi_PSU(SerialDevice):
         if success and reply == "1":
             return True
 
-        pft("Warning: *opc? timed out at device %s" % self.name)
+        pft(f"Warning: *opc? timed out at device {self.name}")
         return False
 
     def set_LSE(self, value: int, channel: int = 1) -> bool:
@@ -260,7 +272,7 @@ class Aim_TTi_PSU(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        return self.write_and_wait_for_opc("LSE%d %d" % (channel, value))
+        return self.write_and_wait_for_opc(f"LSE{channel} {value}")
 
     def query_LSR(self, verbose: bool = False, channel: int = 1) -> bool:
         """Query and parse the Limit Event Status Register (LSR). This holds
@@ -270,10 +282,10 @@ class Aim_TTi_PSU(SerialDevice):
         """
         # We will ignore the first read-out, because it apparently always lags
         # one behind.
-        self.query("LSR%d?" % channel)
+        self.query(f"LSR{channel}?")
 
-        success, reply = self.query("LSR%d?" % channel)
-        if success:
+        success, reply = self.query(f"LSR{channel}?")
+        if success and isinstance(reply, str):
             # fmt: off
             status_code = int(reply)
             self.state.LSR_TRIP_AUX    = bool(status_code & 128)
@@ -323,10 +335,10 @@ class Aim_TTi_PSU(SerialDevice):
             voltage_V = float(voltage_V)
         except (ValueError, TypeError):
             voltage_V = 0.0
-        except:
-            raise
+        except Exception as e:
+            raise e
 
-        if self.write_and_wait_for_opc("OVP%d %f" % (channel, voltage_V)):
+        if self.write_and_wait_for_opc(f"OVP{channel} {voltage_V}"):
             self.state.OVP_level = voltage_V
             return True
 
@@ -338,10 +350,10 @@ class Aim_TTi_PSU(SerialDevice):
             current_A = float(current_A)
         except (ValueError, TypeError):
             current_A = 0.0
-        except:
-            raise
+        except Exception as e:
+            raise e
 
-        if self.write_and_wait_for_opc("OCP%d %f" % (channel, current_A)):
+        if self.write_and_wait_for_opc(f"OCP{channel} {current_A}"):
             self.state.OCP_level = current_A
             return True
 
@@ -349,25 +361,25 @@ class Aim_TTi_PSU(SerialDevice):
 
     def query_OVP_level(self, channel: int = 1) -> bool:
         """Returns: True if successful, False otherwise."""
-        success, reply = self.query("OVP%d?" % channel)
+        success, reply = self.query(f"OVP{channel}?")
         if success:
-            if reply[:3] == "VP%d" % channel:
+            if isinstance(reply, str) and reply[:3] == f"VP{channel}":
                 self.state.OVP_level = float(reply[4:])
                 return True
             else:
-                pft("Received incorrect reply: %s" % reply)
+                pft(f"Received incorrect reply: {reply}")
 
         return False
 
     def query_OCP_level(self, channel: int = 1) -> bool:
         """Returns: True if successful, False otherwise."""
-        success, reply = self.query("OCP%d?" % channel)
+        success, reply = self.query(f"OCP{channel}?")
         if success:
-            if reply[:3] == "CP%d" % channel:
+            if isinstance(reply, str) and reply[:3] == f"CP{channel}":
                 self.state.OCP_level = float(reply[4:])
                 return True
             else:
-                pft("Received incorrect reply: %s" % reply)
+                pft(f"Received incorrect reply: {reply}")
 
         return False
 
@@ -377,7 +389,7 @@ class Aim_TTi_PSU(SerialDevice):
 
     def reset_trips_and_turn_on(self, channel: int = 1) -> bool:
         """Returns: True if the message was sent successfully, False otherwise."""
-        if self.write_and_wait_for_opc("triprst;*opc;OP%d 1" % channel):
+        if self.write_and_wait_for_opc(f"triprst;*opc;OP{channel} 1"):
             self.state.ENA_output = True
             return True
 
@@ -393,7 +405,7 @@ class Aim_TTi_PSU(SerialDevice):
 
     def set_ENA_output(self, ENA: bool, channel: int = 1) -> bool:
         """Returns: True if the message was sent successfully, False otherwise."""
-        if self.write_and_wait_for_opc("OP%d %d" % (channel, ENA)):
+        if self.write_and_wait_for_opc(f"OP{channel} {ENA}"):
             self.state.ENA_output = ENA
             return True
 
@@ -405,10 +417,10 @@ class Aim_TTi_PSU(SerialDevice):
             voltage_V = float(voltage_V)
         except (ValueError, TypeError):
             voltage_V = 0.0
-        except:
-            raise
+        except Exception as e:
+            raise e
 
-        if self.write_and_wait_for_opc("V%d %.3f" % (channel, voltage_V)):
+        if self.write_and_wait_for_opc(f"V{channel} {voltage_V:.3f}"):
             self.state.V_source = voltage_V
             return True
 
@@ -420,10 +432,10 @@ class Aim_TTi_PSU(SerialDevice):
             current_A = float(current_A)
         except (ValueError, TypeError):
             current_A = 0.0
-        except:
-            raise
+        except Exception as e:
+            raise e
 
-        if self.write_and_wait_for_opc("I%d %.4f" % (channel, current_A)):
+        if self.write_and_wait_for_opc(f"I{channel} {current_A:.4f}"):
             self.state.I_source = current_A
             return True
 
@@ -431,72 +443,68 @@ class Aim_TTi_PSU(SerialDevice):
 
     def query_ENA_output(self, channel: int = 1) -> bool:
         """Returns: True if the query was received successfully, False otherwise."""
-        success, reply = self.query("OP%d?" % channel)
+        success, reply = self.query(f"OP{channel}?")
         if success:
-            try:
+            if isinstance(reply, str) and reply.isnumeric():
                 self.state.ENA_output = bool(int(reply))
-            except:
-                pft("Received incorrect reply: %s" % reply)
-                self.ser.flushOutput()
-                self.ser.flushInput()
+                return True
 
-        return success
+            pft(f"Received incorrect reply: {reply}")
+            self.flush_serial_input_and_output()
+
+        return False
 
     def query_V_source(self, channel: int = 1) -> bool:
         """Returns: True if the query was received successfully, False otherwise."""
-        success, reply = self.query("V%d?" % channel)
+        success, reply = self.query(f"V{channel}?")
         if success:
-            if reply[:2] == "V%d" % channel:
+            if isinstance(reply, str) and reply[:2] == f"V{channel}":
                 self.state.V_source = float(reply[3:])
                 return True
 
-            pft("Received incorrect reply: %s" % reply)
-            self.ser.flushOutput()
-            self.ser.flushInput()
+            pft(f"Received incorrect reply: {reply}")
+            self.flush_serial_input_and_output()
 
         return False
 
     def query_V_meas(self, channel: int = 1) -> bool:
         """Returns: True if the query was received successfully, False otherwise."""
-        success, reply = self.query("V%dO?" % channel)
+        success, reply = self.query(f"V{channel}O?")
         if success:
-            if reply[-1:] == "V":
+            if isinstance(reply, str) and reply[-1:] == "V":
                 self.state.V_meas = float(reply[:-1])
                 self.state.P_meas = self.state.I_meas * self.state.V_meas
                 return True
 
-            pft("Received incorrect reply: %s" % reply)
-            self.ser.flushOutput()
-            self.ser.flushInput()
+            pft(f"Received incorrect reply: {reply}")
+            self.flush_serial_input_and_output()
 
         return False
 
     def query_I_source(self, channel: int = 1) -> bool:
         """Returns: True if the query was received successfully, False otherwise."""
-        success, reply = self.query("I%d?" % channel)
+        success, reply = self.query(f"I{channel}?")
         if success:
-            if reply[:2] == "I%d" % channel:
+            if isinstance(reply, str) and reply[:2] == f"I{channel}":
                 self.state.I_source = float(reply[3:])
                 return True
 
-            pft("Received incorrect reply: %s" % reply)
-            self.ser.flushOutput()
-            self.ser.flushInput()
+            pft(f"Received incorrect reply: {reply}")
+            self.flush_serial_input_and_output()
 
         return False
 
     def query_I_meas(self, channel: int = 1) -> bool:
         """Returns: True if the query was received successfully, False otherwise."""
-        success, reply = self.query("I%dO?" % channel)
+        success, reply = self.query(f"I{channel}O?")
         if success:
-            if reply[-1:] == "A":
+            if isinstance(reply, str) and reply[-1:] == "A":
                 self.state.I_meas = float(reply[:-1])
                 self.state.P_meas = self.state.I_meas * self.state.V_meas
                 return True
 
-            pft("Received incorrect reply: %s" % reply)
-            self.ser.flushOutput()
-            self.ser.flushInput()
+            pft(f"Received incorrect reply: {reply}")
+            self.flush_serial_input_and_output()
 
         return False
 
@@ -510,7 +518,7 @@ class Aim_TTi_PSU(SerialDevice):
 
         tic = time.perf_counter()
         for i in range(100):
-            print("%d %.3f" % (i, time.perf_counter() - tic))
+            print(f"i {time.perf_counter() - tic:.3f}")
             self.set_V_source(i % 10)
 
         print(time.perf_counter() - tic)
@@ -522,13 +530,8 @@ class Aim_TTi_PSU(SerialDevice):
         tic = time.perf_counter()
         for i in range(100):
             print(
-                "%d %.3f %.3f %.3f"
-                % (
-                    i,
-                    time.perf_counter() - tic,
-                    self.state.V_meas,
-                    self.state.I_meas,
-                )
+                f"{i} {time.perf_counter() - tic:.3f} "
+                f"{self.state.V_meas:.3f} {self.state.I_meas:.3f}"
             )
             self.query_V_meas()
             self.query_I_meas()
@@ -553,30 +556,30 @@ class Aim_TTi_PSU(SerialDevice):
 
         print("")
         print(
-            "  %-3s         %4.1f OVP     %4.2f OCP"
-            % (
-                ("ON" if self.state.ENA_output else "OFF"),
-                self.state.OVP_level,
-                self.state.OCP_level,
-            )
+            f"  {('ON' if self.state.ENA_output else 'OFF'):-3s}       "
+            f"  {self.state.OVP_level:4.1f} OVP   "
+            f"  {self.state.OCP_level:4.2f} OCP"
         )
         print("  " + chr(0x2014) * 46)
 
         print(
-            "  Source      %6.3f V     %6.4f A"
-            % (self.state.V_source, self.state.I_source)
+            f"  Source "
+            f"     {self.state.V_source:6.3f} V"
+            f"     {self.state.I_source:6.4f} A"
         )
         print("  " + chr(0x2014) * 46)
         print(
-            "  Measure     %6.3f V     %6.4f A     %6.3f W"
-            % (self.state.V_meas, self.state.I_meas, self.state.P_meas)
+            f"  Measure "
+            f"    {self.state.V_meas:6.3f} V "
+            f"    {self.state.I_meas:6.4f} A "
+            f"    {self.state.P_meas:6.3f} W"
         )
 
     # --------------------------------------------------------------------------
     #   read_config_file
     # --------------------------------------------------------------------------
 
-    def read_config_file(self):
+    def read_config_file(self) -> bool:
         """Try to open the config textfile containing:
             * V_source   # Voltage to be sourced         [V]
             * I_source   # Current to be sourced (limit) [A]
@@ -588,14 +591,14 @@ class Aim_TTi_PSU(SerialDevice):
         """
         if self.path_config.is_file():
             try:
-                with self.path_config.open() as f:
+                with self.path_config.open(encoding="utf8") as f:
                     self.config.V_source = float(f.readline().strip())
                     self.config.I_source = float(f.readline().strip())
                     self.config.OVP_level = float(f.readline().strip())
                     self.config.OCP_level = float(f.readline().strip())
 
                 return True
-            except:
+            except Exception:
                 pass  # Do not panic and remain silent
 
         return False
@@ -604,7 +607,7 @@ class Aim_TTi_PSU(SerialDevice):
     #   write_config_file
     # --------------------------------------------------------------------------
 
-    def write_config_file(self):
+    def write_config_file(self) -> bool:
         """Try to write the config textfile containing:
              * V_source   # Voltage to be sourced         [V]
              * I_source   # Current to be sourced (limit) [A]
@@ -619,21 +622,19 @@ class Aim_TTi_PSU(SerialDevice):
             # Subfolder does not exists yet. Create.
             try:
                 self.path_config.parent.mkdir()
-            except:
+            except Exception:
                 pass  # Do not panic and remain silent
 
         try:
             # Write the config file
             self.path_config.write_text(
-                "%.3f\n%.3f\n%.1f\n%.2f"
-                % (
-                    self.state.V_source,
-                    self.state.I_source,
-                    self.state.OVP_level,
-                    self.state.OCP_level,
-                )
+                f"{self.state.V_source:.3f}\n"
+                f"{self.state.I_source:.3f}\n"
+                f"{self.state.OVP_level:.1f}\n"
+                f"{self.state.OCP_level:.2f}",
+                encoding="utf8",
             )
-        except:
+        except Exception:
             pass  # Do not panic and remain silent
         else:
             return True
@@ -659,7 +660,7 @@ if __name__ == "__main__":
 
     if psu.auto_connect(PATH_PORT):
         psu.begin()  # Retrieve necessary parameters
-        print("  IDN: %s" % psu.idn_str)
+        print(f"  IDN: {psu.idn_str}")
 
         psu.report()
         psu.close()

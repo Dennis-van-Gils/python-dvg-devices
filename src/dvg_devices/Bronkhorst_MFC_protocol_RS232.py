@@ -12,22 +12,26 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "28-10-2022"
-__version__ = "1.0.0"
-# pylint: disable=bare-except, broad-except, try-except-raise
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=missing-function-docstring
 
 import sys
 import struct
-from typing import Tuple
+
+import numpy as np
 
 from dvg_devices.BaseDevice import SerialDevice
 
 
 class Bronkhorst_MFC(SerialDevice):
     class State:
-        # Container for the process and measurement variables
-        setpoint = None  # Setpoint read out of the MFC   [ln/min]
-        flow_rate = None  # Flow rate measured by the MFC [ln/min]
+        """Container for the process and measurement variables"""
+
+        setpoint: float = np.nan
+        """Setpoint read out of the MFC  [ln/min]"""
+        flow_rate: float = np.nan
+        """Flow rate measured by the MFC [ln/min]"""
 
     def __init__(
         self,
@@ -55,21 +59,25 @@ class Bronkhorst_MFC(SerialDevice):
         # Container for the process and measurement variables
         self.state = self.State()
 
-        self.serial_str = None  # Serial number of the MFC
-        self.model_str = None  # Model of the MFC
-        self.fluid_name = None  # Fluid for which the MFC is calibrated
-        self.max_flow_rate = None  # Max. capacity [ln/min]
+        # fmt: off
+        self.serial_str: str = ""  # Serial number of the MFC
+        self.model_str : str = ""  # Model of the MFC
+        self.fluid_name: str = ""  # Fluid for which the MFC is calibrated
+        self.max_flow_rate: float = np.nan  # Max. capacity [ln/min]
+        # fmt: on
 
     # --------------------------------------------------------------------------
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> Tuple[str, str]:
+    def ID_validation_query(self) -> tuple[str, str | None]:
         _success, reply = self.query(":0780047163716300")
-        broad_reply = reply[3:13]  # Expected: "8002716300"
-        specific_reply = bytearray.fromhex(
-            reply[13:-2]
-        ).decode()  # Serial number
+        if isinstance(reply, str):
+            broad_reply = reply[3:13]  # Expected: "8002716300"
+            specific_reply = bytearray.fromhex(reply[13:-2]).decode()  # Serial
+        else:
+            broad_reply = ""
+            specific_reply = None
 
         return broad_reply, specific_reply
 
@@ -105,12 +113,12 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query(":0780047163716300")
-        if success and reply[3:13] == "8002716300":
+        _success, reply = self.query(":0780047163716300")
+        if isinstance(reply, str) and reply[3:13] == "8002716300":
             self.serial_str = bytearray.fromhex(reply[13:-2]).decode()
             return True
 
-        self.serial_str = None
+        self.serial_str = ""
         return False
 
     # --------------------------------------------------------------------------
@@ -118,16 +126,17 @@ class Bronkhorst_MFC(SerialDevice):
     # --------------------------------------------------------------------------
 
     def query_model_str(self) -> bool:
-        """Query the model name of the MFC and store it in the class member 'state'.
+        """Query the model name of the MFC and store it in the class member
+        'state'.
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query(":0780047162716200")
-        if success:
+        _success, reply = self.query(":0780047162716200")
+        if isinstance(reply, str):
             self.model_str = bytearray.fromhex(reply[13:-2]).decode()
             return True
 
-        self.model_str = None
+        self.model_str = ""
         return False
 
     # --------------------------------------------------------------------------
@@ -140,12 +149,12 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query(":078004017101710A")
-        if success:
+        _success, reply = self.query(":078004017101710A")
+        if isinstance(reply, str):
             self.fluid_name = bytearray.fromhex(reply[13:-2]).decode()
             return True
 
-        self.fluid_name = None
+        self.fluid_name = ""
         return False
 
     # --------------------------------------------------------------------------
@@ -159,12 +168,12 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query(":068004014D014D")
-        if success:
+        _success, reply = self.query(":068004014D014D")
+        if isinstance(reply, str):
             self.max_flow_rate = hex_to_32bit_IEEE754_float(reply[11:])
             return True
 
-        self.max_flow_rate = None
+        self.max_flow_rate = np.nan
         return False
 
     # --------------------------------------------------------------------------
@@ -178,8 +187,8 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query(":06800401210121")
-        if success:
+        _success, reply = self.query(":06800401210121")
+        if isinstance(reply, str):
             try:
                 num = int(reply[-4:], 16)
             except ValueError:
@@ -188,7 +197,7 @@ class Bronkhorst_MFC(SerialDevice):
                 self.state.setpoint = num / 32000.0 * self.max_flow_rate
                 return True
 
-        self.state.setpoint = None
+        self.state.setpoint = np.nan
         return False
 
     # --------------------------------------------------------------------------
@@ -202,8 +211,8 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query(":06800401210120")
-        if success:
+        _success, reply = self.query(":06800401210120")
+        if isinstance(reply, str):
             try:
                 num = int(reply[-4:], 16)
             except ValueError:
@@ -212,14 +221,14 @@ class Bronkhorst_MFC(SerialDevice):
                 self.state.flow_rate = num / 32000.0 * self.max_flow_rate
                 return True
 
-        self.state.flow_rate = None
+        self.state.flow_rate = np.nan
         return False
 
     # --------------------------------------------------------------------------
     #   send_setpoint
     # --------------------------------------------------------------------------
 
-    def send_setpoint(self, setpoint) -> bool:
+    def send_setpoint(self, setpoint: float) -> bool:
         """Send a new mass flow rate setpoint in [ln/min] to the MFC.
 
         Args:
@@ -227,18 +236,13 @@ class Bronkhorst_MFC(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        try:
-            setpoint = float(setpoint)
-        except (TypeError, ValueError):
-            setpoint = 0.0
-
         # Transform setpoint and limit
         setpoint = int(setpoint / self.max_flow_rate * 32000)
         setpoint = max(0, min(setpoint, 32000))
 
-        success, reply = self.query(":0680010121%04x" % setpoint)
-        if success and reply[5:].strip() == "000005":  # Also check status reply
-            return True
+        _success, reply = self.query(f":0680010121{setpoint:04x}")
+        if isinstance(reply, str) and reply[5:].strip() == "000005":
+            return True  # Also checked status reply
 
         return False
 
@@ -275,10 +279,10 @@ if __name__ == "__main__":
     mfc = Bronkhorst_MFC(connect_to_serial_number=SERIAL_MFC)
     if mfc.auto_connect(filepath_last_known_port=PATH_CONFIG):
         mfc.begin()  # Retrieve necessary parameters
-        print("  Serial  : %s" % mfc.serial_str)
-        print("  Model   : %s" % mfc.model_str)
-        print("  Fluid   : %s" % mfc.fluid_name)
-        print("  Capacity: %.2f ln/min" % mfc.max_flow_rate)
+        print(f"  Serial  : {mfc.serial_str}")
+        print(f"  Model   : {mfc.model_str}")
+        print(f"  Fluid   : {mfc.fluid_name}")
+        print(f"  Capacity: {mfc.max_flow_rate:.2f} ln/min")
     else:
         time.sleep(1)
         sys.exit(0)
@@ -299,7 +303,7 @@ if __name__ == "__main__":
     do_send_setpoint = False
 
     mfc.query_setpoint()
-    print("\nSetpoint       : %6.2f ln/min" % mfc.state.setpoint)
+    print(f"\nSetpoint       : {mfc.state.setpoint:6.2f} ln/min")
 
     # Loop
     done = False
@@ -308,12 +312,12 @@ if __name__ == "__main__":
         if do_send_setpoint:
             mfc.send_setpoint(send_setpoint)
             mfc.query_setpoint()
-            print("\nSetpoint       : %6.2f ln/min" % mfc.state.setpoint)
+            print(f"\nSetpoint       : {mfc.state.setpoint:6.2f} ln/min")
             do_send_setpoint = False
 
         # Measure and report the flow rate
         mfc.query_flow_rate()
-        print("\rMeas. flow rate: %6.2f ln/min" % mfc.state.flow_rate, end="")
+        print(f"\rMeas. flow rate: {mfc.state.flow_rate:6.2f} ln/min", end="")
         sys.stdout.flush()
 
         # Process keyboard input
@@ -328,7 +332,12 @@ if __name__ == "__main__":
                     else:
                         do_send_setpoint = True  # Esthestics
                 elif key == b"s":
-                    send_setpoint = input("\nEnter new setpoint [ln/min]: ")
+                    input_str = input("\nEnter new setpoint [ln/min]: ")
+                    try:
+                        input_float = float(input_str)
+                    except ValueError:
+                        input_float = 0.0
+                    send_setpoint = input_float
                     do_send_setpoint = True
 
         # Slow down update period

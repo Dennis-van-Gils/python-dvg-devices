@@ -10,13 +10,13 @@ class.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "23-20-2023"
-__version__ = "1.3.0"
-# pylint: disable=bare-except, broad-except, try-except-raise
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=broad-except
 
 import sys
 import time
-from typing import AnyStr, Callable, Tuple, Union
+from collections.abc import Callable
 from pathlib import Path
 
 # Use of `ast.literal_eval` got removed in v0.2.2 because it chokes on `nan`
@@ -95,14 +95,24 @@ class SerialDevice:
 
         # Default serial settings
         self.serial_settings = {
+            # Defaults from `serial.Serial`
+            "bytesize": 8,
+            "parity": "N",
+            "stopbits": 1,
+            "xonxoff": False,
+            "rtscts": False,
+            "dsrdtr": False,
+            "inter_byte_timeout": None,
+            "exclusive": None,
+            # Edited
             "baudrate": 9600,
             "timeout": 2,
             "write_timeout": 2,
         }
 
         # Termination characters, must always be of type `bytes`.
-        self._read_termination = "\n".encode()
-        self._write_termination = "\n".encode()
+        self._read_termination: bytes = "\n".encode()
+        self._write_termination: bytes = "\n".encode()
 
         # Wait time during :meth:`query` in case there is no read termination
         # character set. We have to wait long enough to make sure the device has
@@ -130,7 +140,7 @@ class SerialDevice:
 
     def set_read_termination(
         self,
-        termination: AnyStr,
+        termination: str | bytes | None,
         query_wait_time: float = 0.1,
     ):
         """Set the termination character(s) for serial read.
@@ -150,19 +160,17 @@ class SerialDevice:
         if termination is None:
             termination = b""
 
-        self._read_termination = (
-            termination.encode()
-            if isinstance(termination, str)
-            else termination
-        )
+        if isinstance(termination, str):
+            termination = termination.encode()
 
+        self._read_termination = bytes(termination)
         self._query_wait_time = query_wait_time
 
     # --------------------------------------------------------------------------
     #   set_write_termination
     # --------------------------------------------------------------------------
 
-    def set_write_termination(self, termination: AnyStr):
+    def set_write_termination(self, termination: str | bytes | None):
         """Set the termination character(s) for serial write.
 
         Args:
@@ -172,11 +180,10 @@ class SerialDevice:
         if termination is None:
             termination = b""
 
-        self._write_termination = (
-            termination.encode()
-            if isinstance(termination, str)
-            else termination
-        )
+        if isinstance(termination, str):
+            termination = termination.encode()
+
+        self._write_termination = bytes(termination)
 
     # --------------------------------------------------------------------------
     #   set_ID_validation_query
@@ -205,7 +212,7 @@ class SerialDevice:
             succesful:
 
         Args:
-            ID_validation_query (:obj:`~typing.Callable` [[], :obj:`tuple`]):
+            ID_validation_query (:obj:`~collections.abc.Callable` [[], :obj:`tuple`]):
                 Reference to a function to perform an ID validation query
                 on the device when connecting. The function should take zero
                 arguments and return a tuple consisting of two objects, as will
@@ -274,7 +281,7 @@ class SerialDevice:
         self,
         raises_on_timeout: bool = False,
         returns_ascii: bool = True,
-    ) -> Tuple[bool, Union[str, bytes, None]]:
+    ) -> tuple[bool, str | bytes | None]:
         """Listen to the Arduino for incoming data. This method is blocking
         and returns when a full line has been received or when the serial read
         timeout has expired.
@@ -308,7 +315,8 @@ class SerialDevice:
             # NOTE: The Serial library does not throw an exception when it
             # times out in `read`, only when it times out in `write`! We
             # will check for zero received bytes as indication for a read
-            # timeout, later. See: https://stackoverflow.com/questions/10978224/serialtimeoutexception-in-python-not-working-as-expected
+            # timeout, later. See:
+            # https://stackoverflow.com/questions/10978224/serialtimeoutexception-in-python-not-working-as-expected
             pft(err)
             return False, None
         except Exception as err:
@@ -337,7 +345,7 @@ class SerialDevice:
     #   write
     # --------------------------------------------------------------------------
 
-    def write(self, msg: AnyStr, raises_on_timeout: bool = False) -> bool:
+    def write(self, msg: str | bytes, raises_on_timeout: bool = False) -> bool:
         """Send a message to the serial device.
 
         Args:
@@ -360,16 +368,16 @@ class SerialDevice:
             msg = msg.encode()
 
         try:
-            self.ser.write(msg + self._write_termination)
+            self.ser.write(bytes(msg) + self._write_termination)
         except (
             serial.SerialTimeoutException,
             serial.SerialException,
         ) as err:
             if raises_on_timeout:
                 raise err  # --> leaving
-            else:
-                pft(err, 3)
-                return False  # --> leaving
+
+            pft(err, 3)
+            return False  # --> leaving
         except Exception as err:
             pft(err, 3)
             sys.exit(0)  # --> leaving
@@ -382,10 +390,10 @@ class SerialDevice:
 
     def query(
         self,
-        msg: AnyStr,
+        msg: str | bytes,
         raises_on_timeout: bool = False,
         returns_ascii: bool = True,
-    ) -> Tuple[bool, Union[str, bytes, None]]:
+    ) -> tuple[bool, str | bytes | None]:
         """Send a message to the serial device and subsequently read the reply.
 
         Args:
@@ -401,6 +409,10 @@ class SerialDevice:
             returns_ascii (:obj:`bool`, optional):
                 When set to :const:`True` the device's reply will be returned as
                 an ASCII string. Otherwise, it will return as bytes.
+
+                TODO & NOTE: ASCII is a misnomer. The returned reply will be
+                UTF-8 encoded, not ASCII. Need to fix the argument name somehow,
+                without breaking code elsewhere.
 
                 Default: :const:`True`
 
@@ -436,7 +448,8 @@ class SerialDevice:
             # Note: The Serial library does not throw an exception when it
             # times out in `read`, only when it times out in `write`! We
             # will check for zero received bytes as indication for a read
-            # timeout, later. See: https://stackoverflow.com/questions/10978224/serialtimeoutexception-in-python-not-working-as-expected
+            # timeout, later. See:
+            # https://stackoverflow.com/questions/10978224/serialtimeoutexception-in-python-not-working-as-expected
             pft(err, 3)
             return (False, None)  # --> leaving
         except Exception as err:
@@ -448,9 +461,9 @@ class SerialDevice:
                 raise serial.SerialException(
                     "Received 0 bytes. Read probably timed out."
                 )  # --> leaving
-            else:
-                pft("Received 0 bytes. Read probably timed out.", 3)
-                return (False, None)  # --> leaving
+
+            pft("Received 0 bytes. Read probably timed out.", 3)
+            return (False, None)  # --> leaving
 
         if returns_ascii:
             try:
@@ -473,7 +486,7 @@ class SerialDevice:
         msg: bytes,
         N_bytes_to_read: int,
         raises_on_timeout: bool = False,
-    ) -> Tuple[bool, Union[bytes, None]]:
+    ) -> tuple[bool, bytes | None]:
         """Send a message as bytes to the serial device and subsequently read
         the reply. Will block until reaching ``N_bytes_to_read`` or a read
         timeout occurs.
@@ -527,7 +540,8 @@ class SerialDevice:
             # Note: The Serial library does not throw an exception when it
             # times out in `read`, only when it times out in `write`! We
             # will check for zero received bytes as indication for a read
-            # timeout, later. See: https://stackoverflow.com/questions/10978224/serialtimeoutexception-in-python-not-working-as-expected
+            # timeout, later. See:
+            # https://stackoverflow.com/questions/10978224/serialtimeoutexception-in-python-not-working-as-expected
             pft(err, 3)
             return (False, None)  # --> leaving
         except Exception as err:
@@ -539,18 +553,18 @@ class SerialDevice:
                 raise serial.SerialException(
                     "Received 0 bytes. Read probably timed out."
                 )  # --> leaving
-            else:
-                pft("Received 0 bytes. Read probably timed out.", 3)
-                return (False, None)  # --> leaving
+
+            pft("Received 0 bytes. Read probably timed out.", 3)
+            return (False, None)  # --> leaving
 
         if N_bytes_to_read != len(reply):
             if raises_on_timeout:
                 raise serial.SerialException(
                     "Received too few bytes. Read probably timed out."
                 )  # --> leaving
-            else:
-                pft("Received too few bytes. Read probably timed out.", 3)
-                return (False, reply)  # --> leaving
+
+            pft("Received too few bytes. Read probably timed out.", 3)
+            return (False, reply)  # --> leaving
 
         return (True, reply)
 
@@ -563,7 +577,7 @@ class SerialDevice:
         msg: str,
         delimiter="\t",
         raises_on_timeout: bool = False,
-    ) -> Tuple[bool, list]:
+    ) -> tuple[bool, list]:
         r"""Send a message to the serial device and subsequently read the reply.
         Expects a reply in the form of an ASCII string containing a list of
         numeric values, separated by a delimiter. These values will be parsed
@@ -597,17 +611,19 @@ class SerialDevice:
             msg, raises_on_timeout=raises_on_timeout, returns_ascii=True
         )
 
-        if not success:
-            return (False, list())  # --> leaving
+        if not success or not isinstance(reply, str):
+            return (False, [])  # --> leaving
 
         try:
             # NOTE: `ast.literal_eval` chokes when it receives 'nan' so we ditch
             # it and just interpret everything as `float` instead.
             # reply_list = list(map(literal_eval, reply.split(delimiter)))
             reply_list = list(map(float, reply.split(delimiter)))
+
         except ValueError as err:
             pft(err, 3)
-            return (False, list())  # --> leaving
+            return (False, [])  # --> leaving
+
         except Exception as err:
             pft(err, 3)
             sys.exit(0)  # --> leaving
@@ -623,11 +639,11 @@ class SerialDevice:
         if self.ser is not None:
             try:
                 self.ser.cancel_read()
-            except:
+            except Exception:
                 pass
             try:
                 self.ser.cancel_write()
-            except:
+            except Exception:
                 pass
 
             try:
@@ -671,7 +687,7 @@ class SerialDevice:
 
         def print_success(success_str: str):
             dprint(success_str, ANSI.GREEN)
-            dprint(" " * 16 + "--> %s\n" % self.name, ANSI.GREEN)
+            dprint((" " * 16 + f"--> {self.name}\n"), ANSI.GREEN)
 
         if verbose:
             _print_hrule(True)
@@ -679,16 +695,17 @@ class SerialDevice:
                 self._ID_validation_query is None
                 or self._valid_ID_specific is None
             ):
-                dprint("  Connecting to: %s" % self.long_name, ANSI.YELLOW)
+                msg = f"  Connecting to: {self.long_name}"
             else:
-                dprint(
-                    "  Connecting to: %s `%s`"
-                    % (self.long_name, self._valid_ID_specific),
-                    ANSI.YELLOW,
+                msg = (
+                    f"  Connecting to: {self.long_name} "
+                    f"`{self._valid_ID_specific}`"
                 )
+
+            dprint(msg, ANSI.YELLOW)
             _print_hrule()
 
-        print("  @ %-11s " % port, end="")
+        print(f"  @ {port:<11s} ", end="")
         try:
             # Open the serial port
             self.ser = serial.Serial(port=port, **self.serial_settings)
@@ -710,7 +727,7 @@ class SerialDevice:
             self._force_query_to_raise_on_timeout = True
             self.is_alive = True  # We must assume communication is possible
             reply_broad, reply_specific = self._ID_validation_query()
-        except:
+        except Exception:
             print("Wrong or no device.")
             self.close(ignore_exceptions=True)
             return False  # --> leaving
@@ -719,7 +736,7 @@ class SerialDevice:
 
         if reply_broad == self._valid_ID_broad:
             if reply_specific is not None:
-                print("Found `%s`: " % reply_specific, end="")
+                print(f"Found `{reply_specific}`: ", end="")
 
             if self._valid_ID_specific is None:
                 # Found a matching device in a broad sense
@@ -727,7 +744,7 @@ class SerialDevice:
                 self.is_alive = True
                 return True  # --> leaving
 
-            elif reply_specific == self._valid_ID_specific:
+            if reply_specific == self._valid_ID_specific:
                 # Found a matching device in a specific sense
                 print_success("Specific Success!")
                 self.is_alive = True
@@ -761,13 +778,13 @@ class SerialDevice:
                 self._ID_validation_query is None
                 or self._valid_ID_specific is None
             ):
-                dprint("  Scanning ports for: %s" % self.long_name, ANSI.YELLOW)
+                msg = f"  Scanning ports for: {self.long_name}"
             else:
-                dprint(
-                    "  Scanning ports for: %s `%s`"
-                    % (self.long_name, self._valid_ID_specific),
-                    ANSI.YELLOW,
+                msg = (
+                    f"  Scanning ports for: {self.long_name} "
+                    f"`{self._valid_ID_specific}`"
                 )
+            dprint(msg, ANSI.YELLOW)
             _print_hrule()
 
         # Ports is a list of tuples
@@ -812,18 +829,18 @@ class SerialDevice:
             if self.scan_ports():
                 self._store_last_known_port(path, self.ser.portstr)
                 return True
-            else:
-                return False
-        else:
-            if self.connect_at_port(port):
-                self._store_last_known_port(path, self.ser.portstr)
-                return True
-            else:
-                if self.scan_ports(verbose=False):
-                    self._store_last_known_port(path, self.ser.portstr)
-                    return True
-                else:
-                    return False
+
+            return False
+
+        if self.connect_at_port(port):
+            self._store_last_known_port(path, self.ser.portstr)
+            return True
+
+        if self.scan_ports(verbose=False):
+            self._store_last_known_port(path, self.ser.portstr)
+            return True
+
+        return False
 
     # -----------------------------------------------------------------------------
     #   _get_last_known_port
@@ -847,7 +864,7 @@ class SerialDevice:
                     with path.open() as f:
                         port = f.readline().strip()
                     return port
-                except:
+                except Exception:
                     pass  # Do not panic and remain silent
 
         return None
@@ -876,13 +893,13 @@ class SerialDevice:
                 # Subfolder does not exists yet. Create.
                 try:
                     path.parent.mkdir()
-                except:
+                except Exception:
                     pass  # Do not panic and remain silent
 
             try:
                 # Write the config file
                 path.write_text(port_str)
-            except:
+            except Exception:
                 pass  # Do not panic and remain silent
             else:
                 return True

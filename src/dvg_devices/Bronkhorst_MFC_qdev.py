@@ -6,11 +6,13 @@ acquisition for a Bronkhorst mass flow controller (MFC).
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "28-10-2022"
-__version__ = "1.0.0"
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=wrong-import-position, missing-function-docstring
 
 import os
 import sys
+import time
 
 # Mechanism to support both PyQt and PySide
 # -----------------------------------------
@@ -38,7 +40,7 @@ if QT_LIB is None:
             pass
 
 if QT_LIB is None:
-    this_file = __file__.split(os.sep)[-1]
+    this_file = __file__.rsplit(os.sep, maxsplit=1)[-1]
     raise ImportError(
         f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
         "none of these packages could be imported."
@@ -68,7 +70,6 @@ elif QT_LIB == PYSIDE6:
 # \end[Mechanism to support both PyQt and PySide]
 # -----------------------------------------------
 
-from dvg_pyqt_controls import SS_GROUP, SS_TEXTBOX_READ_ONLY
 from dvg_debug_functions import print_fancy_traceback as pft
 
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
@@ -129,11 +130,12 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
         DAQ_interval_ms=200,
         DAQ_timer_type=QtCore.Qt.TimerType.CoarseTimer,
         critical_not_alive_count=1,
-        valve_auto_close_deadtime_period_ms=3000,
+        valve_auto_close_deadtime_period_ms: int = 3000,
         debug=False,
         **kwargs,
     ):
         super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
+        self.dev: Bronkhorst_MFC  # Enforce type: removes `_NoDevice()`
 
         self.create_worker_DAQ(
             DAQ_trigger=DAQ_TRIGGER.INTERNAL_TIMER,
@@ -152,12 +154,12 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
             self._update_GUI()  # Correctly reflect an offline device
 
         # Auto open or close of an optional peripheral valve
-        self.dev.state.prev_flow_rate = self.dev.state.flow_rate
-        self.dev.valve_auto_close_briefly_prevent = False
-        self.dev.valve_auto_close_deadtime_period_ms = (
+        self._prev_flow_rate: float = self.dev.state.flow_rate
+        self._valve_auto_close_briefly_prevent: bool = False
+        self._valve_auto_close_deadtime_period_ms: int = (
             valve_auto_close_deadtime_period_ms
         )
-        self.dev.valve_auto_close_start_deadtime = 0
+        self._valve_auto_close_start_deadtime: float = 0  # Start time in [sec]
 
     # --------------------------------------------------------------------------
     #   _DAQ_function
@@ -171,16 +173,16 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
             # Check to signal auto open or close of an optional peripheral valve
             if (
                 self.dev.state.flow_rate == 0
-                and not self.dev.state.prev_flow_rate
-                == self.dev.state.flow_rate
+                and not self._prev_flow_rate == self.dev.state.flow_rate
             ):
                 # The flow rate has just dropped to 0
                 if (
-                    self.dev.valve_auto_close_briefly_prevent
-                    and self.dev.valve_auto_close_start_deadtime.msecsTo(
-                        QtCore.QDateTime.currentDateTime()
+                    self._valve_auto_close_briefly_prevent
+                    and (
+                        time.perf_counter()
+                        - self._valve_auto_close_start_deadtime
                     )
-                    < self.dev.valve_auto_close_deadtime_period_ms
+                    < self._valve_auto_close_deadtime_period_ms * 1000
                 ):
                     # We are still in deadtime
                     pass
@@ -188,10 +190,10 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
                     # Signal auto close and force setpoint = 0
                     self.signal_valve_auto_close.emit()
                     self.dev.send_setpoint(0)
-                    self.dev.valve_auto_close_briefly_prevent = False
-                    self.dev.state.prev_flow_rate = self.dev.state.flow_rate
+                    self._valve_auto_close_briefly_prevent = False
+                    self._prev_flow_rate = self.dev.state.flow_rate
             else:
-                self.dev.state.prev_flow_rate = self.dev.state.flow_rate
+                self._prev_flow_rate = self.dev.state.flow_rate
 
         return success
 
@@ -210,16 +212,14 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
         if func == self.dev.send_setpoint:
             if args[0] == 0:
                 # Setpoint was set to 0 --> signal auto close
-                self.dev.valve_auto_close_briefly_prevent = False
+                self._valve_auto_close_briefly_prevent = False
                 self.signal_valve_auto_close.emit()
             else:
                 # Flow enabled --> start deadtime on auto close
                 #              --> signal auto open
-                self.dev.valve_auto_close_briefly_prevent = True
-                self.dev.valve_auto_close_start_deadtime = (
-                    QtCore.QDateTime.currentDateTime()
-                )
-                self.dev.state.prev_flow_rate = -1  # Necessary reset
+                self._valve_auto_close_briefly_prevent = True
+                self._valve_auto_close_start_deadtime = time.perf_counter()
+                self._prev_flow_rate = -1  # Necessary reset
                 self.signal_valve_auto_open.emit()
 
     # --------------------------------------------------------------------------
@@ -227,23 +227,23 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
     # --------------------------------------------------------------------------
 
     def _create_GUI(self):
-        self.qlbl_offline = QtWid.QLabel(
-            "MFC OFFLINE",
-            visible=False,
-            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Weight.Bold),
-            alignment=QtCore.Qt.AlignmentFlag.AlignCenter,
+        self.qlbl_offline = QtWid.QLabel("MFC OFFLINE")
+        self.qlbl_offline.setVisible(False)
+        self.qlbl_offline.setFont(
+            QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Weight.Bold)
         )
+        self.qlbl_offline.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         p = {
             "alignment": QtCore.Qt.AlignmentFlag.AlignRight,
             "minimumWidth": 50,
             "maximumWidth": 30,
-            "styleSheet": SS_TEXTBOX_READ_ONLY,
         }
+        p2 = {**p, "readOnly": True}
         # fmt: off
         self.qled_send_setpoint  = QtWid.QLineEdit(**p)
-        self.qled_read_setpoint  = QtWid.QLineEdit(**p, readOnly=True)
-        self.qled_flow_rate      = QtWid.QLineEdit(**p, readOnly=True)
+        self.qled_read_setpoint  = QtWid.QLineEdit(**p2)
+        self.qled_flow_rate      = QtWid.QLineEdit(**p2)
         self.qlbl_update_counter = QtWid.QLabel("0")
         # fmt: on
 
@@ -268,8 +268,7 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
         self.grid.addWidget(self.qlbl_update_counter      , 5, 0, 1, 3)
         # fmt: on
 
-        self.qgrp = QtWid.QGroupBox("%s" % self.dev.name)
-        self.qgrp.setStyleSheet(SS_GROUP)
+        self.qgrp = QtWid.QGroupBox(f"{self.dev.name}")
         self.qgrp.setLayout(self.grid)
 
     # --------------------------------------------------------------------------
@@ -287,11 +286,11 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
             # At startup
             if self.update_counter_DAQ == 1:
                 self.qled_send_setpoint.setText(
-                    "%.2f" % self.dev.state.setpoint
+                    f"{self.dev.state.setpoint:.2f}"
                 )
-            self.qled_flow_rate.setText("%.2f" % self.dev.state.flow_rate)
-            self.qled_read_setpoint.setText("%.2f" % self.dev.state.setpoint)
-            self.qlbl_update_counter.setText("%s" % self.update_counter_DAQ)
+            self.qled_flow_rate.setText(f"{self.dev.state.flow_rate:.2f}")
+            self.qled_read_setpoint.setText(f"{self.dev.state.setpoint:.2f}")
+            self.qlbl_update_counter.setText(f"{self.update_counter_DAQ}")
         else:
             self.qgrp.setEnabled(False)
             self.qlbl_offline.setVisible(True)
@@ -306,11 +305,11 @@ class Bronkhorst_MFC_qdev(QDeviceIO):
             setpoint = float(self.qled_send_setpoint.text())
         except (TypeError, ValueError):
             setpoint = 0.0
-        except:  # pylint: disable=try-except-raise
-            raise
+        except Exception as err:
+            raise err
 
         setpoint = max(setpoint, 0)
         setpoint = min(setpoint, self.dev.max_flow_rate)
-        self.qled_send_setpoint.setText("%.2f" % setpoint)
+        self.qled_send_setpoint.setText(f"{setpoint:.2f}")
 
         self.send(self.dev.send_setpoint, setpoint)

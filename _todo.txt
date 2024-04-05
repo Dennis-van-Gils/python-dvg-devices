@@ -1,7 +1,0 @@
-* Change `For i in range` to enumerate
-  
-  for i, x in enumerate(list)
-  
-  Likewise change `for x in y`
-  
-* Showcase all device demos with pictures

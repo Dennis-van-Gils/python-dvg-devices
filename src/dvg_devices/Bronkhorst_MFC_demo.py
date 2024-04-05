@@ -6,9 +6,9 @@ controller (MFC).
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "28-10-2022"
-__version__ = "1.0.0"
-# pylint: disable=bare-except
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=wrong-import-position, missing-function-docstring
 
 import os
 import sys
@@ -48,7 +48,7 @@ if QT_LIB is None:
             pass
 
 if QT_LIB is None:
-    this_file = __file__.split(os.sep)[-1]
+    this_file = __file__.rsplit(os.sep, maxsplit=1)[-1]
     raise ImportError(
         f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
         "none of these packages could be imported."
@@ -70,9 +70,12 @@ elif QT_LIB == PYSIDE6:
 # \end[Mechanism to support both PyQt and PySide]
 # -----------------------------------------------
 
+import dvg_pyqt_controls as controls
 from dvg_devices.Bronkhorst_MFC_protocol_RS232 import Bronkhorst_MFC
 from dvg_devices.Bronkhorst_MFC_qdev import Bronkhorst_MFC_qdev
 
+# Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
+DEBUG = False
 
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -80,16 +83,22 @@ from dvg_devices.Bronkhorst_MFC_qdev import Bronkhorst_MFC_qdev
 
 
 class MainWindow(QtWid.QWidget):
-    def __init__(self, parent=None, **kwargs):
+    def __init__(self, qdev: Bronkhorst_MFC_qdev, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
-        self.setGeometry(40, 60, 0, 0)
         self.setWindowTitle("Bronkhorst mass flow controller")
+        self.setGeometry(40, 60, 0, 0)
+        self.setFont(QtGui.QFont("Arial", 9))
+        self.setStyleSheet(
+            controls.SS_TEXTBOX_READ_ONLY
+            + controls.SS_GROUP
+            + controls.SS_HOVER
+        )
 
         # Top grid
-        self.qlbl_title = QtWid.QLabel(
-            "Bronkhorst MFC",
-            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Weight.Bold),
+        self.qlbl_title = QtWid.QLabel("Bronkhorst MFC")
+        self.qlbl_title.setFont(
+            QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Weight.Bold)
         )
         self.qpbt_exit = QtWid.QPushButton("Exit")
         self.qpbt_exit.clicked.connect(self.close)
@@ -104,22 +113,10 @@ class MainWindow(QtWid.QWidget):
         # Round up full window
         vbox = QtWid.QVBoxLayout(self)
         vbox.addLayout(grid_top)
-        vbox.addWidget(mfc_qdev.qgrp)
+        vbox.addWidget(qdev.qgrp)
         vbox.addStretch(1)
-        vbox.setAlignment(mfc_qdev.qgrp, QtCore.Qt.AlignmentFlag.AlignLeft)
-        mfc_qdev.qgrp.setTitle("")
-
-
-# ------------------------------------------------------------------------------
-#   about_to_quit
-# ------------------------------------------------------------------------------
-
-
-def about_to_quit():
-    print("About to quit")
-    app.processEvents()
-    mfc_qdev.quit()
-    mfc.close()
+        vbox.setAlignment(qdev.qgrp, QtCore.Qt.AlignmentFlag.AlignLeft)
+        qdev.qgrp.setTitle("")
 
 
 # ------------------------------------------------------------------------------
@@ -148,26 +145,35 @@ if __name__ == "__main__":
     # --------------------------------------------------------------------------
     #   Create application
     # --------------------------------------------------------------------------
-    QtCore.QThread.currentThread().setObjectName("MAIN")  # For DEBUG info
 
-    app = 0  # Work-around for kernel crash when using Spyder IDE
+    QtCore.QThread.currentThread().setObjectName("MAIN")  # For DEBUG info
     app = QtWid.QApplication(sys.argv)
-    app.setFont(QtGui.QFont("Arial", 9))
-    app.aboutToQuit.connect(about_to_quit)
 
     # --------------------------------------------------------------------------
     #   Set up communication threads for the MFC
     # --------------------------------------------------------------------------
 
-    mfc_qdev = Bronkhorst_MFC_qdev(dev=mfc, DAQ_interval_ms=DAQ_INTERVAL_MS)
+    mfc_qdev = Bronkhorst_MFC_qdev(
+        dev=mfc,
+        DAQ_interval_ms=DAQ_INTERVAL_MS,
+        debug=DEBUG,
+    )
     mfc_qdev.start()
 
     # --------------------------------------------------------------------------
     #   Start the main GUI event loop
     # --------------------------------------------------------------------------
 
-    window = MainWindow()
+    def about_to_quit():
+        print("About to quit")
+        app.processEvents()
+        mfc_qdev.quit()
+        mfc.close()
+
+    app.aboutToQuit.connect(about_to_quit)
+    window = MainWindow(qdev=mfc_qdev)
     window.show()
+
     if QT_LIB in (PYQT5, PYSIDE2):
         sys.exit(app.exec_())
     else:

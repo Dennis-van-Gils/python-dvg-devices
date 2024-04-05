@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Multithreaded PyQt/PySide GUI to interface with a Keysight N8700 power supply
+(PSU).
+"""
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "28-10-2022"
-__version__ = "1.0.0"
-# pylint: disable=bare-except
-
-# Note: The `connection_lost` mechanism is not implemented on purpose
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=wrong-import-position, missing-function-docstring, bare-except
 
 import os
 import sys
@@ -48,7 +49,7 @@ if QT_LIB is None:
             pass
 
 if QT_LIB is None:
-    this_file = __file__.split(os.sep)[-1]
+    this_file = __file__.rsplit(os.sep, maxsplit=1)[-1]
     raise ImportError(
         f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
         "none of these packages could be imported."
@@ -72,12 +73,12 @@ elif QT_LIB == PYSIDE6:
 
 import pyvisa
 
+import dvg_pyqt_controls as controls
 from dvg_debug_functions import ANSI, dprint
-from dvg_pyqt_controls import SS_TEXTBOX_READ_ONLY
 
+from dvg_qdeviceio import DAQ_TRIGGER
 from dvg_devices.Keysight_N8700_protocol_SCPI import Keysight_N8700
 from dvg_devices.Keysight_N8700_qdev import Keysight_N8700_qdev
-from dvg_qdeviceio import DAQ_TRIGGER
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
 DEBUG = False
@@ -88,16 +89,26 @@ DEBUG = False
 
 
 class MainWindow(QtWid.QWidget):
-    def __init__(self, parent=None, **kwargs):
+    def __init__(
+        self,
+        qdevs: list[Keysight_N8700_qdev],
+        parent=None,
+        **kwargs,
+    ):
         super().__init__(parent, **kwargs)
 
-        self.setGeometry(600, 120, 0, 0)
         self.setWindowTitle("Keysight N8700 power supply control")
+        self.setGeometry(40, 60, 0, 0)
+        self.setStyleSheet(
+            controls.SS_TEXTBOX_READ_ONLY
+            + controls.SS_GROUP
+            + controls.SS_HOVER
+        )
 
         # Top grid
-        self.lbl_title = QtWid.QLabel(
-            "Keysight N8700 power supply control",
-            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Weight.Bold),
+        self.lbl_title = QtWid.QLabel("Keysight N8700 power supply control")
+        self.lbl_title.setFont(
+            QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Weight.Bold)
         )
         self.pbtn_exit = QtWid.QPushButton("Exit")
         self.pbtn_exit.clicked.connect(self.close)
@@ -111,8 +122,8 @@ class MainWindow(QtWid.QWidget):
 
         # PSU groups
         hbox1 = QtWid.QHBoxLayout()
-        for psu_qdev in psus_qdev:
-            hbox1.addWidget(psu_qdev.grpb)
+        for qdev in qdevs:
+            hbox1.addWidget(qdev.grpb)
         hbox1.addStretch(1)
 
         # Round up full window
@@ -120,39 +131,6 @@ class MainWindow(QtWid.QWidget):
         vbox.addLayout(grid_top)
         vbox.addLayout(hbox1)
         vbox.addStretch(1)
-
-
-# ------------------------------------------------------------------------------
-#   about_to_quit
-# ------------------------------------------------------------------------------
-
-
-def about_to_quit():
-    print("About to quit")
-    app.processEvents()
-    for psu_qdev in psus_qdev:
-        psu_qdev.quit()
-    for psu in psus:
-        try:
-            psu.close()
-        except:
-            pass
-    try:
-        rm.close()
-    except:
-        pass
-
-
-# ------------------------------------------------------------------------------
-#   trigger_update_psus
-# ------------------------------------------------------------------------------
-
-
-def trigger_update_psus():
-    if DEBUG:
-        dprint("timer_psus: wake up all DAQ")
-    for psu_qdev in psus_qdev:
-        psu_qdev.worker_DAQ.wake_up()
 
 
 # ------------------------------------------------------------------------------
@@ -198,40 +176,44 @@ if __name__ == "__main__":
     # --------------------------------------------------------------------------
     #   Create application
     # --------------------------------------------------------------------------
-    QtCore.QThread.currentThread().setObjectName("MAIN")  # For DEBUG info
 
-    app = 0  # Work-around for kernel crash when using Spyder IDE
+    QtCore.QThread.currentThread().setObjectName("MAIN")  # For DEBUG info
     app = QtWid.QApplication(sys.argv)
-    app.setFont(QtGui.QFont("Arial", 9))
-    app.setStyleSheet(SS_TEXTBOX_READ_ONLY)
-    app.aboutToQuit.connect(about_to_quit)
 
     # --------------------------------------------------------------------------
     #   Set up communication threads for the PSUs
     # --------------------------------------------------------------------------
 
-    psus_qdev = list()
-    for i in range(len(psus)):
-        psus_qdev.append(
+    psu_qdevs: list[Keysight_N8700_qdev] = []
+    for psu in psus:
+        psu_qdevs.append(
             Keysight_N8700_qdev(
-                dev=psus[i],
+                dev=psu,
                 DAQ_trigger=DAQ_TRIGGER.SINGLE_SHOT_WAKE_UP,
                 debug=DEBUG,
             )
         )
 
     # DEBUG information
-    psus_qdev[0].worker_DAQ.debug_color = ANSI.YELLOW
-    psus_qdev[0].worker_jobs.debug_color = ANSI.CYAN
-    psus_qdev[1].worker_DAQ.debug_color = ANSI.GREEN
-    psus_qdev[1].worker_jobs.debug_color = ANSI.RED
+    psu_qdevs[0].worker_DAQ.debug_color = ANSI.YELLOW  # type: ignore
+    psu_qdevs[0].worker_jobs.debug_color = ANSI.CYAN  # type: ignore
+    psu_qdevs[1].worker_DAQ.debug_color = ANSI.GREEN  # type: ignore
+    psu_qdevs[1].worker_jobs.debug_color = ANSI.RED  # type: ignore
 
-    for psu_qdev in psus_qdev:
+    for psu_qdev in psu_qdevs:
         psu_qdev.start()
 
     # --------------------------------------------------------------------------
     #   Set up PSU update timer
     # --------------------------------------------------------------------------
+
+    def trigger_update_psus():
+        if DEBUG:
+            dprint("timer_psus: wake up all DAQ")
+
+        for psu_qdev_ in psu_qdevs:
+            if psu_qdev_.worker_DAQ is not None:
+                psu_qdev_.worker_DAQ.wake_up()
 
     timer_psus = QtCore.QTimer()
     timer_psus.timeout.connect(trigger_update_psus)
@@ -241,8 +223,25 @@ if __name__ == "__main__":
     #   Start the main GUI event loop
     # --------------------------------------------------------------------------
 
-    window = MainWindow()
+    def about_to_quit():
+        print("About to quit")
+        app.processEvents()
+        for psu_qdev_ in psu_qdevs:
+            psu_qdev_.quit()
+        for psu_ in psus:
+            try:
+                psu_.close()
+            except:
+                pass
+        try:
+            rm.close()
+        except:
+            pass
+
+    app.aboutToQuit.connect(about_to_quit)
+    window = MainWindow(qdevs=psu_qdevs)
     window.show()
+
     if QT_LIB in (PYQT5, PYSIDE2):
         sys.exit(app.exec_())
     else:

@@ -6,9 +6,10 @@ acquisition for a Julabo circulating bath.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "28-10-2022"
-__version__ = "1.0.0"
-# pylint: disable=broad-except, try-except-raise
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=broad-except, missing-function-docstring, multiple-statements
+# pylint: disable=wrong-import-position
 
 import os
 import sys
@@ -39,7 +40,7 @@ if QT_LIB is None:
             pass
 
 if QT_LIB is None:
-    this_file = __file__.split(os.sep)[-1]
+    this_file = __file__.rsplit(os.sep, maxsplit=1)[-1]
     raise ImportError(
         f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
         "none of these packages could be imported."
@@ -69,7 +70,7 @@ elif QT_LIB == PYSIDE6:
 # \end[Mechanism to support both PyQt and PySide]
 # -----------------------------------------------
 
-from dvg_pyqt_controls import create_Toggle_button, SS_TEXTBOX_ERRORS
+import dvg_pyqt_controls as controls
 from dvg_debug_functions import print_fancy_traceback as pft
 
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
@@ -120,6 +121,7 @@ class Julabo_circulator_qdev(QDeviceIO):
         **kwargs,
     ):
         super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
+        self.dev: Julabo_circulator  # Enforce type: removes `_NoDevice()`
 
         self.create_worker_DAQ(
             DAQ_trigger=DAQ_trigger,
@@ -136,7 +138,7 @@ class Julabo_circulator_qdev(QDeviceIO):
         self.signal_connection_lost.connect(self.update_GUI)
         self.signal_GUI_input_field_update.connect(self.update_GUI_input_field)
 
-        self.safe_temp.setText("%.2f" % self.dev.state.safe_temp)
+        self.safe_temp.setText(f"{self.dev.state.safe_temp:.2f}")
 
         self.update_GUI()
         self.update_GUI_input_field()
@@ -175,30 +177,33 @@ class Julabo_circulator_qdev(QDeviceIO):
             "minimumWidth": 60,
             "maximumWidth": 30,
         }
-        self.safe_sens = QtWid.QLineEdit("nan", **p, readOnly=True)
-        self.safe_temp = QtWid.QLineEdit("nan", **p, readOnly=True)
+        p2 = {**p, "readOnly": True}
+        self.safe_sens = QtWid.QLineEdit("nan", **p2)
+        self.safe_temp = QtWid.QLineEdit("nan", **p2)
         self.sub_temp = QtWid.QLineEdit("nan", **p)
         self.sub_temp.editingFinished.connect(self.send_sub_temp_from_textbox)
         self.over_temp = QtWid.QLineEdit("nan", **p)
         self.over_temp.editingFinished.connect(self.send_over_temp_from_textbox)
 
         # Control
-        self.pbtn_running = create_Toggle_button("OFFLINE")
+        self.pbtn_running = controls.create_Toggle_button("OFFLINE")
         self.pbtn_running.clicked.connect(self.process_pbtn_running)
         self.send_setpoint = QtWid.QLineEdit("nan", **p)
         self.send_setpoint.editingFinished.connect(
             self.send_setpoint_from_textbox
         )
-        self.read_setpoint = QtWid.QLineEdit("nan", **p, readOnly=True)
-        self.bath_temp = QtWid.QLineEdit("nan", **p, readOnly=True)
-        self.pt100_temp = QtWid.QLineEdit("nan", **p, readOnly=True)
-        self.status = QtWid.QPlainTextEdit(maximumWidth=180, readOnly=True)
-        self.status.setStyleSheet(SS_TEXTBOX_ERRORS)
+        self.read_setpoint = QtWid.QLineEdit("nan", **p2)
+        self.bath_temp = QtWid.QLineEdit("nan", **p2)
+        self.pt100_temp = QtWid.QLineEdit("nan", **p2)
+        self.status = QtWid.QPlainTextEdit()
+        self.status.setReadOnly(True)
+        self.status.setMaximumWidth(180)
+        self.status.setStyleSheet(controls.SS_TEXTBOX_ERRORS)
         self.update_counter = QtWid.QLabel("0")
 
         i = 0
         p = {"alignment": QtCore.Qt.AlignmentFlag.AlignLeft}
-        lbl_temp_unit = "\u00b0%s" % self.dev.state.temp_unit
+        lbl_temp_unit = f"\u00b0{self.dev.state.temp_unit}"
 
         # fmt: off
         grid = QtWid.QGridLayout()
@@ -250,7 +255,7 @@ class Julabo_circulator_qdev(QDeviceIO):
         grid.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
         self.grid = grid
 
-        self.grpb = QtWid.QGroupBox("%s" % self.dev.name)
+        self.grpb = QtWid.QGroupBox(self.dev.name)
         self.grpb.setLayout(self.grid)
 
     # --------------------------------------------------------------------------
@@ -264,23 +269,23 @@ class Julabo_circulator_qdev(QDeviceIO):
         members are written and read atomicly.
         """
         if self.dev.is_alive:
-            self.pbtn_running.setChecked(self.dev.state.running)
+            self.pbtn_running.setChecked(bool(self.dev.state.running))
             if self.dev.state.running:
                 self.pbtn_running.setText("RUNNING")
             else:
                 self.pbtn_running.setText("OFF")
 
-            self.safe_sens.setText("%.2f" % self.dev.state.safe_sens)
-            self.read_setpoint.setText("%.2f" % self.dev.state.setpoint)
-            self.bath_temp.setText("%.2f" % self.dev.state.bath_temp)
-            self.pt100_temp.setText("%.2f" % self.dev.state.pt100_temp)
+            self.safe_sens.setText(f"{self.dev.state.safe_sens:.2f}")
+            self.read_setpoint.setText(f"{self.dev.state.setpoint:.2f}")
+            self.bath_temp.setText(f"{self.dev.state.bath_temp:.2f}")
+            self.pt100_temp.setText(f"{self.dev.state.pt100_temp:.2f}")
 
             # Check status
-            self.status.setReadOnly(self.dev.state.has_error)
-            self.status.setStyleSheet(SS_TEXTBOX_ERRORS)
-            self.status.setPlainText(self.dev.state.status)
+            self.status.setReadOnly(bool(self.dev.state.has_error))
+            self.status.setStyleSheet(controls.SS_TEXTBOX_ERRORS)
+            self.status.setPlainText(f"{self.dev.state.status}")
 
-            self.update_counter.setText("%s" % self.update_counter_DAQ)
+            self.update_counter.setText(f"{self.update_counter_DAQ}")
         else:
             self.pbtn_running.setText("OFFLINE")
             self.grpb.setEnabled(False)
@@ -293,18 +298,18 @@ class Julabo_circulator_qdev(QDeviceIO):
     @Slot(int)
     def update_GUI_input_field(self, GUI_input_field=GUI_input_fields.ALL):
         if GUI_input_field == GUI_input_fields.setpoint:
-            self.send_setpoint.setText("%.2f" % self.dev.state.setpoint)
+            self.send_setpoint.setText(f"{self.dev.state.setpoint:.2f}")
 
         elif GUI_input_field == GUI_input_fields.sub_temp:
-            self.sub_temp.setText("%.2f" % self.dev.state.sub_temp)
+            self.sub_temp.setText(f"{self.dev.state.sub_temp:.2f}")
 
         elif GUI_input_field == GUI_input_fields.over_temp:
-            self.over_temp.setText("%.2f" % self.dev.state.over_temp)
+            self.over_temp.setText(f"{self.dev.state.over_temp:.2f}")
 
         else:
-            self.send_setpoint.setText("%.2f" % self.dev.state.setpoint)
-            self.sub_temp.setText("%.2f" % self.dev.state.sub_temp)
-            self.over_temp.setText("%.2f" % self.dev.state.over_temp)
+            self.send_setpoint.setText(f"{self.dev.state.setpoint:.2f}")
+            self.sub_temp.setText(f"{self.dev.state.sub_temp:.2f}")
+            self.over_temp.setText(f"{self.dev.state.over_temp:.2f}")
 
     # --------------------------------------------------------------------------
     #   GUI functions
@@ -327,8 +332,8 @@ class Julabo_circulator_qdev(QDeviceIO):
         except (TypeError, ValueError):
             # Revert to previously set value
             value = self.dev.state.setpoint
-        except:
-            raise
+        except Exception as e:
+            raise e
 
         self.add_to_jobs_queue(self.dev.set_setpoint, value)
         self.add_to_jobs_queue(
@@ -343,8 +348,8 @@ class Julabo_circulator_qdev(QDeviceIO):
         except (TypeError, ValueError):
             # Revert to previously set value
             value = self.dev.state.sub_temp
-        except:
-            raise
+        except Exception as e:
+            raise e
 
         self.add_to_jobs_queue(self.dev.set_sub_temp, value)
         self.add_to_jobs_queue(
@@ -359,8 +364,8 @@ class Julabo_circulator_qdev(QDeviceIO):
         except (TypeError, ValueError):
             # Revert to previously set value
             value = self.dev.state.over_temp
-        except:
-            raise
+        except Exception as e:
+            raise e
 
         self.add_to_jobs_queue(self.dev.set_over_temp, value)
         self.add_to_jobs_queue(

@@ -1,6 +1,16 @@
 Changelog
 =========
 
+1.4.0 (2024-04-05)
+------------------
+Major clean-up and streamlining:
+
+* Changed all string formatting to f-strings
+* Extended type hinting and checking, relying on built-in types
+* Made demos uniform and passing `qdev` arguments to `MainWindow` now
+* Individual source files now follow the PyPi package version
+* Resolved nearly all Pylint / Pylance warnings
+
 1.3.0 (2023-02-23)
 ------------------
 * Added method ``BaseDevice.SerialDevice.query_bytes()``

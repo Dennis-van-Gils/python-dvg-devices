@@ -6,8 +6,9 @@ acquisition for a Picotech PT-104 pt100/1000 temperature logger.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "28-10-2022"
-__version__ = "1.0.0"
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=wrong-import-position, missing-function-docstring
 
 import os
 import sys
@@ -38,7 +39,7 @@ if QT_LIB is None:
             pass
 
 if QT_LIB is None:
-    this_file = __file__.split(os.sep)[-1]
+    this_file = __file__.rsplit(os.sep, maxsplit=1)[-1]
     raise ImportError(
         f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
         "none of these packages could be imported."
@@ -65,8 +66,6 @@ elif QT_LIB == PYSIDE6:
 # -----------------------------------------------
 
 import numpy as np
-
-from dvg_pyqt_controls import SS_GROUP
 
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 from dvg_devices.Picotech_PT104_protocol_UDP import Picotech_PT104
@@ -120,6 +119,7 @@ class Picotech_PT104_qdev(QDeviceIO):
         **kwargs,
     ):
         super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
+        self.dev: Picotech_PT104  # Enforce type: removes `_NoDevice()`
 
         self.create_worker_DAQ(
             DAQ_trigger=DAQ_TRIGGER.INTERNAL_TIMER,
@@ -139,7 +139,7 @@ class Picotech_PT104_qdev(QDeviceIO):
     #   DAQ_function
     # --------------------------------------------------------------------------
 
-    def DAQ_function(self):
+    def DAQ_function(self) -> bool:
         # print("Obtained interval: %.0f" % self.obtained_DAQ_interval_ms)
         return self.dev.scan_4_wire_temperature()
 
@@ -148,21 +148,22 @@ class Picotech_PT104_qdev(QDeviceIO):
     # --------------------------------------------------------------------------
 
     def create_GUI(self):
-        self.qlbl_offline = QtWid.QLabel(
-            "OFFLINE",
-            visible=False,
-            font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Weight.Bold),
-            alignment=QtCore.Qt.AlignmentFlag.AlignCenter,
+        self.qlbl_offline = QtWid.QLabel("OFFLINE")
+        self.qlbl_offline.setVisible(False)
+        self.qlbl_offline.setFont(
+            QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Weight.Bold)
         )
+        self.qlbl_offline.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         p = {
             "alignment": QtCore.Qt.AlignmentFlag.AlignRight,
             "minimumWidth": 60,
+            "readOnly": True,
         }
-        self.qled_T_ch1 = QtWid.QLineEdit(**p, readOnly=True)
-        self.qled_T_ch2 = QtWid.QLineEdit(**p, readOnly=True)
-        self.qled_T_ch3 = QtWid.QLineEdit(**p, readOnly=True)
-        self.qled_T_ch4 = QtWid.QLineEdit(**p, readOnly=True)
+        self.qled_T_ch1 = QtWid.QLineEdit(**p)
+        self.qled_T_ch2 = QtWid.QLineEdit(**p)
+        self.qled_T_ch3 = QtWid.QLineEdit(**p)
+        self.qled_T_ch4 = QtWid.QLineEdit(**p)
         self.qlbl_update_counter = QtWid.QLabel("0")
 
         self.grid = QtWid.QGridLayout()
@@ -184,8 +185,7 @@ class Picotech_PT104_qdev(QDeviceIO):
         self.grid.addWidget(self.qlbl_update_counter, 5, 0, 1, 3)
         # fmt: on
 
-        self.qgrp = QtWid.QGroupBox("%s" % self.dev.name)
-        self.qgrp.setStyleSheet(SS_GROUP)
+        self.qgrp = QtWid.QGroupBox(f"{self.dev.name}")
         self.qgrp.setLayout(self.grid)
 
     # --------------------------------------------------------------------------
@@ -200,11 +200,11 @@ class Picotech_PT104_qdev(QDeviceIO):
         Not locking the mutex might speed up the program.
         """
         if self.dev.is_alive:
-            self.qled_T_ch1.setText("%.3f" % self.dev.state.ch1_T)
-            self.qled_T_ch2.setText("%.3f" % self.dev.state.ch2_T)
-            self.qled_T_ch3.setText("%.3f" % self.dev.state.ch3_T)
-            self.qled_T_ch4.setText("%.3f" % self.dev.state.ch4_T)
-            self.qlbl_update_counter.setText("%s" % self.update_counter_DAQ)
+            self.qled_T_ch1.setText(f"{self.dev.state.ch1_T:.3f}")
+            self.qled_T_ch2.setText(f"{self.dev.state.ch2_T:.3f}")
+            self.qled_T_ch3.setText(f"{self.dev.state.ch3_T:.3f}")
+            self.qled_T_ch4.setText(f"{self.dev.state.ch4_T:.3f}")
+            self.qlbl_update_counter.setText(f"{self.update_counter_DAQ}")
         else:
             self.qgrp.setEnabled(False)
             self.qlbl_offline.setVisible(True)

@@ -6,9 +6,9 @@ temperature logger.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "28-10-2022"
-__version__ = "1.0.0"
-# pylint: disable=bare-except
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=wrong-import-position, missing-function-docstring
 
 import os
 import sys
@@ -48,7 +48,7 @@ if QT_LIB is None:
             pass
 
 if QT_LIB is None:
-    this_file = __file__.split(os.sep)[-1]
+    this_file = __file__.rsplit(os.sep, maxsplit=1)[-1]
     raise ImportError(
         f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
         "none of these packages could be imported."
@@ -70,10 +70,12 @@ elif QT_LIB == PYSIDE6:
 # \end[Mechanism to support both PyQt and PySide]
 # -----------------------------------------------
 
-from dvg_pyqt_controls import SS_TEXTBOX_READ_ONLY
-
+import dvg_pyqt_controls as controls
 from dvg_devices.Picotech_PT104_protocol_UDP import Picotech_PT104
 from dvg_devices.Picotech_PT104_qdev import Picotech_PT104_qdev
+
+# Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
+DEBUG = False
 
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -81,18 +83,24 @@ from dvg_devices.Picotech_PT104_qdev import Picotech_PT104_qdev
 
 
 class MainWindow(QtWid.QWidget):
-    def __init__(self, parent=None, **kwargs):
+    def __init__(self, qdev: Picotech_PT104_qdev, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
-        self.setGeometry(40, 60, 0, 0)
         self.setWindowTitle("Picotech PT-104")
+        self.setGeometry(40, 60, 0, 0)
+        self.setFont(QtGui.QFont("Arial", 9))
+        self.setStyleSheet(
+            controls.SS_TEXTBOX_READ_ONLY
+            + controls.SS_GROUP
+            + controls.SS_HOVER
+        )
 
         # Top grid
-        self.qlbl_title = QtWid.QLabel(
-            "PT-104\n%s15 mK" % chr(177),
-            font=QtGui.QFont("Palatino", 10, weight=QtGui.QFont.Weight.Bold),
-            alignment=QtCore.Qt.AlignmentFlag.AlignCenter,
+        self.qlbl_title = QtWid.QLabel(f"PT-104\n{chr(177)}15 mK")
+        self.qlbl_title.setFont(
+            QtGui.QFont("Palatino", 10, weight=QtGui.QFont.Weight.Bold)
         )
+        self.qlbl_title.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.qpbt_exit = QtWid.QPushButton("Exit")
         self.qpbt_exit.clicked.connect(self.close)
         self.qpbt_exit.setMinimumHeight(30)
@@ -106,25 +114,10 @@ class MainWindow(QtWid.QWidget):
         # Round up full window
         vbox = QtWid.QVBoxLayout(self)
         vbox.addLayout(grid_top)
-        vbox.addWidget(pt104_qdev.qgrp)
+        vbox.addWidget(qdev.qgrp)
         vbox.addStretch(1)
-        vbox.setAlignment(pt104_qdev.qgrp, QtCore.Qt.AlignmentFlag.AlignLeft)
-        pt104_qdev.qgrp.setTitle("")
-
-
-# ------------------------------------------------------------------------------
-#   about_to_quit
-# ------------------------------------------------------------------------------
-
-
-def about_to_quit():
-    print("About to quit")
-    app.processEvents()
-    pt104_qdev.quit()
-    try:
-        pt104.close()
-    except:
-        pass
+        vbox.setAlignment(qdev.qgrp, QtCore.Qt.AlignmentFlag.AlignLeft)
+        qdev.qgrp.setTitle("")
 
 
 # ------------------------------------------------------------------------------
@@ -151,27 +144,35 @@ if __name__ == "__main__":
     # --------------------------------------------------------------------------
     #   Create application
     # --------------------------------------------------------------------------
-    QtCore.QThread.currentThread().setObjectName("MAIN")  # For DEBUG info
 
-    app = 0  # Work-around for kernel crash when using Spyder IDE
+    QtCore.QThread.currentThread().setObjectName("MAIN")  # For DEBUG info
     app = QtWid.QApplication(sys.argv)
-    app.setFont(QtGui.QFont("Arial", 9))
-    app.setStyleSheet(SS_TEXTBOX_READ_ONLY)
-    app.aboutToQuit.connect(about_to_quit)
 
     # --------------------------------------------------------------------------
     #   Set up communication threads for the PT104
     # --------------------------------------------------------------------------
 
-    pt104_qdev = Picotech_PT104_qdev(dev=pt104, DAQ_interval_ms=1000)
+    pt104_qdev = Picotech_PT104_qdev(
+        dev=pt104,
+        DAQ_interval_ms=1000,
+        debug=DEBUG,
+    )
     pt104_qdev.start()
 
     # --------------------------------------------------------------------------
     #   Start the main GUI event loop
     # --------------------------------------------------------------------------
 
-    window = MainWindow()
+    def about_to_quit():
+        print("About to quit")
+        app.processEvents()
+        pt104_qdev.quit()
+        pt104.close()
+
+    app.aboutToQuit.connect(about_to_quit)
+    window = MainWindow(qdev=pt104_qdev)
     window.show()
+
     if QT_LIB in (PYQT5, PYSIDE2):
         sys.exit(app.exec_())
     else:

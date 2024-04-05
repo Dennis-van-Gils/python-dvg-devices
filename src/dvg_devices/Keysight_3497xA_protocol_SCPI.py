@@ -16,15 +16,12 @@ or that the previous query resulted in a communication error.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "14-09-2022"
-__version__ = "1.0.0"
-# pylint: disable=try-except-raise
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=missing-function-docstring, multiple-statements
 
 import time
 
-# TODO: Current demanded requirement pyvisa~=1.11 was ~=1.9 before. 1.11 has
-# broken backwards comp. Still need to test if all is still fine. Delete this
-# comment if tested okay.
 import pyvisa
 import numpy as np
 
@@ -83,21 +80,24 @@ class Keysight_3497xA:
         # All the channels in the scan list retreived from the 3497xA [list of
         # strings]. This can be used to e.g. populate a table view with correct
         # labels.
-        all_scan_list_channels = []
+        all_scan_list_channels: list[str] = []
+
+        # Number of channels making up the scan list
+        N_channels: int = 0
 
         # List of readings returned by the device after a full scan cycle
         readings = []
 
         # The single error string retreived from the error queue of the device.
         # None indicates no error is left in the queue.
-        error = None
+        error: str | None = None
 
         # This list of strings is provided to be able to store all errors from
         # the device queue. This list is populated by calling 'query_error'
         # until no error is left in the queue. This list can then be printed to
         # screen or GUI and the user should 'acknowledge' the list, after which
         # the list can be emptied (=[]) again.
-        all_errors = []
+        all_errors: list[str] = []
 
     class Diag:
         """Container for the diagnostic information.
@@ -107,23 +107,23 @@ class Keysight_3497xA:
 
         # Cycle count of the three backplane relays on the internal DMM.
         # diag:dmm:cycl?
-        slot_1_DMM_cycles = np.nan
-        slot_2_DMM_cycles = np.nan
-        slot_3_DMM_cycles = np.nan
+        slot_1_DMM_cycles: float | int = np.nan
+        slot_2_DMM_cycles: float | int = np.nan
+        slot_3_DMM_cycles: float | int = np.nan
 
         # Identity of the three plug-in modules in the specified slot.
         # syst:ctyp?
-        slot_1_ctype = "none"
-        slot_2_ctype = "none"
-        slot_3_ctype = "none"
+        slot_1_ctype: str = "none"
+        slot_2_ctype: str = "none"
+        slot_3_ctype: str = "none"
 
         # Custom label of up to 10 characters stored in non-volatile memory
         # of the module in the specified slot. We have used it to store the
         # serial number of the module as printed on its back.
         # diag:peek:slot:data?
-        slot_1_label = np.nan
-        slot_2_label = np.nan
-        slot_3_label = np.nan
+        slot_1_label: str = ""
+        slot_2_label: str = ""
+        slot_3_label: str = ""
 
         # Cycle count on all available channels of the specified slot.
         # diag:rel:cycl?
@@ -135,20 +135,21 @@ class Keysight_3497xA:
     #   __init__
     # --------------------------------------------------------------------------
 
-    def __init__(self, visa_address=None, name="MUX"):
+    def __init__(self, visa_address: str = "", name: str = "MUX"):
         """
         Args:
-            visa_address (str): VISA device address
+            visa_address (`str`):
+                VISA device address
         """
         self._visa_address = visa_address
         self.name = name
-        self._idn = None  # The identity of the device ("*IDN?")
+        self._idn: str = ""  # The identity of the device ("*IDN?")
 
         # Placeholder for the VISA device instance
-        self.device = None
+        self.device: pyvisa.resources.MessageBasedResource | None = None
 
         # Is the connection to the device alive?
-        self.is_alive = False
+        self.is_alive: bool = False
 
         # Container for the process and measurement variables
         self.state = self.State()
@@ -172,57 +173,64 @@ class Keysight_3497xA:
     #   connect
     # --------------------------------------------------------------------------
 
-    def connect(self, rm):
+    def connect(self, rm: pyvisa.ResourceManager) -> bool:
         """Try to connect to the device over VISA at the given address. When
         succesful the VISA device instance will be stored in member 'device'
         and its identity is queried and stored in '_idn'.
 
         Args:
-            rm: Instance of pyvisa.ResourceManager
+            rm `(pyvisa.ResourceManager)`:
+                Instance of VISA ResourceManager.
 
         Returns: True if successful, False otherwise.
         """
         self.is_alive = False
 
         print("Connect to: Keysight 3497xA")
-        print("  @ %s : " % self._visa_address, end="")
+        print(f"  @ {self._visa_address} : ", end="")
+
         try:
-            self.device = rm.open_resource(
-                self._visa_address, timeout=VISA_TIMEOUT
-            )
-            self.device.clear()
+            device = rm.open_resource(self._visa_address, timeout=VISA_TIMEOUT)
+            device.clear()
         except pyvisa.VisaIOError:
             print("Could not open resource.\n")
             return False
-        except:
-            raise
+        except Exception as err:
+            raise err
+
+        if not isinstance(device, pyvisa.resources.MessageBasedResource):
+            print("ERROR: Device is not a `MessageBasedResource`.")
+            return False
+
         print("Success!")
+        self.device = device
         self.is_alive = True
         self.device.write_termination = WRITE_TERMINATION
         self.device.read_termination = READ_TERMINATION
 
-        success, self._idn = self.query("*idn?")
+        _success, reply = self.query("*idn?")
         self.wait_for_OPC()
 
-        if success:
-            print("  %s\n" % self._idn)
-            return True
+        if not isinstance(reply, str):
+            return False
 
-        return False
+        self._idn = reply
+        print(f"  {self._idn}\n")
+        return True
 
     # --------------------------------------------------------------------------
     #   begin
     # --------------------------------------------------------------------------
 
-    def begin(self, SCPI_setup_commands=None):
+    def begin(self, SCPI_setup_commands: list[str] | None = None) -> bool:
         """This function should run directly after having established a
         connection to a 3497xA.
 
         Args:
-            SCPI_setup_commands (list of strings): List of SCPI commands to be
-            send to the 3497xA to set up the scan cycle. [None]: The previously
-            passed set of commands remain valid. []: All commands will be
-            cleared.
+            SCPI_setup_commands (`list[str]` | `None`):
+                List of SCPI commands to be send to the 3497xA to set up the
+                scan cycle. [None]: The previously passed set of commands remain
+                valid. []: All commands will be cleared.
 
         Returns: True if all messages were sent and received successfully,
             False otherwise.
@@ -235,7 +243,7 @@ class Keysight_3497xA:
         if SCPI_setup_commands is not None:
             self.SCPI_setup_commands = SCPI_setup_commands
 
-        if not self.is_alive:
+        if not self.is_alive or self.device is None:
             print("ERROR: Device is not connected yet or already closed.")
             return False
 
@@ -246,7 +254,9 @@ class Keysight_3497xA:
             self.can_check_error_queue_by_polling_stb = False
         elif self._idn.lower().find("agilent") >= 0:
             # E.g. 'Agilent Technologies,34972A,MY49018071,1.16-1.12-02-02'
-            self.can_check_error_queue_by_polling_stb = False  # Is actually True, but .stb malfunctions and causes locked up device
+            self.can_check_error_queue_by_polling_stb = False
+            # Above is actually True, but .stb malfunctions and causes locked up
+            # device, hence set to False.
         else:
             self.can_check_error_queue_by_polling_stb = False
 
@@ -265,18 +275,19 @@ class Keysight_3497xA:
     #   write
     # --------------------------------------------------------------------------
 
-    def write(self, msg_str):
+    def write(self, msg_str: str) -> bool:
         """Try to write a command to the device.
 
         Args:
-            msg_str (string): Message to be sent.
+            msg_str (`str`):
+                Message to be sent.
 
         Returns: True if the message was sent successfully, False otherwise.
             NOTE: It does not indicate whether the message made sense to the
             device.
         """
 
-        if not self.is_alive:
+        if not self.is_alive or self.device is None:
             print("ERROR: Device is not connected yet or already closed.")
             return False
 
@@ -284,10 +295,10 @@ class Keysight_3497xA:
             self.device.write(msg_str)
         except pyvisa.VisaIOError as err:
             # Print error and struggle on
-            print_fancy_traceback(err, 3)
+            print_fancy_traceback(err)
             return False
-        except:
-            raise
+        except Exception as err:
+            raise err
 
         return True
 
@@ -295,68 +306,76 @@ class Keysight_3497xA:
     #   query
     # --------------------------------------------------------------------------
 
-    def query(self, msg_str):
+    def query(self, msg_str: str) -> tuple[bool, str | None]:
         """Try to query the device.
 
         Args:
-            msg_str (string): Message to be sent.
+            msg_str (`str`):
+                Message to be sent.
 
         Returns:
-            success (bool): True if the message was sent and a reply was
-                received successfully, False otherwise.
-            ans_str (string): Reply received from the device. [numpy.nan] if
-                unsuccessful.
+            success (`bool`):
+                True if the message was sent and a reply was received
+                successfully, False otherwise.
+
+            reply (`str` | `None`):
+                Reply received from the device. None if unsuccessful.
         """
         success = False
-        ans_str = np.nan
+        reply = None
 
-        if not self.is_alive:
+        if not self.is_alive or self.device is None:
             print("ERROR: Device is not connected yet or already closed.")
-        else:
-            try:
-                ans_str = self.device.query(msg_str)
-            except pyvisa.VisaIOError as err:
-                # Print error and struggle on
-                print_fancy_traceback(err, 3)
-            except:
-                raise
-            else:
-                ans_str = ans_str.strip()
-                success = True
+            return success, reply
 
-        return success, ans_str
+        try:
+            reply = self.device.query(msg_str)
+        except pyvisa.VisaIOError as err:
+            # Print error and struggle on
+            print_fancy_traceback(err)
+        except Exception as err:
+            raise err
+        else:
+            reply = reply.strip()
+            success = True
+
+        return success, reply
 
     # --------------------------------------------------------------------------
     #   query_ascii_values
     # --------------------------------------------------------------------------
 
-    def query_ascii_values(self, msg_str):
+    def query_ascii_values(self, msg_str: str) -> tuple[bool, list]:
         """Try to query the device.
 
         Args:
-            msg_str (string): Message to be sent.
+            msg_str (`str`):
+                Message to be sent.
 
         Returns:
-            success (bool): True if the message was sent and a reply was
-                received successfully, False otherwise.
-            ans_list (list): Reply received from the device. Empty list [] if
-                unsuccessful.
+            success (`bool`):
+                True if the message was sent and a reply was received
+                successfully, False otherwise.
+
+            ans_list (`list`):
+                Reply received from the device. Empty list [] if unsuccessful.
         """
         success = False
         ans_list = []
 
-        if not self.is_alive:
+        if not self.is_alive or self.device is None:
             print("ERROR: Device is not connected yet or already closed.")
+            return success, ans_list
+
+        try:
+            ans_list = list(self.device.query_ascii_values(msg_str))
+        except pyvisa.VisaIOError as err:
+            # Print error and struggle on
+            print_fancy_traceback(err)
+        except Exception as err:
+            raise err
         else:
-            try:
-                ans_list = self.device.query_ascii_values(msg_str)
-            except pyvisa.VisaIOError as err:
-                # Print error and struggle on
-                print_fancy_traceback(err, 3)
-            except:
-                raise
-            else:
-                success = True
+            success = True
 
         return success, ans_list
 
@@ -364,7 +383,7 @@ class Keysight_3497xA:
     #   query_diagnostics
     # --------------------------------------------------------------------------
 
-    def query_diagnostics(self, verbose=False):
+    def query_diagnostics(self, verbose: bool = False) -> bool:
         """
         Returns: True if all messages were sent and received successfully,
             False otherwise.
@@ -375,18 +394,14 @@ class Keysight_3497xA:
         success, DMM_cycles = self.query_ascii_values("diag:dmm:cycl?")
         all_success &= success
 
-        if success:
-            [
-                self.diag.slot_1_DMM_cycles,
-                self.diag.slot_2_DMM_cycles,
-                self.diag.slot_3_DMM_cycles,
-            ] = DMM_cycles
+        if len(DMM_cycles) == 3:
+            self.diag.slot_1_DMM_cycles = DMM_cycles[0]
+            self.diag.slot_2_DMM_cycles = DMM_cycles[1]
+            self.diag.slot_3_DMM_cycles = DMM_cycles[2]
         else:
-            [
-                self.diag.slot_1_DMM_cycles,
-                self.diag.slot_2_DMM_cycles,
-                self.diag.slot_3_DMM_cycles,
-            ] = [np.nan] * 3
+            self.diag.slot_1_DMM_cycles = np.nan
+            self.diag.slot_2_DMM_cycles = np.nan
+            self.diag.slot_3_DMM_cycles = np.nan
 
         # Check all 3 slots for installed modules. Create a list of all
         # available channels if a multiplexer module is installed. This list
@@ -395,10 +410,10 @@ class Keysight_3497xA:
 
         for i in range(3):
             bank = 100 * (i + 1)
-            success, slot_ctype = self.query("syst:ctyp? %i" % bank)
+            success, slot_ctype = self.query(f"syst:ctyp? {bank}")
             all_success &= success
 
-            if success:
+            if isinstance(slot_ctype, str):
                 if slot_ctype.find(",0,0,0") > -1:
                     N_chans = 0
                     slot_ctype = "none"
@@ -413,20 +428,20 @@ class Keysight_3497xA:
                 N_chans = 0
 
             if slot_ctype == "none":
-                slot_label = np.nan
+                slot_label = ""
             else:
-                success, slot_label = self.query(
-                    "diag:peek:slot:data? %i" % bank
-                )
+                success, slot_label = self.query(f"diag:peek:slot:data? {bank}")
                 all_success &= success
 
-                if success:
+                if isinstance(slot_label, str):
                     slot_label = slot_label.strip('"')
+                else:
+                    slot_label = ""
 
             if N_chans > 0:
-                ch_list_SCPI = "%i:%i" % (bank + 1, bank + N_chans)
+                ch_list_SCPI = f"{bank + 1}:{bank + N_chans}"
                 success, relay_cycles = self.query_ascii_values(
-                    "diag:rel:cycl? (@%s)" % ch_list_SCPI
+                    f"diag:rel:cycl? (@{ch_list_SCPI})"
                 )
                 all_success &= success
 
@@ -459,9 +474,9 @@ class Keysight_3497xA:
 
     def report_diagnostics(self):
         print("  Relay cycle count internal DMM:")
-        print("    slot 1: %.1e" % self.diag.slot_1_DMM_cycles)
-        print("    slot 2: %.1e" % self.diag.slot_2_DMM_cycles)
-        print("    slot 3: %.1e" % self.diag.slot_3_DMM_cycles)
+        print(f"    slot 1: {self.diag.slot_1_DMM_cycles:.1e}")
+        print(f"    slot 2: {self.diag.slot_2_DMM_cycles:.1e}")
+        print(f"    slot 3: {self.diag.slot_3_DMM_cycles:.1e}")
         print("")
 
         for i in range(3):
@@ -478,28 +493,28 @@ class Keysight_3497xA:
                 slot_label = self.diag.slot_3_label
                 relay_cycles = self.diag.slot_3_relay_cycles
 
-            print("  Slot %i:" % (i + 1))
-            print("    %s" % slot_ctype)
+            print(f"  Slot {(i + 1)}:")
+            print(f"    {slot_ctype}")
             if slot_ctype != "none":
-                print("    Serial: %s" % slot_label)
-            if not (relay_cycles == []):
+                print(f"    Serial: {slot_label}")
+            if not relay_cycles == []:
                 print("    Relay cycle count")
-                for j in range(len(relay_cycles)):
-                    print("      ch %2i: %8i" % (j + 1, relay_cycles[j]))
+                for count, item in enumerate(relay_cycles):
+                    print(f"      ch {count + 1:2}: {item:8}")
             print("")
 
     # --------------------------------------------------------------------------
     #   System status related
     # --------------------------------------------------------------------------
 
-    def abort_reset_clear(self):
+    def abort_reset_clear(self) -> bool:
         """Abort measurement, reset device and clear status. Return when this
         operation has completed on the device. Blocking.
 
         Returns: True if the message was sent successfully, False otherwise.
         """
 
-        if not self.is_alive:
+        if not self.is_alive or self.device is None:
             print("ERROR: Device is not connected yet or already closed.")
             return False
 
@@ -539,6 +554,10 @@ class Keysight_3497xA:
         'prepare_wait_for_OPC_indefinitely()'.
         """
 
+        if not self.is_alive or self.device is None:
+            print("ERROR: Device is not connected yet or already closed.")
+            return
+
         # Let the device set the ESR bit 0 - OPC (operation complete) to 1 after
         # all device operations have completed.
         self.write("*opc")
@@ -551,7 +570,7 @@ class Keysight_3497xA:
         # Reset the ESR bit 0 - OPC back to 0.
         self.query("*esr?")
 
-    def prepare_wait_for_OPC_indefinitely(self):
+    def prepare_wait_for_OPC_indefinitely(self) -> bool:
         """Set the ESR to signal bit 0 - OPC (operation complete). Should be
         called only once after a '*rst' in case you want to make use of
         'wait_for_OPC_indefinitely()'.
@@ -560,26 +579,27 @@ class Keysight_3497xA:
         """
         return self.write("*ese 1")
 
-    def query_error(self, verbose=False):
+    def query_error(self, verbose: bool = False) -> bool:
         """Pop one error string from the error queue of the device and store it
         in the 'State'-class member. A value of None indicates no error is left.
 
         Returns: True if the query was received successfully, False otherwise.
         """
-        success, self.state.error = self.query("syst:err?")
-        if success:
+        success, reply = self.query("syst:err?")
+        if isinstance(reply, str):
+            self.state.error = reply
             if self.state.error.find(STR_NO_ERROR) == 0:
                 self.state.error = None
             else:
                 if verbose:  # DEBUG INFO
-                    print("  %s" % self.state.error)
+                    print(f"  {self.state.error}")
         return success
 
-    def query_all_errors_in_queue(self, verbose=False):
+    def query_all_errors_in_queue(self, verbose: bool = False):
         """Check if there are errors in the device queue and retrieve all if
         any and append these to 'state.all_errors'.
         """
-        if not self.is_alive:
+        if not self.is_alive or self.device is None:
             print("ERROR: Device is not connected yet or already closed.")
             return
 
@@ -591,8 +611,8 @@ class Keysight_3497xA:
                     if self.query_error():
                         if self.state.error is None:
                             break
-                        else:
-                            self.state.all_errors.append(self.state.error)
+
+                        self.state.all_errors.append(self.state.error)
                     else:
                         break
         else:
@@ -601,26 +621,26 @@ class Keysight_3497xA:
                 if self.query_error():
                     if self.state.error is None:
                         break
-                    else:
-                        self.state.all_errors.append(self.state.error)
+
+                    self.state.all_errors.append(self.state.error)
                 else:
                     break
 
         if verbose:  # DEBUG INFO
             for error in self.state.all_errors:
-                print("  %s" % error)
+                print(f"  {error}")
 
-    def set_display_text(self, str_text):
+    def set_display_text(self, str_text) -> bool:
         """
         Returns: True if the message was sent successfully, False otherwise.
         """
-        return self.write("disp:text '%s'" % str_text)
+        return self.write(f"disp:text '{str_text}'")
 
     # --------------------------------------------------------------------------
     #   Acquisition related
     # --------------------------------------------------------------------------
 
-    def perform_SCPI_setup_commands(self):
+    def perform_SCPI_setup_commands(self) -> bool:
         """
         Returns: True if all messages were sent successfully, False otherwise.
         """
@@ -631,7 +651,7 @@ class Keysight_3497xA:
 
         return success
 
-    def init_scan(self):
+    def init_scan(self) -> bool:
         """Initialize the scan, i.e. start with the acquisition of data over
         all channels as programmed. Non-blocking.
 
@@ -653,7 +673,7 @@ class Keysight_3497xA:
         """
         return self.write("init")
 
-    def fetch_scan(self):
+    def fetch_scan(self) -> bool:
         """Retreive the last scanned data from the device buffer. The data
         will be stored in state variable 'state.readings'.
 
@@ -663,7 +683,7 @@ class Keysight_3497xA:
 
         return success
 
-    def init_scan_and_wait_for_OPC_indefinitely_and_fetch(self):
+    def init_scan_and_wait_for_OPC_indefinitely_and_fetch(self) -> bool:
         """Blocking and mainly for testing purposes as there will be limited
         use for this series of instructions that could be blocking indefinitely.
         The scanned data will be stored in state variable 'state.readings'.
@@ -678,20 +698,24 @@ class Keysight_3497xA:
 
         return success
 
-    def query_all_scan_list_channels(self):
+    def query_all_scan_list_channels(self) -> bool:
         """Query the channels in the currently programmed scan list of the
         3497xA. This can be used to e.g. populate a table view with correct
         labels. The scan list channel names will be stored in state variable
-        'state.all_scan_list_channels'.
+        'state.all_scan_list_channels' and the total number of channels in
+        'state.N_channels'.
 
         Returns: True if the query was received successfully, False otherwise.
         """
 
-        success, str_ans = self.query("rout:scan?")
-        if success:
-            tmp = str_ans[str_ans.find("@") + 1 :].strip(")")
+        success, reply = self.query("rout:scan?")
+
+        if isinstance(reply, str):
+            tmp = reply[reply.find("@") + 1 :].strip(")")
             if tmp != "":
                 self.state.all_scan_list_channels = tmp.split(",")
-        self.wait_for_OPC()
 
+        self.state.N_channels = len(self.state.all_scan_list_channels)
+
+        self.wait_for_OPC()
         return success

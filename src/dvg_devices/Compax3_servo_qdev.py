@@ -6,9 +6,10 @@ acquisition for a Compax3 traverse controller.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "28-10-2022"
-__version__ = "0.2.1"
-# pylint: disable=try-except-raise
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=missing-function-docstring, multiple-statements
+# pylint: disable=wrong-import-position
 
 import os
 import sys
@@ -39,7 +40,7 @@ if QT_LIB is None:
             pass
 
 if QT_LIB is None:
-    this_file = __file__.split(os.sep)[-1]
+    this_file = __file__.rsplit(os.sep, maxsplit=1)[-1]
     raise ImportError(
         f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
         "none of these packages could be imported."
@@ -65,13 +66,7 @@ elif QT_LIB == PYSIDE6:
 # \end[Mechanism to support both PyQt and PySide]
 # -----------------------------------------------
 
-from dvg_pyqt_controls import (
-    SS_GROUP,
-    SS_TEXTBOX_ERRORS,
-    create_error_LED,
-    create_tiny_LED,
-)
-
+import dvg_pyqt_controls as controls
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 from dvg_devices.Compax3_servo_protocol_RS232 import Compax3_servo
 
@@ -112,6 +107,7 @@ class Compax3_servo_qdev(QDeviceIO):
         **kwargs,
     ):
         super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
+        self.dev: Compax3_servo  # Enforce type: removes `_NoDevice()`
 
         self.create_worker_DAQ(
             DAQ_trigger=DAQ_TRIGGER.INTERNAL_TIMER,
@@ -157,13 +153,13 @@ class Compax3_servo_qdev(QDeviceIO):
         default_font_width = 8
 
         # Sub-groupbox: Status word 1 bits
-        self.sw1_powerless = create_tiny_LED()
-        self.sw1_powered_stationary = create_tiny_LED()
-        self.sw1_zero_pos_known = create_tiny_LED()
-        self.sw1_pos_reached = create_tiny_LED()
+        self.sw1_powerless = controls.create_tiny_LED()
+        self.sw1_powered_stationary = controls.create_tiny_LED()
+        self.sw1_zero_pos_known = controls.create_tiny_LED()
+        self.sw1_pos_reached = controls.create_tiny_LED()
 
         i = 0
-        p = {"alignment": QtCore.Qt.AlignmentFlag.AlignRight}
+        p = {"parent": None, "alignment": QtCore.Qt.AlignmentFlag.AlignRight}
         grid = QtWid.QGridLayout()
         grid.setVerticalSpacing(4)
         # fmt: off
@@ -186,30 +182,26 @@ class Compax3_servo_qdev(QDeviceIO):
         font_lbl_status = QtGui.QFont(
             "Palatino", 14, weight=QtGui.QFont.Weight.Bold
         )
-        self.lbl_status = QtWid.QLabel(
-            "OFFLINE",
-            font=font_lbl_status,
-            alignment=QtCore.Qt.AlignmentFlag.AlignCenter,
-        )
+        self.lbl_status = QtWid.QLabel("OFFLINE")
+        self.lbl_status.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.lbl_status.setFont(font_lbl_status)
         self.lbl_status.setFixedHeight(
             3 * QtGui.QFontMetrics(font_lbl_status).height()
         )
 
-        self.sw1_error_tripped = create_error_LED(text="No error")
+        self.sw1_error_tripped = controls.create_error_LED(text="No error")
         self.error_msg = QtWid.QPlainTextEdit("")
         self.error_msg.setLineWrapMode(
             QtWid.QPlainTextEdit.LineWrapMode.WidgetWidth
         )
-        self.error_msg.setStyleSheet(SS_TEXTBOX_ERRORS)
+        self.error_msg.setStyleSheet(controls.SS_TEXTBOX_ERRORS)
         self.error_msg.setMinimumWidth(22 * default_font_width)
         self.error_msg.setFixedHeight(4 * default_font_height)
         self.pbtn_ackn_error = QtWid.QPushButton("Acknowledge error")
-        self.qled_cur_pos = QtWid.QLineEdit(
-            "nan", readOnly=True, alignment=QtCore.Qt.AlignmentFlag.AlignRight
-        )
-        self.qled_new_pos = QtWid.QLineEdit(
-            "nan", readOnly=False, alignment=QtCore.Qt.AlignmentFlag.AlignRight
-        )
+        p = {"parent": None, "alignment": QtCore.Qt.AlignmentFlag.AlignRight}
+        p2 = {**p, "readOnly": True}
+        self.qlin_cur_pos = QtWid.QLineEdit("nan", **p2)
+        self.qlin_new_pos = QtWid.QLineEdit("nan", **p)
         self.pbtn_move_to_new_pos = QtWid.QPushButton("Move to new position")
         self.pbtn_move_to_new_pos.setFixedHeight(3 * default_font_height)
         self.pbtn_jog_plus = QtWid.QPushButton("Jog +")
@@ -218,7 +210,6 @@ class Compax3_servo_qdev(QDeviceIO):
         self.lbl_update_counter = QtWid.QLabel("0")
 
         i = 0
-        p = {"alignment": QtCore.Qt.AlignmentFlag.AlignRight}
         grid = QtWid.QGridLayout()
         grid.setVerticalSpacing(4)
         # fmt: off
@@ -233,10 +224,10 @@ class Compax3_servo_qdev(QDeviceIO):
 
         grid.addWidget(QtWid.QLabel("Position:")   , i, 0, 1, 3); i+=1
         grid.addWidget(QtWid.QLabel("Current")     , i, 0)
-        grid.addWidget(self.qled_cur_pos           , i, 1)
+        grid.addWidget(self.qlin_cur_pos           , i, 1)
         grid.addWidget(QtWid.QLabel("mm")          , i, 2)      ; i+=1
         grid.addWidget(QtWid.QLabel("New")         , i, 0)
-        grid.addWidget(self.qled_new_pos           , i, 1)
+        grid.addWidget(self.qlin_new_pos           , i, 1)
         grid.addWidget(QtWid.QLabel("mm")          , i, 2)      ; i+=1
 
         grid.addItem(QtWid.QSpacerItem(1, 12)      , i, 0)      ; i+=1
@@ -250,10 +241,10 @@ class Compax3_servo_qdev(QDeviceIO):
         # grid.setColumnStretch(1, 0)
         # grid.setColumnStretch(2, 0)
 
-        self.qgrp = QtWid.QGroupBox("%s" % self.dev.name)
-        self.qgrp.setStyleSheet(SS_GROUP)
+        self.qgrp = QtWid.QGroupBox(f"{self.dev.name}")
+        self.qgrp.setStyleSheet(controls.SS_GROUP)
         self.qgrp.setLayout(grid)
-        self.qgrp.setMaximumWidth(200)  # Work=around, hard limit width
+        self.qgrp.setMaximumWidth(200)  # Work-around, hard limit width
 
     # --------------------------------------------------------------------------
     #   _update_GUI
@@ -266,43 +257,38 @@ class Compax3_servo_qdev(QDeviceIO):
         members are written and read atomicly.
         Not locking the mutex might speed up the program.
         """
+        SW = self.dev.status_word_1  # Shorthand
         if self.dev.is_alive:
             # At startup
             if self.update_counter_DAQ == 1:
-                self.qled_new_pos.setText("%.2f" % self.dev.state.cur_pos)
+                self.qlin_new_pos.setText(f"{self.dev.state.cur_pos:.2f}")
 
-            if self.dev.status_word_1.powerless:
+            if SW.powerless:
                 self.lbl_status.setText("powerless")
             else:
-                if self.dev.status_word_1.powered_stationary:
+                if SW.powered_stationary:
                     self.lbl_status.setText("POWERED\nstationary")
                 else:
                     self.lbl_status.setText("POWERED")
 
-            self.sw1_error_tripped.setChecked(
-                not (self.dev.status_word_1.no_error)
-            )
-            if self.dev.status_word_1.no_error:
+            self.sw1_error_tripped.setChecked(not SW.no_error)
+            if SW.no_error:
                 self.sw1_error_tripped.setText("No error")
                 self.error_msg.setPlainText("")
                 self.error_msg.setReadOnly(False)
-                self.error_msg.setStyleSheet(SS_TEXTBOX_ERRORS)
+                self.error_msg.setStyleSheet(controls.SS_TEXTBOX_ERRORS)
             else:
                 self.sw1_error_tripped.setText("ERROR TRIPPED")
                 self.error_msg.setPlainText(self.dev.state.error_msg)
                 self.error_msg.setReadOnly(True)
-                self.error_msg.setStyleSheet(SS_TEXTBOX_ERRORS)
-            self.sw1_powerless.setChecked(self.dev.status_word_1.powerless)
-            self.sw1_powered_stationary.setChecked(
-                self.dev.status_word_1.powered_stationary
-            )
-            self.sw1_zero_pos_known.setChecked(
-                self.dev.status_word_1.zero_pos_known
-            )
-            self.sw1_pos_reached.setChecked(self.dev.status_word_1.pos_reached)
-            self.qled_cur_pos.setText("%.2f" % self.dev.state.cur_pos)
+                self.error_msg.setStyleSheet(controls.SS_TEXTBOX_ERRORS)
+            self.sw1_powerless.setChecked(bool(SW.powerless))
+            self.sw1_powered_stationary.setChecked(bool(SW.powered_stationary))
+            self.sw1_zero_pos_known.setChecked(bool(SW.zero_pos_known))
+            self.sw1_pos_reached.setChecked(bool(SW.pos_reached))
+            self.qlin_cur_pos.setText(f"{self.dev.state.cur_pos:.2f}")
 
-            self.lbl_update_counter.setText("%s" % self.update_counter_DAQ)
+            self.lbl_update_counter.setText(f"{self.update_counter_DAQ}")
         else:
             self.qgrp.setEnabled(False)
 
@@ -315,22 +301,22 @@ class Compax3_servo_qdev(QDeviceIO):
         self.send(self.dev.acknowledge_error)
 
     @Slot()
-    def process_editingFinished_qled_new_pos(self):
+    def process_editingFinished_qlin_new_pos(self):
         try:
-            new_pos = float(self.qled_new_pos.text())
+            new_pos = float(self.qlin_new_pos.text())
         except (TypeError, ValueError):
             new_pos = 0.0
-        except:
-            raise
-        self.qled_new_pos.setText("%.2f" % new_pos)
+        except Exception as e:
+            raise e
+        self.qlin_new_pos.setText(f"{new_pos:.2f}")
 
     @Slot()
     def process_pbtn_move_to_new_pos(self):
         # Double check if the value in the QLineEdit is actually numeric
         try:
-            new_pos = float(self.qled_new_pos.text())
-        except:
-            raise
+            new_pos = float(self.qlin_new_pos.text())
+        except Exception as e:
+            raise e
         self.send(self.dev.move_to_target_position, (new_pos, 2))
 
     @Slot()
@@ -368,8 +354,8 @@ class Compax3_servo_qdev(QDeviceIO):
         #        self.send_setpoint_from_textbox)
 
         self.pbtn_ackn_error.clicked.connect(self.process_pbtn_ackn_error)
-        self.qled_new_pos.editingFinished.connect(
-            self.process_editingFinished_qled_new_pos
+        self.qlin_new_pos.editingFinished.connect(
+            self.process_editingFinished_qlin_new_pos
         )
         self.pbtn_move_to_new_pos.clicked.connect(
             self.process_pbtn_move_to_new_pos

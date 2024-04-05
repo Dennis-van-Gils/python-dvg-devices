@@ -6,14 +6,14 @@ Tested on model FP51-SL.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "28-10-2022"
-__version__ = "1.0.0"
-# pylint: disable=bare-except, broad-except, bad-string-format-type
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=broad-except, missing-function-docstring, multiple-statements
 
 import time
-from typing import Union, Tuple
-import numpy as np
 import serial
+
+import numpy as np
 
 from dvg_debug_functions import print_fancy_traceback as pft
 from dvg_devices.BaseDevice import SerialDevice
@@ -29,14 +29,15 @@ DELAY_COMMAND_OUT = 0.3  # [s] 0.3 tested stable
 
 class Julabo_circulator(SerialDevice):
     class State:
-        # Container for the process and measurement variables
+        """Container for the process and measurement variables."""
+
         # fmt: off
-        version = ""         # Version of the Julabo firmware         (string)
+        version: str = ""    # Version of the Julabo firmware
                              # FP51-SL: "JULABO HIGHTECH FL HL/SL VERSION 4.0"
-        status = np.nan      # Status or error message of the Julabo  (string)
-        has_error = np.nan   # True when status is a negative number    (bool)
-        temp_unit = np.nan   # Temperature unit used by the Julabo  ("C"; "F")
-        running = np.nan     # Is the circulator running?               (bool)
+        temp_unit: str = ""  # Temperature unit used by the Julabo  ("C"; "F")
+        status   : float | str  = np.nan  # Status or error message of the Julabo
+        has_error: float | bool = np.nan  # True when status is a negative number
+        running  : float | bool = np.nan  # Is the circulator running?
 
         setpoint_preset = np.nan # Active setpoint preset in the Julabo (1; 2; 3)
         setpoint = np.nan    # Read-out temp. setpoint of active preset [C; F]
@@ -87,16 +88,20 @@ class Julabo_circulator(SerialDevice):
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> Tuple[str, str]:
+    def ID_validation_query(self) -> tuple[str, str | None]:
         # Strange Julabo quirk: The first query always times out
         try:
             self.query("VERSION")
-        except:
+        except Exception:
             pass  # Ignore the first time-out
 
         _success, reply = self.query("VERSION")
-        broad_reply = reply[:6]  # Expected: "JULABO"
-        reply_specific = reply[7:]
+        if isinstance(reply, str):
+            broad_reply = reply[:6]  # Expected: "JULABO"
+            reply_specific = reply[7:]
+        else:
+            broad_reply = ""
+            reply_specific = None
 
         return broad_reply, reply_specific
 
@@ -180,7 +185,7 @@ class Julabo_circulator(SerialDevice):
             pft(err)
             return False
 
-        if self.write_("OUT_SP_04 %.2f" % value):
+        if self.write_(f"OUT_SP_04 {value:.2f}"):
             return self.query_sub_temp()
 
         return False
@@ -203,7 +208,7 @@ class Julabo_circulator(SerialDevice):
             pft(err)
             return False
 
-        if self.write_("OUT_SP_03 %.2f" % value):
+        if self.write_(f"OUT_SP_03 {value:.2f}"):
             return self.query_over_temp()
 
         return False
@@ -228,7 +233,7 @@ class Julabo_circulator(SerialDevice):
             )
             return False
 
-        if self.write_("OUT_MODE_01 %i" % (n - 1)):
+        if self.write_(f"OUT_MODE_01 {(n - 1):d}"):
             self.state.setpoint_preset = n
             return True
 
@@ -277,7 +282,7 @@ class Julabo_circulator(SerialDevice):
             pft(err)
             return False
 
-        if self.write_("OUT_SP_00 %.2f" % value):
+        if self.write_(f"OUT_SP_00 {value:.2f}"):
             return self.query_setpoint_1()
 
         return False
@@ -299,7 +304,7 @@ class Julabo_circulator(SerialDevice):
             pft(err)
             return False
 
-        if self.write_("OUT_SP_01 %.2f" % value):
+        if self.write_(f"OUT_SP_01 {value:.2f}"):
             return self.query_setpoint_2()
 
         return False
@@ -321,7 +326,7 @@ class Julabo_circulator(SerialDevice):
             pft(err)
             return False
 
-        if self.write_("OUT_SP_02 %.2f" % value):
+        if self.write_(f"OUT_SP_02 {value:.2f}"):
             return self.query_setpoint_3()
 
         return False
@@ -336,12 +341,12 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query_("VERSION")
-        if success:
+        _success, reply = self.query_("VERSION")
+        if isinstance(reply, str):
             self.state.version = reply
             return True
 
-        self.state.version = np.nan
+        self.state.version = ""
         return False
 
     # --------------------------------------------------------------------------
@@ -354,8 +359,8 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query_("STATUS")
-        if success:
+        _success, reply = self.query_("STATUS")
+        if isinstance(reply, str):
             self.state.status = reply
 
             try:
@@ -381,13 +386,13 @@ class Julabo_circulator(SerialDevice):
 
     def query_temp_unit(self) -> bool:
         """Query the temperature unit used by the Julabo and store it in the
-        class member 'state'. Will be set to numpy.nan if unsuccessful, else
-        either "C" or "F".
+        class member 'state'. Will be set to "" if unsuccessful, else either "C"
+        or "F".
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query_("IN_SP_06")
-        if success:
+        _success, reply = self.query_("IN_SP_06")
+        if isinstance(reply, str):
             try:
                 num = int(reply)
             except (TypeError, ValueError) as err:
@@ -396,7 +401,7 @@ class Julabo_circulator(SerialDevice):
                 self.state.temp_unit = "C" if num == 0 else "F"
                 return True
 
-        self.state.temp_unit = np.nan
+        self.state.temp_unit = ""
         return False
 
     # --------------------------------------------------------------------------
@@ -409,8 +414,8 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query_("IN_MODE_05")
-        if success:
+        _success, reply = self.query_("IN_MODE_05")
+        if isinstance(reply, str):
             try:
                 ans = bool(int(reply))
             except (TypeError, ValueError) as err:
@@ -432,8 +437,8 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query_("IN_SP_04")
-        if success:
+        _success, reply = self.query_("IN_SP_04")
+        if isinstance(reply, str):
             try:
                 num = float(reply)
             except (TypeError, ValueError) as err:
@@ -455,8 +460,8 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query_("IN_SP_03")
-        if success:
+        _success, reply = self.query_("IN_SP_03")
+        if isinstance(reply, str):
             try:
                 num = float(reply)
             except (TypeError, ValueError) as err:
@@ -478,8 +483,8 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query_("IN_PV_04")
-        if success:
+        _success, reply = self.query_("IN_PV_04")
+        if isinstance(reply, str):
             try:
                 num = float(reply)
             except (TypeError, ValueError) as err:
@@ -501,8 +506,8 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query_("IN_PV_03")
-        if success:
+        _success, reply = self.query_("IN_PV_03")
+        if isinstance(reply, str):
             try:
                 num = float(reply)
             except (TypeError, ValueError) as err:
@@ -525,8 +530,8 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query_("IN_MODE_01")
-        if success:
+        _success, reply = self.query_("IN_MODE_01")
+        if isinstance(reply, str):
             try:
                 num = int(reply)
             except (TypeError, ValueError) as err:
@@ -573,8 +578,8 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query_("IN_SP_00")
-        if success:
+        _success, reply = self.query_("IN_SP_00")
+        if isinstance(reply, str):
             try:
                 num = float(reply)
             except (TypeError, ValueError) as err:
@@ -596,8 +601,8 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query_("IN_SP_01")
-        if success:
+        _success, reply = self.query_("IN_SP_01")
+        if isinstance(reply, str):
             try:
                 num = float(reply)
             except (TypeError, ValueError) as err:
@@ -619,8 +624,8 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query_("IN_SP_02")
-        if success:
+        _success, reply = self.query_("IN_SP_02")
+        if isinstance(reply, str):
             try:
                 num = float(reply)
             except (TypeError, ValueError) as err:
@@ -642,8 +647,8 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query_("IN_PV_00")
-        if success:
+        _success, reply = self.query_("IN_PV_00")
+        if isinstance(reply, str):
             try:
                 num = float(reply)
             except (TypeError, ValueError) as err:
@@ -666,8 +671,8 @@ class Julabo_circulator(SerialDevice):
 
         Returns: True if successful, False otherwise.
         """
-        success, reply = self.query_("IN_PV_02")
-        if success:
+        _success, reply = self.query_("IN_PV_02")
+        if isinstance(reply, str):
             if reply == "---.--":  # Not connected
                 self.state.pt100_temp = np.nan
                 return True
@@ -726,26 +731,29 @@ class Julabo_circulator(SerialDevice):
 
         # Print to terminal
         print(self.state.version)
-        print("%-*s: %-*s" % (w1, "Temp. unit", w2, C.temp_unit), end="")
-        print("%-*s: #%-*s" % (w1, "Sel. setp.", w2, C.setpoint_preset))
-        print("%-*s: %-*.2f" % (w1, "Sub temp.", w2, C.sub_temp), end="")
-        print("%-*s: %-*.2f" % (w1, "Over temp.", w2, C.over_temp))
-        print("%-*s  %-*s" % (w1, "", w2, ""), end="")
-        print("%-*s: %-*.2f" % (w1, "Safe temp.", w2, C.safe_temp))
+        print(f"{'Temp. unit':<{w1}s}: {C.temp_unit:<{w2}s}", end="")
+        print(f"{'Sel. setp.':<{w1}s}: {C.setpoint_preset:<{w2}.0f}")
+        print(f"{'Sub temp.':<{w1}s}: {C.sub_temp:<{w2}.2f}", end="")
+        print(f"{'Over temp.':<{w1}s}: {C.over_temp:<{w2}.2f}")
+        print(f"{'':<{w1}s}  {'':<{w2}s}", end="")
+        print(f"{'Safe temp.':<{w1}s}: {C.safe_temp:<{w2}.2f}")
         print()
-        print("%s" % ("--> RUNNING <--" if C.running else "IDLE"))
-        print("%-*s: %-*.2f" % (w1, "Setpoint", w2, C.setpoint), end="")
-        print("%-*s: %-*.2f" % (w1, "Bath temp.", w2, C.bath_temp))
-        print("%-*s: %-*.2f" % (w1, "Safe sens", w2, C.safe_sens), end="")
-        print("%-*s: %-*.2f" % (w1, "Pt100", w2, C.pt100_temp))
+        if not isinstance(C.running, bool):
+            print("COMMUNICATION ERROR")
+        else:
+            print("--> RUNNING <--" if C.running else "IDLE")
+        print(f"{'Setpoint':<{w1}s}: {C.setpoint:<{w2}.2f}", end="")
+        print(f"{'Bath temp.':<{w1}s}: { C.bath_temp:<{w2}.2f}")
+        print(f"{'Safe sens':<{w1}s}: {C.safe_sens:<{w2}.2f}", end="")
+        print(f"{'Pt100':<{w1}s}: {C.pt100_temp:<{w2}.2f}")
         print()
-        print("Status msg: %s" % C.status)
+        print(f"Status msg: {C.status}")
 
     # --------------------------------------------------------------------------
     #   query_
     # --------------------------------------------------------------------------
 
-    def query_(self, *args, **kwargs) -> Tuple[bool, Union[str, bytes, None]]:
+    def query_(self, *args, **kwargs) -> tuple[bool, str | bytes | None]:
         """Wrapper for :meth:`dvg_qdevices.query` to add enforcing of time gaps
         between commands as per the Julabo manual.
 
@@ -860,23 +868,23 @@ if __name__ == "__main__":
             if msvcrt.kbhit():
                 key = msvcrt.getch()
 
-                if key == b"q" or key == b"Q":
+                if key in (b"q", b"Q"):
                     print("\nAre you sure you want to quit [y/n]?")
                     if msvcrt.getch() == b"y":
                         print("Switching off Julabo and quitting.")
                         done = True
 
-                elif key == b"s" or key == b"S":
-                    send_setpoint = input("\nEnter new setpoint: ")
+                elif key in (b"s", b"S"):
+                    user_input = input("\nEnter new setpoint: ")
 
                     try:
-                        send_setpoint = float(send_setpoint)
-                    except:
+                        send_setpoint = float(user_input)
+                    except Exception:
                         print("Error: Could not parse float value.")
                     else:
                         do_send_setpoint = True
 
-                elif key == b"o" or key == b"O":
+                elif key in (b"o", b"O"):
                     if julabo.state.running:
                         julabo.turn_off()
                     else:

@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
+"""Ethernet UDP function library for a Picotech PT-104 pt100/1000 temperature
+logger.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "14-09-2022"
-__version__ = "1.0.0"
-# pylint: disable=try-except-raise
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=missing-function-docstring, multiple-statements
 
 import socket
 import numpy as np
@@ -37,67 +38,65 @@ R_MAX = 3760    # [Ohm]
 # 'scan_4_wire_temperature' will break.
 SOCKET_TIMEOUT = 0.5  # 0.5 [s]
 
-DEBUG = False
-
 
 class Picotech_PT104:
     class Eeprom:
         # Container for the PT-104 specific values retreived from its memory
         # fmt: off
-        serial     = None
-        calib_date = None
-        ch1_calib  = None
-        ch2_calib  = None
-        ch3_calib  = None
-        ch4_calib  = None
-        MAC        = None
-        checksum   = None
+        serial    : str = ""
+        calib_date: str = ""
+        ch1_calib : int = 0
+        ch2_calib : int = 0
+        ch3_calib : int = 0
+        ch4_calib : int = 0
+        MAC       : str = ""
+        checksum  : str = ""
         # fmt: on
 
     class State:
         # Container for the process and measurement variables
         # Resistance readings of channels 1 to 4 [Ohm]
-        ch1_R = np.nan
-        ch2_R = np.nan
-        ch3_R = np.nan
-        ch4_R = np.nan
+        ch1_R: float = np.nan
+        ch2_R: float = np.nan
+        ch3_R: float = np.nan
+        ch4_R: float = np.nan
         # Temperature readings of channels 1 to 4 ['C]
-        ch1_T = np.nan
-        ch2_T = np.nan
-        ch3_T = np.nan
-        ch4_T = np.nan
+        ch1_T: float = np.nan
+        ch2_T: float = np.nan
+        ch3_T: float = np.nan
+        ch4_T: float = np.nan
 
     # --------------------------------------------------------------------------
     #   __init__
     # --------------------------------------------------------------------------
 
-    def __init__(self, name="PT104"):
-        self.name = name
-        self._ip_address = None
-        self._port = None
-        self._sock = None
+    def __init__(self, name: str = "PT104"):
+        self.name: str = name
+        self._ip_address: str = ""
+        self._port: int = 0
+        self._sock: socket.socket | None = None
         self._eeprom = self.Eeprom()
 
         # List corresponding to channels 1 to 4, where
         #    0: channel off
         #    1: channel on
-        self._ENA_channels = [0, 0, 0, 0]
+        self._ENA_channels: list[int] = [0, 0, 0, 0]
 
         # List corresponding to channels 1 to 4, where
         #    0: 1x gain
         #    1: 21x gain (for 375 Ohm range)
-        self._gain_channels = [0, 0, 0, 0]
+        self._gain_channels: list[int] = [0, 0, 0, 0]
 
         # Resistance at 0 'C of channels 1 to 4 [Ohm]
         # For a PT100  probe this should be 100.000 Ohm
         # For a PT1000 probe this should be 1000.000 Ohm
-        self.ch1_R_0 = 100
-        self.ch2_R_0 = 100
-        self.ch3_R_0 = 100
-        self.ch4_R_0 = 100
+        self.ch1_R_0: float = 100.0
+        self.ch2_R_0: float = 100.0
+        self.ch3_R_0: float = 100.0
+        self.ch4_R_0: float = 100.0
 
         # Is the connection to the device alive?
-        self.is_alive = False
+        self.is_alive: bool = False
 
         # Container for the measurement variables
         self.state = self.State()
@@ -107,14 +106,16 @@ class Picotech_PT104:
     # --------------------------------------------------------------------------
 
     def close(self):
-        self._sock.close()
+        if self._sock is not None:
+            self._sock.close()
+
         self.is_alive = False
 
     # --------------------------------------------------------------------------
     #   connect
     # --------------------------------------------------------------------------
 
-    def connect(self, ip_address="10.10.100.2", port=1234):
+    def connect(self, ip_address: str = "10.10.100.2", port: int = 1234):
         """
         Returns: True if successful, False otherwise.
         """
@@ -122,7 +123,7 @@ class Picotech_PT104:
         self._port = port
 
         print("Connect to: PicoTech PT-104")
-        print("  @ ip=%s:%i : " % (ip_address, port), end="")
+        print(f"  @ ip={ip_address}:{port} : ", end="")
 
         # Open UDP socket
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -144,7 +145,7 @@ class Picotech_PT104:
     #   begin
     # --------------------------------------------------------------------------
 
-    def begin(self):
+    def begin(self) -> bool:
         """
         Returns: True if successful, False otherwise.
         """
@@ -156,54 +157,66 @@ class Picotech_PT104:
     #   UDP_send
     # --------------------------------------------------------------------------
 
-    def UDP_send(self, msg_bytes):
+    def UDP_send(self, msg_bytes: bytes):
         """
         msg_bytes (bytes): Message to be sent over the UDP port.
         """
-        self._sock.sendto(msg_bytes, (self._ip_address, self._port))
+        if self._sock is not None:
+            self._sock.sendto(msg_bytes, (self._ip_address, self._port))
 
     # --------------------------------------------------------------------------
     #   UDP_recv
     # --------------------------------------------------------------------------
 
-    def UDP_recv(self):
+    def UDP_recv(self) -> tuple[bool, bytes | None]:
         """Receive one UDP packet at a time when available.
 
         Returns:
             success (bool):
                 True if a packet was received successfully, False otherwise.
 
-            ans_bytes:
+            reply:
                 UDP packet received from the device. None if unsuccessful.
         """
         success = False
-        ans_bytes = None
+        reply = None
 
-        try:
-            ans_bytes = self._sock.recv(4096)
-            success = True
-        except socket.timeout:
-            # print("ERROR: socket.recv() timed out in query()")
-            pass  # Stay silent and continue
-        except:
-            raise
+        if self._sock is not None:
+            try:
+                reply = self._sock.recv(4096)
+                success = True
+            except socket.timeout:
+                # print("ERROR: socket.recv() timed out in query()")
+                pass  # Stay silent and continue
+            except Exception as err:
+                raise err
 
-        return success, ans_bytes
+        return success, reply
 
     # --------------------------------------------------------------------------
     #   UDP_query_and_check
     # --------------------------------------------------------------------------
 
-    def UDP_query_and_check(self, msg_bytes, check_ans_bytes):
+    def UDP_query_and_check(
+        self,
+        msg_bytes: bytes,
+        check_reply_bytes: bytes,
+    ) -> tuple[bool, bytes | None]:
         """
         Args:
             msg_bytes (bytes):
                 Message to be sent over the UDP port.
 
+            check_reply_bytes (bytes):
+                Compare the reply received from the device against these bytes.
+                When the reply matches the check, we call it a success,
+                otherwise not.
+
         Returns:
             success (bool):
                 True if successful, False otherwise.
-            ans_bytes (bytes):
+
+            reply (bytes):
                 Reply received from the device. None if unsuccessful.
         """
         self.UDP_send(msg_bytes)
@@ -211,12 +224,12 @@ class Picotech_PT104:
         # Try up to 3 times at maximum to receive the respective response
         # UDP packet belonging to above sent UDP packet.
         for _i in range(3):
-            success, ans_bytes = self.UDP_recv()
-            if success:
-                if ans_bytes[: len(check_ans_bytes)] == check_ans_bytes:
-                    return True, ans_bytes
+            _success, reply = self.UDP_recv()
+            if isinstance(reply, bytes):
+                if reply[: len(check_reply_bytes)] == check_reply_bytes:
+                    return True, reply
 
-                print("Failed %s: received %s" % (msg_bytes, ans_bytes))
+                print(f"Failed {msg_bytes}: received {reply}")
 
         return False, None
 
@@ -225,43 +238,43 @@ class Picotech_PT104:
     #   Will return True when successful, False when failed
     # --------------------------------------------------------------------------
 
-    def lock(self):
-        success, _ans = self.UDP_query_and_check(b"lock\r", b"Lock Success")
+    def lock(self) -> bool:
+        success, _reply = self.UDP_query_and_check(b"lock\r", b"Lock Success")
         return success
 
-    def set_mains_rejection_50Hz(self):
-        success, _ans = self.UDP_query_and_check(
+    def set_mains_rejection_50Hz(self) -> bool:
+        success, _reply = self.UDP_query_and_check(
             bytes([0x30, 0x00]), b"Mains Changed"
         )
         return success
 
-    def set_mains_rejection_60Hz(self):
-        success, _ans = self.UDP_query_and_check(
+    def set_mains_rejection_60Hz(self) -> bool:
+        success, _reply = self.UDP_query_and_check(
             bytes([0x30, 0x01]), b"Mains Changed"
         )
         return success
 
-    def keep_alive(self):
-        success, _ans = self.UDP_query_and_check(bytes([0x34]), b"Alive")
+    def keep_alive(self) -> bool:
+        success, _reply = self.UDP_query_and_check(bytes([0x34]), b"Alive")
         if not success:
             print("PT104 is not alive anymore.")
         return success
 
-    def read_EEPROM(self):
-        success, ans = self.UDP_query_and_check(bytes([0x32]), b"Eeprom")
+    def read_EEPROM(self) -> bool:
+        _success, reply = self.UDP_query_and_check(bytes([0x32]), b"Eeprom")
 
-        if success:
+        if isinstance(reply, bytes):
             # Parse
             # fmt: off
-            ans        = ans[7:]   # Discard the first 7 bytes reading 'Eeprom='
-            serial     = ans[19:29].decode("UTF8")
-            calib_date = ans[29:37].decode("UTF8")
-            ch1_calib  = int.from_bytes(ans[37:41], byteorder="little")
-            ch2_calib  = int.from_bytes(ans[41:45], byteorder="little")
-            ch3_calib  = int.from_bytes(ans[45:49], byteorder="little")
-            ch4_calib  = int.from_bytes(ans[49:53], byteorder="little")
-            MAC        = ":".join("%02x" % b for b in ans[53:59])
-            checksum   = " ".join("0x%02x" % b for b in ans[126:128])
+            reply      = reply[7:]  # Discard first 7 bytes reading 'Eeprom='
+            serial     = reply[19:29].decode("UTF8")
+            calib_date = reply[29:37].decode("UTF8")
+            ch1_calib  = int.from_bytes(reply[37:41], byteorder="little")
+            ch2_calib  = int.from_bytes(reply[41:45], byteorder="little")
+            ch3_calib  = int.from_bytes(reply[45:49], byteorder="little")
+            ch4_calib  = int.from_bytes(reply[49:53], byteorder="little")
+            MAC        = ":".join(f"{b:02x}" for b in reply[53:59])
+            checksum   = " ".join(f"0x{b:02x}" for b in reply[126:128])
 
             self._eeprom.serial     = serial
             self._eeprom.calib_date = calib_date
@@ -276,7 +289,11 @@ class Picotech_PT104:
 
         return False
 
-    def start_conversion(self, ENA_channels=None, gain_channels=None):
+    def start_conversion(
+        self,
+        ENA_channels: list[int] | None = None,
+        gain_channels: list[int] | None = None,
+    ) -> bool:
         """
         Starts the continuous acquisition of measurements over channels 1 to 4
         ENA_channel is a list corresponding to channels 1 to 4, where
@@ -298,12 +315,12 @@ class Picotech_PT104:
         data_byte += self._ENA_channels[1] * 2
         data_byte += self._ENA_channels[2] * 4
         data_byte += self._ENA_channels[3] * 8
-        data_byte += gain_channels[0] * 16
-        data_byte += gain_channels[1] * 32
-        data_byte += gain_channels[2] * 64
-        data_byte += gain_channels[3] * 128
+        data_byte += self._gain_channels[0] * 16
+        data_byte += self._gain_channels[1] * 32
+        data_byte += self._gain_channels[2] * 64
+        data_byte += self._gain_channels[3] * 128
 
-        success, _ans = self.UDP_query_and_check(
+        success, _reply = self.UDP_query_and_check(
             bytes([0x31, data_byte]), b"Converting"
         )
         return success
@@ -314,20 +331,20 @@ class Picotech_PT104:
 
     def report_EEPROM(self):
         print("EEPROM")
-        print("  serial    : %s" % self._eeprom.serial)
-        print("  calib_date: %s" % self._eeprom.calib_date)
-        print("  ch1_calib : %s" % self._eeprom.ch1_calib)
-        print("  ch2_calib : %s" % self._eeprom.ch2_calib)
-        print("  ch3_calib : %s" % self._eeprom.ch3_calib)
-        print("  ch4_calib : %s" % self._eeprom.ch4_calib)
-        print("  MAC       : %s" % self._eeprom.MAC)
-        print("  checksum  : %s" % self._eeprom.checksum)
+        print(f"  serial    : {self._eeprom.serial}")
+        print(f"  calib_date: {self._eeprom.calib_date}")
+        print(f"  ch1_calib : {self._eeprom.ch1_calib}")
+        print(f"  ch2_calib : {self._eeprom.ch2_calib}")
+        print(f"  ch3_calib : {self._eeprom.ch3_calib}")
+        print(f"  ch4_calib : {self._eeprom.ch4_calib}")
+        print(f"  MAC       : {self._eeprom.MAC}")
+        print(f"  checksum  : {self._eeprom.checksum}")
 
     # --------------------------------------------------------------------------
     #   scan_4_wire_temperature
     # --------------------------------------------------------------------------
 
-    def scan_4_wire_temperature(self):
+    def scan_4_wire_temperature(self) -> bool:
         """Reads the UDP port for any message, presumably the measurement of the
         channels reported by the PT104, after conversion has initiated.
         These readings are transformed into resistance (Ohm) using the
@@ -341,21 +358,20 @@ class Picotech_PT104:
         ## Send keep alive signal. We care about the reply later.
         self.UDP_send(bytes([0x34]))
 
-        success, ans = self.UDP_recv()
-        while success:
-            if ans[0] == 0 or ans[0] == 4 or ans[0] == 8 or ans[0] == 12:
+        _success, reply = self.UDP_recv()
+        while isinstance(reply, bytes):
+            if (
+                reply[0] == 0
+                or reply[0] == 4
+                or reply[0] == 8
+                or reply[0] == 12
+            ):
                 # Packet containing temperature reading
-
-                ch = (
-                    ans[0] / 4 + 1
-                )  # Determine the channel number being reported
-                a_0 = int.from_bytes(ans[1:5], byteorder="big")
-                a_1 = int.from_bytes(ans[6:10], byteorder="big")
-                a_2 = int.from_bytes(ans[11:15], byteorder="big")
-                a_3 = int.from_bytes(ans[16:20], byteorder="big")
-
-                if DEBUG:
-                    print("CH %i" % ch)
+                ch = int(reply[0]) / 4 + 1
+                a_0 = int.from_bytes(reply[1:5], byteorder="big")
+                a_1 = int.from_bytes(reply[6:10], byteorder="big")
+                a_2 = int.from_bytes(reply[11:15], byteorder="big")
+                a_3 = int.from_bytes(reply[16:20], byteorder="big")
 
                 # fmt: off
                 if   ch==1: calib = self._eeprom.ch1_calib; R_0 = self.ch1_R_0
@@ -390,17 +406,17 @@ class Picotech_PT104:
                 elif ch == 4: self.state.ch4_R = R_T; self.state.ch4_T = T
                 # fmt: on
 
-            elif ans[:5] == b"Alive":
+            elif reply[:5] == b"Alive":
                 # Packet containing alive response. Stay silent.
                 pass
 
             else:
                 # Other packet?
-                print("  %s" % ans)
+                print(f"  {reply}")
                 return False
 
             # Receive a possible next packet from the UDP in-buffer
-            success, ans = self.UDP_recv()
+            _success, reply = self.UDP_recv()
 
         # No more packets
         return True
@@ -420,7 +436,7 @@ def ITS90_degC_to_Ohm(R_0, T):
     # A = 3.9083e-3
     # B = -5.775e-7
     # C = -4.183e-12  # when below 0 'C, C = 0 when above 0 'C
-    return R_0 * (1 + A * T + B * T ** 2 + C * (T - 100) * T ** 3)
+    return R_0 * (1 + A * T + B * T**2 + C * (T - 100) * T**3)
 
 
 def ITS90_Ohm_to_degC(R_0, R_T):
@@ -436,11 +452,11 @@ def ITS90_Ohm_to_degC(R_0, R_T):
     if R_T >= R_0:
         # We are in the range T >= 0'C
         # Hence, simply solve quadratic equation because C = 0
-        sqrt_arg = A ** 2 - 4 * B * (1 - R_T / R_0)
+        sqrt_arg = A**2 - 4 * B * (1 - R_T / R_0)
         if sqrt_arg < 0:
             return np.nan
-        else:
-            T = (-A + np.sqrt(sqrt_arg)) / (2 * B)
+
+        T = (-A + np.sqrt(sqrt_arg)) / (2 * B)
 
     else:
         # We are in the range T < 0'C, hence we need to solve a quartic
@@ -481,7 +497,7 @@ def ITS90_Ohm_to_degC(R_0, R_T):
             if i > MAX_ITER:
                 print(
                     "WARNING: Loop in ITS90_Ohm_to_degC() terminated after "
-                    "%d iterations" % MAX_ITER
+                    f"{MAX_ITER} iterations"
                 )
                 break
 
@@ -489,9 +505,10 @@ def ITS90_Ohm_to_degC(R_0, R_T):
         T = T_g
 
     if T > T_MAX:
-        print("WARNING: Temperature is out of range because > %.0f 'C" % T_MAX)
+        print(f"WARNING: Temperature is out of range because > {T_MAX:.0f} 'C")
+
     elif T <= T_MIN + 1e-4:
-        print("WARNING: Temperature is out of range because <= %.0f 'C" % T_MIN)
+        print(f"WARNING: Temperature is out of range because <= {T_MIN:.0f} 'C")
 
     return T
 
@@ -501,9 +518,8 @@ def ITS90_Ohm_to_degC(R_0, R_T):
 # ------------------------------------------------------------------------------
 
 
-def print_as_hex(byte_list):
-    list(map(lambda x: print(format(x, "02x"), end=" "), byte_list))
-    print()
+def pretty_bytes_to_hex(values: bytes) -> str:
+    return " ".join(f"{b:02x}" for b in values)
 
 
 # ------------------------------------------------------------------------------
@@ -529,7 +545,8 @@ if __name__ == "__main__":
 
     # Start the conversion (DAQ)
     if pt104.start_conversion(
-        ENA_channels=[1, 1, 0, 0], gain_channels=[1, 1, 0, 0]
+        ENA_channels=[1, 1, 0, 0],
+        gain_channels=[1, 1, 0, 0],
     ):
         print("\nConverting")
     else:
@@ -539,4 +556,4 @@ if __name__ == "__main__":
     print("\nT1 ['C]\tT2 ['C]")
     while 1:
         pt104.scan_4_wire_temperature()
-        print("\r%.3f\t%.3f" % (pt104.state.ch1_T, pt104.state.ch2_T), end="")
+        print(f"\r{pt104.state.ch1_T:.3f}\t{pt104.state.ch2_T:.3f}", end="")

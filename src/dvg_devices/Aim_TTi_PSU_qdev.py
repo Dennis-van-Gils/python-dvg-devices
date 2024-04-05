@@ -6,9 +6,10 @@ acquisition for an Aim TTi power supply unit (PSU), QL series II.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "28-10-2022"
-__version__ = "1.0.0"
-# pylint: disable=bare-except, broad-except, try-except-raise
+__date__ = "04-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=broad-except, missing-function-docstring, multiple-statements
+# pylint: disable=wrong-import-position
 
 import os
 import sys
@@ -40,7 +41,7 @@ if QT_LIB is None:
             pass
 
 if QT_LIB is None:
-    this_file = __file__.split(os.sep)[-1]
+    this_file = __file__.rsplit(os.sep, maxsplit=1)[-1]
     raise ImportError(
         f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
         "none of these packages could be imported."
@@ -124,6 +125,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
         **kwargs,
     ):
         super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
+        self.dev: Aim_TTi_PSU  # Enforce type: removes `_NoDevice()`
 
         self.create_worker_DAQ(
             DAQ_trigger=DAQ_trigger,
@@ -169,7 +171,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
 
         if DEBUG_local:
             tock = time.perf_counter()
-            dprint("%s: done in %i" % (self.dev.name, tock - tick))
+            dprint(f"{self.dev.name}: done in {tock - tick}")
 
         return True
 
@@ -309,7 +311,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
         # grid.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         self.grid = grid
 
-        self.grpb = QtWid.QGroupBox("%s" % self.dev.name)
+        self.grpb = QtWid.QGroupBox(f"{self.dev.name}")
         self.grpb.setLayout(self.grid)
 
     # --------------------------------------------------------------------------
@@ -328,9 +330,9 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
                 self.I_meas.setText("tripped")
                 self.P_meas.setText("")
             else:
-                self.V_meas.setText("%6.3f V" % self.dev.state.V_meas)
-                self.I_meas.setText("%6.3f A" % self.dev.state.I_meas)
-                self.P_meas.setText("%6.3f W" % self.dev.state.P_meas)
+                self.V_meas.setText(f"{self.dev.state.V_meas:6.3f} V")
+                self.I_meas.setText(f"{self.dev.state.I_meas:6.3f} A")
+                self.P_meas.setText(f"{self.dev.state.P_meas:6.3f} W")
 
             self.pbtn_ENA_output.setChecked(self.dev.state.ENA_output)
             if self.pbtn_ENA_output.isChecked():
@@ -345,7 +347,7 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
             self.status_LSR_MODE_CC.setChecked(self.dev.state.LSR_MODE_CC)
             self.status_LSR_MODE_CV.setChecked(self.dev.state.LSR_MODE_CV)
 
-            self.lbl_update_counter.setText("%s" % self.update_counter_DAQ)
+            self.lbl_update_counter.setText(f"{self.update_counter_DAQ}")
         else:
             self.V_meas.setText("")
             self.I_meas.setText("Offline")
@@ -361,22 +363,22 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
     @Slot(int)
     def update_GUI_input_field(self, GUI_input_field=GUI_input_fields.ALL):
         if GUI_input_field == GUI_input_fields.V_source:
-            self.V_source.setText("%.3f" % self.dev.state.V_source)
+            self.V_source.setText(f"{self.dev.state.V_source:.3f}")
 
         elif GUI_input_field == GUI_input_fields.I_source:
-            self.I_source.setText("%.3f" % self.dev.state.I_source)
+            self.I_source.setText(f"{self.dev.state.I_source:.3f}")
 
         elif GUI_input_field == GUI_input_fields.OVP_level:
-            self.OVP_level.setText("%.1f" % self.dev.state.OVP_level)
+            self.OVP_level.setText(f"{self.dev.state.OVP_level:.1f}")
 
         elif GUI_input_field == GUI_input_fields.OCP_level:
-            self.OCP_level.setText("%.2f" % self.dev.state.OCP_level)
+            self.OCP_level.setText(f"{self.dev.state.OCP_level:.2f}")
 
         else:
-            self.V_source.setText("%.3f" % self.dev.state.V_source)
-            self.I_source.setText("%.3f" % self.dev.state.I_source)
-            self.OVP_level.setText("%.1f" % self.dev.state.OVP_level)
-            self.OCP_level.setText("%.2f" % self.dev.state.OCP_level)
+            self.V_source.setText(f"{self.dev.state.V_source:.3f}")
+            self.I_source.setText(f"{self.dev.state.I_source:.3f}")
+            self.OVP_level.setText(f"{self.dev.state.OVP_level:.1f}")
+            self.OCP_level.setText(f"{self.dev.state.OCP_level:.2f}")
 
     # --------------------------------------------------------------------------
     #   GUI functions
@@ -397,40 +399,43 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
 
     @Slot()
     def process_pbtn_save_settings(self):
-        str_title = "Save settings %s" % self.dev.name
-        str_msg = (
+        title = f"Save settings {self.dev.name}"
+        msg = (
             "This will save the following settings to file:\n"
             "  - source voltage\n"
             "  - source current\n"
             "  - OVP (over-voltage protection)\n"
             "  - OCP (over-current protection)"
         )
-        reply = QtWid.QMessageBox.information(
-            None,
-            str_title,
-            str_msg,
-            QtWid.QMessageBox.Cancel | QtWid.QMessageBox.Ok,
-            QtWid.QMessageBox.Cancel,
+        msgbox = QtWid.QMessageBox()
+        msgbox.setIcon(QtWid.QMessageBox.Icon.Information)
+        msgbox.setWindowTitle(title)
+        msgbox.setText(msg)
+        msgbox.setStandardButtons(
+            QtWid.QMessageBox.StandardButton.Cancel
+            | QtWid.QMessageBox.StandardButton.Ok
         )
+        msgbox.setDefaultButton(QtWid.QMessageBox.StandardButton.Cancel)
+        reply = msgbox.exec()
 
-        if reply == QtWid.QMessageBox.Ok:
+        if reply == QtWid.QMessageBox.StandardButton.Ok:
             if self.dev.write_config_file():
-                QtWid.QMessageBox.information(
-                    None,
-                    str_title,
-                    "Successfully saved to disk:\n%s" % self.dev.path_config,
-                )
+                icon = QtWid.QMessageBox.Icon.Information
+                msg = f"Successfully saved to disk:\n{self.dev.path_config}"
             else:
-                QtWid.QMessageBox.critical(
-                    None,
-                    str_title,
-                    "Failed to save to disk:\n%s" % self.dev.path_config,
-                )
+                icon = QtWid.QMessageBox.Icon.Critical
+                msg = f"Failed to save to disk:\n{self.dev.path_config}"
+
+            msgbox = QtWid.QMessageBox()
+            msgbox.setIcon(icon)
+            msgbox.setWindowTitle(title)
+            msgbox.setText(msg)
+            msgbox.exec()
 
     @Slot()
     def process_pbtn_load_settings(self):
-        str_title = "Load settings %s" % self.dev.name
-        str_msg = (
+        title = f"Load settings {self.dev.name}"
+        msg = (
             "This will reset the power supply and\n"
             "load the following settings from file:\n"
             "  - source voltage\n"
@@ -438,15 +443,18 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
             "  - OVP (over-voltage protection)\n"
             "  - OCP (over-current protection)"
         )
-        reply = QtWid.QMessageBox.question(
-            None,
-            str_title,
-            str_msg,
-            QtWid.QMessageBox.Cancel | QtWid.QMessageBox.Ok,
-            QtWid.QMessageBox.Cancel,
+        msgbox = QtWid.QMessageBox()
+        msgbox.setIcon(QtWid.QMessageBox.Icon.Question)
+        msgbox.setWindowTitle(title)
+        msgbox.setText(msg)
+        msgbox.setStandardButtons(
+            QtWid.QMessageBox.StandardButton.Cancel
+            | QtWid.QMessageBox.StandardButton.Ok
         )
+        msgbox.setDefaultButton(QtWid.QMessageBox.StandardButton.Cancel)
+        reply = msgbox.exec()
 
-        if reply == QtWid.QMessageBox.Ok:
+        if reply == QtWid.QMessageBox.StandardButton.Ok:
             self.dev.read_config_file()
             self.add_to_jobs_queue(self.dev.reinitialize)
             self.add_to_jobs_queue(
@@ -460,8 +468,8 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
             voltage = float(self.V_source.text())
         except (TypeError, ValueError):
             voltage = 0.0
-        except:
-            raise
+        except Exception as e:
+            raise e
 
         if voltage < 0:
             voltage = 0
@@ -479,8 +487,8 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
             current = float(self.I_source.text())
         except (TypeError, ValueError):
             current = 0.0
-        except:
-            raise
+        except Exception as e:
+            raise e
 
         if current < 0:
             current = 0
@@ -498,8 +506,8 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
             OVP_level = float(self.OVP_level.text())
         except (TypeError, ValueError):
             OVP_level = 0.0
-        except:
-            raise
+        except Exception as e:
+            raise e
 
         self.add_to_jobs_queue(self.dev.set_OVP_level, OVP_level)
         self.add_to_jobs_queue(self.dev.query_OVP_level)
@@ -514,8 +522,8 @@ class Aim_TTi_PSU_qdev(QDeviceIO):
             OCP_level = float(self.OCP_level.text())
         except (TypeError, ValueError):
             OCP_level = 0.0
-        except:
-            raise
+        except Exception as e:
+            raise e
 
         self.add_to_jobs_queue(self.dev.set_OCP_level, OCP_level)
         self.add_to_jobs_queue(self.dev.query_OCP_level)

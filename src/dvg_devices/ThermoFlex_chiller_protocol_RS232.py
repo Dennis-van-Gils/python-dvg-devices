@@ -15,12 +15,11 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "14-09-2022"
-__version__ = "1.0.0"
-# pylint: disable=bare-except, broad-except, try-except-raise
+__date__ = "05-04-2024"
+__version__ = "1.4.0"
+# pylint: disable=missing-function-docstring, broad-except
 
 import sys
-from typing import Union, Tuple
 import time
 
 import numpy as np
@@ -29,7 +28,7 @@ from dvg_debug_functions import print_fancy_traceback as pft
 from dvg_devices.BaseDevice import SerialDevice
 
 # RS232 header of binary serial communication
-RS232_START = [0xCA, 0x00, 0x01]
+RS232_START = b"\xCA\x00\x01"
 
 
 class Unit_of_measure:
@@ -41,7 +40,7 @@ class Unit_of_measure:
     GPM     = 4     # Flow in gallons per minute
     sec     = 5     # Time in seconds
     PSI     = 6     # Pressure in pounds per square inch
-    bar     = 7     # Pressure in bars
+    bar     = 7     # Pressure in bars  # pylint: disable=disallowed-name
     MOhm_cm = 8     # Resistivity in mega-Ohms per centimeter
     percent = 9     # Percentage
     Volt    = 10    # Voltage in Volts
@@ -64,63 +63,63 @@ class ThermoFlex_chiller(SerialDevice):
     # fmt: off
     class Units:
         # Container for the units used and expected by the chiller
-        temp = np.nan       # Unit of measure index for the temperature
-        flow = np.nan       # Unit of measure index for the flow rate
-        pres = np.nan       # Unit of measure index for the pressure
+        temp: float = np.nan  # Unit of measure index for the temperature
+        flow: float = np.nan  # Unit of measure index for the flow rate
+        pres: float = np.nan  # Unit of measure index for the pressure
 
     class Values_alarm:
         # Container for the alarm values
-        LO_temp = np.nan    # Low temperature limit  ['C]
-        HI_temp = np.nan    # High temperature limit ['C]
-        LO_flow = np.nan    # Low flow rate limit    [LPM]
-        HI_flow = np.nan    # High flow rate limit   [LPM]
-        LO_pres = np.nan    # Low pressure limit     [bar]
-        HI_pres = np.nan    # High pressure limit    [bar]
+        LO_temp: float = np.nan  # Low temperature limit  ['C]
+        HI_temp: float = np.nan  # High temperature limit ['C]
+        LO_flow: float = np.nan  # Low flow rate limit    [LPM]
+        HI_flow: float = np.nan  # High flow rate limit   [LPM]
+        LO_pres: float = np.nan  # Low pressure limit     [bar]
+        HI_pres: float = np.nan  # High pressure limit    [bar]
 
     class Values_PID:
         # Container for the PID values
-        P = np.nan          # Proportional term      [% span of 100 'C]
-        I = np.nan          # Integral term          [repeats/minute]
-        D = np.nan          # Derivative term        [minutes]
+        P: float = np.nan        # Proportional term      [% span of 100 'C]
+        I: float = np.nan        # Integral term          [repeats/minute]
+        D: float = np.nan        # Derivative term        [minutes]
 
     class Status_bits:
         # Container for the status bits of the chiller
-        running               = np.nan
-        RTD1_open             = np.nan
-        RTD2_open             = np.nan
-        RTD3_open             = np.nan
-        high_temp_fixed_fault = np.nan
-        low_temp_fixed_fault  = np.nan
-        high_temp_fault       = np.nan
-        low_temp_fault        = np.nan
-        high_pressure_fault   = np.nan
-        low_pressure_fault    = np.nan
-        phase_monitor_fault   = np.nan
-        high_level_fault      = np.nan
-        drip_pan_fault        = np.nan
-        motor_overload_fault  = np.nan
-        LPC_fault             = np.nan
-        HPC_fault             = np.nan
-        external_EMO_fault    = np.nan
-        local_EMO_fault       = np.nan
-        low_flow_fault        = np.nan
-        low_level_fault       = np.nan
-        sense_5V_fault        = np.nan
-        invalid_level_fault   = np.nan
-        low_fixed_flow_warning      = np.nan
-        high_pressure_fault_factory = np.nan
-        low_pressure_fault_factory  = np.nan
-        powering_up           = np.nan
-        powering_down         = np.nan
-        fault_tripped         = np.nan
+        running                    : int | float = np.nan
+        RTD1_open                  : int | float = np.nan
+        RTD2_open                  : int | float = np.nan
+        RTD3_open                  : int | float = np.nan
+        high_temp_fixed_fault      : int | float = np.nan
+        low_temp_fixed_fault       : int | float = np.nan
+        high_temp_fault            : int | float = np.nan
+        low_temp_fault             : int | float = np.nan
+        high_pressure_fault        : int | float = np.nan
+        low_pressure_fault         : int | float = np.nan
+        phase_monitor_fault        : int | float = np.nan
+        high_level_fault           : int | float = np.nan
+        drip_pan_fault             : int | float = np.nan
+        motor_overload_fault       : int | float = np.nan
+        LPC_fault                  : int | float = np.nan
+        HPC_fault                  : int | float = np.nan
+        external_EMO_fault         : int | float = np.nan
+        local_EMO_fault            : int | float = np.nan
+        low_flow_fault             : int | float = np.nan
+        low_level_fault            : int | float = np.nan
+        sense_5V_fault             : int | float = np.nan
+        invalid_level_fault        : int | float = np.nan
+        low_fixed_flow_warning     : int | float = np.nan
+        high_pressure_fault_factory: int | float = np.nan
+        low_pressure_fault_factory : int | float = np.nan
+        powering_up                : int | float = np.nan
+        powering_down              : int | float = np.nan
+        fault_tripped              : int | float = np.nan
 
     class State:
         # Container for the process and measurement variables
-        setpoint     = np.nan   # Setpoint read out of the chiller         ['C]
-        temp         = np.nan   # Temperature measured by the chiller      ['C]
-        flow         = np.nan   # Flow rate measured by the chiller        [LPM]
-        supply_pres  = np.nan   # Supply pressure measured by the chiller  [bar]
-        suction_pres = np.nan   # Suction pressure measured by the chiller [bar]
+        setpoint    : float = np.nan  # Setpoint read out of the chiller         ['C]
+        temp        : float = np.nan  # Temperature measured by the chiller      ['C]
+        flow        : float = np.nan  # Flow rate measured by the chiller        [LPM]
+        supply_pres : float = np.nan  # Supply pressure measured by the chiller  [bar]
+        suction_pres: float = np.nan  # Suction pressure measured by the chiller [bar]
     # fmt: on
 
     # --------------------------------------------------------------------------
@@ -129,10 +128,10 @@ class ThermoFlex_chiller(SerialDevice):
 
     def __init__(
         self,
-        name="chiller",
-        long_name="ThermoFlex chiller",
-        min_setpoint_degC=10,
-        max_setpoint_degC=40,
+        name: str = "chiller",
+        long_name: str = "ThermoFlex chiller",
+        min_setpoint_degC: float = 10,
+        max_setpoint_degC: float = 40,
     ):
         super().__init__(name=name, long_name=long_name)
 
@@ -161,21 +160,21 @@ class ThermoFlex_chiller(SerialDevice):
 
         # Container for the units used and expected by the chiller.
         # Gets updated by calling the alarm value queries (e.g.
-        # 'query_alarm_LO_flow()' etc.) or by calling 'begin()'.
+        # `query_alarm_LO_flow()` etc.) or by calling `begin()`.
         self.units = self.Units()
 
         # Container for the alarm values.
         # Gets updated by calling the alarm value queries (e.g.
-        # 'query_alarm_LO_flow()' etc.) or by calling 'begin()'.
+        # `query_alarm_LO_flow()` etc.) or by calling `begin()`.
         self.values_alarm = self.Values_alarm()
 
         # Container for the PID values
-        # Gets updated by calling the PID queries (e.g. 'query_PID_P()' etc.)
-        # or by calling 'begin()'.
+        # Gets updated by calling the PID queries (e.g. `query_PID_P()` etc.)
+        # or by calling `begin()`.
         self.values_PID = self.Values_PID()
 
         # Container for the status bits (faults and warnings of the chiller).
-        # Gets updated by calling 'query_status_bits()' or by calling 'begin()'.
+        # Gets updated by calling `query_status_bits()` or by calling `begin()`.
         self.status_bits = self.Status_bits()
 
         # Container for the process and measurement variables
@@ -187,17 +186,42 @@ class ThermoFlex_chiller(SerialDevice):
 
     def query(
         self,
-        msg: Union[str, bytes],
+        msg: str | bytes,
         raises_on_timeout: bool = False,
-        returns_ascii: bool = True,
-    ) -> Tuple[bool, Union[str, bytes, None]]:
-        success, reply = super().query(
-            msg, raises_on_timeout, returns_ascii=False  # Binary I/O, not ASCII
+        returns_ascii: bool = False,
+    ) -> tuple[bool, bytes | None]:
+        """Send a message to the ThermoFlex chiller and subsequently read the
+        reply.
+
+        Args:
+            msg (`str` | `bytes`):
+                ASCII string or bytes to be sent to the serial device.
+
+            raises_on_timeout (`bool`, optional):
+                Should an exception be raised when a write or read timeout
+                occurs?
+
+                Default: `False`
+
+            returns_ascii (`bool`, ignored):
+                Argument is ignored and is locked to True.
+
+        Returns:
+            success (`bool`):
+                True if successful, False otherwise.
+
+            reply (`bytes` | `None`):
+                Reply received from the device as bytes. `None` if unsuccessful.
+        """
+        _success, reply = super().query(
+            msg,
+            raises_on_timeout,
+            returns_ascii=False,  # Binary I/O, not ASCII
         )
 
         # The ThermoFlex is more complex in its replies than the average device.
         # Hence:
-        if success:
+        if isinstance(reply, bytes):
             if (len(reply) >= 4) and reply[3] == 0x0F:
                 # Error reported by chiller
                 if reply[5] == 1:
@@ -206,22 +230,19 @@ class ThermoFlex_chiller(SerialDevice):
                     pft("Bad data received by chiller", 3)
                 elif reply[5] == 3:
                     pft("Bad checksum received by chiller", 3)
-                success = False
-            else:
-                # We got a reply back from /a/ device, not necessarily a
-                # ThermoFlex chiller.
-                success = True
+                return False, None
 
-        if reply is None:
-            reply = np.nan
+            # We got a reply back from /a/ device, not necessarily a
+            # ThermoFlex chiller.
+            return True, reply
 
-        return success, reply
+        return False, None
 
     # --------------------------------------------------------------------------
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> Tuple[bool, None]:
+    def ID_validation_query(self) -> tuple[bool, None]:
         return self.query_Ack(), None
 
     # --------------------------------------------------------------------------
@@ -260,66 +281,57 @@ class ThermoFlex_chiller(SerialDevice):
     #   Query functions
     # --------------------------------------------------------------------------
 
-    def query_data_as_float_and_uom(self, msg_bytes):
-        """Query the serial device and parse its reply as data bytes decoding a
-        float value and an unit of measure index.
+    def query_data_as_float_and_uom(
+        self, msg_bytes: bytes
+    ) -> tuple[bool, float, int | float]:
+        """Query the ThermoFlex chiller and parse its reply as data bytes
+        decoding a float value and an unit of measure index.
 
         Args:
-            msg_bytes (bytes): Message to be sent to the serial device.
+            msg_bytes (bytes): Message to be sent to the chiller.
 
         Returns:
-            success (bool): True if successful, False otherwise.
-            value  (float): The decoded float value. [numpy.nan] if unsuccessful.
-            uom      (int): Unit of measure index. [numpy.nan] if unsuccessful.
+            success (`bool`):
+                True if successful, False otherwise.
+
+            value (`float`):
+                The decoded float value. `numpy.nan` if unsuccessful.
+
+            uom (`int` | `float`):
+                Unit of measure index. `numpy.nan` if unsuccessful.
         """
-        value = np.nan
-        # print_as_hex(msg_bytes)                     # debug info
-        success, ans_bytes = self.query(msg_bytes)
-        # print_as_hex(ans_bytes)                     # debug info
-        if success:
-            value, uom = self.parse_data_bytes(ans_bytes)
-        if not np.isnan(value):
-            return True, value, uom
+        # print(pretty_bytes_to_hex(msg_bytes))   # Debug info
+        _success, reply = self.query(msg_bytes)
+        # print(pretty_bytes_to_hex(reply))       # Debug info
 
-        return False, np.nan, np.nan
+        if isinstance(reply, bytes):
+            value, uom = self.parse_data_bytes(reply)
 
-    # --------------------------------------------------------------------------
-    #   add_checksum
-    # --------------------------------------------------------------------------
+            if (not np.isnan(value)) and (not np.isnan(uom)):
+                return True, value, uom  # Success
 
-    def add_checksum(self, byte_list):
-        """The checksum runs over all bytes, except for the leading byte. It is
-        a bitwise inversion of the 1 byte sum of bytes. We mimic the overflow of
-        the 1 byte sum in Python by using the modulo operator '% 0x100'. The
-        inversion is done by using the XOR operator '^ 0xFF'
-        =
-        Usage example:
-          # request setpoint
-          msg_bytes = RS232_START + [0x70, 0x00]
-          add_checksum(msg_bytes)
-          # turn list into bytes ready to be sent
-          msg_bytes = bytes(msg_bytes)
-        """
-        chksum = (sum(byte_list[1:]) % 0x100) ^ 0xFF
-        byte_list.append(chksum)
-        # print_as_hex(byte_list)                     # debug info
+        return False, np.nan, np.nan  # Failed
 
     # --------------------------------------------------------------------------
     #   Parsing
     # --------------------------------------------------------------------------
 
-    def parse_data_bytes(self, ans_bytes):
-        """Parse the data bytes.
+    def parse_data_bytes(self, ans_bytes: bytes) -> tuple[float, int | float]:
+        """Parse the data bytes. The manual states:
 
-        The manual states:
-            data_bytes[0] : the qualifier byte
-              b.0 to b.3 indicates unit of measure index
-              b.4 to b.7 indicates precision of measurement
-            data_bytes[1:]: value
+        data_bytes[0]:
+            The qualifier byte, where b.0 to b.3 indicates unit of measure index
+            and b.4 to b.7 indicates precision of measurement.
+
+        data_bytes[1:]:
+            Value.
 
         Returns:
-            value (float): The decoded float value. [numpy.nan] if unsuccessful.
-            uom     (int): Unit of measure index. [numpy.nan] if unsuccessful.
+            value (`float`):
+                The decoded float value. [numpy.nan] if unsuccessful.
+
+            uom (`int` | `float`):
+                Unit of measure index. [numpy.nan] if unsuccessful.
         """
         value = np.nan
         uom = np.nan
@@ -345,12 +357,12 @@ class ThermoFlex_chiller(SerialDevice):
             elif pom == 4:
                 value = int_value * 0.0001
 
-        return (value, uom)
+        return value, uom
 
-    def parse_status_bits(self, ans_bytes):
+    def parse_status_bits(self, ans_bytes: bytes):
         """Parse the status bits, which are indicators for any faults and/or
         warnings of the chiller. This status gets stored in the class member
-        'status_bits'.
+        `status_bits`.
         """
         nn = ans_bytes[4]  # Number of data bytes to follow
         status_bits = ans_bytes[5 : 5 + nn]
@@ -390,17 +402,17 @@ class ThermoFlex_chiller(SerialDevice):
             self.status_bits.external_EMO_fault,
         ] = np.unpackbits(d3)
         [
-            dummy,
-            dummy,
-            dummy,
-            dummy,
-            dummy,
+            _dummy,
+            _dummy,
+            _dummy,
+            _dummy,
+            _dummy,
             self.status_bits.powering_down,
             self.status_bits.powering_up,
             self.status_bits.low_pressure_fault_factory,
         ] = np.unpackbits(d4)
 
-        self.status_bits.fault_tripped = (
+        self.status_bits.fault_tripped = int(
             sum(
                 [
                     self.status_bits.high_temp_fixed_fault,
@@ -420,10 +432,10 @@ class ThermoFlex_chiller(SerialDevice):
         # print(np.unpackbits(d3))
         # print(np.unpackbits(d4))
 
-    def parse_ASCII_bytes(self, ans_bytes):
+    def parse_ASCII_bytes(self, ans_bytes: bytes) -> str | None:
         """Parse the ASCII-encoded text bytes.
 
-        Returns: The decoded text as (str), or None if unsuccessful.
+        Returns: The decoded text as `str`, or None if unsuccessful.
         """
         nn = ans_bytes[4]  # Number of data bytes to follow
         ASCII_bytes = ans_bytes[5 : 5 + nn]
@@ -431,58 +443,52 @@ class ThermoFlex_chiller(SerialDevice):
             ans_str = ASCII_bytes.decode("ascii")
         except UnicodeDecodeError:
             return None
-        except:
+        except Exception:
             return None
-        else:
-            return ans_str
+
+        return ans_str
 
     # --------------------------------------------------------------------------
     #   ON/OFF
     # --------------------------------------------------------------------------
 
-    def turn_off(self):
+    def turn_off(self) -> bool | float:
         """Turn the chiller off.
 
         Returns: The effected on/off state of the chiller, or [numpy.nan] if
         unsuccessful.
         """
-        msg_bytes = bytes(
-            RS232_START + [0x81, 0x01, 0x00, 0x7C]
-        )  # includes checksum
-        success, ans_bytes = self.query(msg_bytes)
-        if success:
-            return bool(ans_bytes[5])  # return resulting on/off state
+        msg_bytes = RS232_START + b"\x81\x01\x00\x7C"  # With checksum
+        _success, reply = self.query(msg_bytes)
+        if isinstance(reply, bytes):
+            return bool(reply[5])  # return resulting on/off state
 
         return np.nan
 
-    def turn_on(self):
+    def turn_on(self) -> bool | float:
         """Turn the chiller on.
 
         Returns: The effected on/off state of the chiller, or [numpy.nan] if
         unsuccessful.
         """
-        msg_bytes = bytes(
-            RS232_START + [0x81, 0x01, 0x01, 0x7B]
-        )  # includes checksum
-        success, ans_bytes = self.query(msg_bytes)
-        if success:
-            return bool(ans_bytes[5])  # return resulting on/off state
+        msg_bytes = RS232_START + b"\x81\x01\x01\x7B"  # With checksum
+        _success, reply = self.query(msg_bytes)
+        if isinstance(reply, bytes):
+            return bool(reply[5])  # return resulting on/off state
 
         return np.nan
 
-    def query_is_on(self):
+    def query_is_on(self) -> bool | float:
         """Query the on/off state of the chiller.
-        This is identical to the status bit 'status.chiller_running'.
+        This is identical to the status bit `status.chiller_running`.
 
         Returns: The on/off state of the chiller, or [numpy.nan] if
         unsuccessful.
         """
-        msg_bytes = bytes(
-            RS232_START + [0x81, 0x01, 0x02, 0x7A]
-        )  # includes checksum
-        success, ans_bytes = self.query(msg_bytes)
-        if success:
-            return bool(ans_bytes[5])  # return resulting on/off state
+        msg_bytes = RS232_START + b"\x81\x01\x02\x7A"  # With checksum
+        _success, reply = self.query(msg_bytes)
+        if isinstance(reply, bytes):
+            return bool(reply[5])  # return resulting on/off state
 
         return np.nan
 
@@ -490,17 +496,16 @@ class ThermoFlex_chiller(SerialDevice):
     #   query_Ack
     # --------------------------------------------------------------------------
 
-    def query_Ack(self):
+    def query_Ack(self) -> bool:
         """Query the 'Acknowledge' request (REQ ACK). Basically asking 'Are you
         a ThermoFlex chiller?' to the serial device.
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x00, 0x00, 0xFE])  # includes checksum
-        success, ans_bytes = self.query(msg_bytes)
-        if success and (
-            (ans_bytes == bytes(RS232_START + [0x00, 0x02, 0x00, 0x00, 0xFC]))
-            | (ans_bytes == bytes(RS232_START + [0x00, 0x02, 0x00, 0x01, 0xFB]))
+        msg_bytes = RS232_START + b"\x00\x00\xFE"  # With checksum
+        _success, reply = self.query(msg_bytes)
+        if (reply == bytes(RS232_START + b"\x00\x02\x00\x00\xFC")) | (
+            reply == bytes(RS232_START + b"\x00\x02\x00\x01\xFB")
         ):
             return True
 
@@ -510,9 +515,9 @@ class ThermoFlex_chiller(SerialDevice):
     #   Request HI/LO alarm values
     # --------------------------------------------------------------------------
 
-    def query_alarm_values_and_units(self):
-        """Query all alarm values and store in the class member 'values_alarm'.
-        Also stores the units of measure in class member 'units'.
+    def query_alarm_values_and_units(self) -> bool:
+        """Query all alarm values and store in the class member `values_alarm`.
+        Also stores the units of measure in class member `units`.
         Each will be set to [numpy.nan] if unsuccessful.
 
         Returns: True if successful, False otherwise.
@@ -526,79 +531,79 @@ class ThermoFlex_chiller(SerialDevice):
             & self.query_alarm_HI_pres()
         )
 
-    def query_alarm_LO_flow(self):
-        """Query the alarm value and store in the class member 'values_alarm'.
-        Also stores the unit of measure in class member 'units'.
+    def query_alarm_LO_flow(self) -> bool:
+        """Query the alarm value and store in the class member `values_alarm`.
+        Also stores the unit of measure in class member `units`.
         Both will be set to [numpy.nan] if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x30, 0x00, 0xCE])  # includes checksum
+        msg_bytes = RS232_START + b"\x30\x00\xCE"  # With checksum
         success, value, units = self.query_data_as_float_and_uom(msg_bytes)
         self.values_alarm.LO_flow = value
         self.units.flow = units
         return success
 
-    def query_alarm_LO_temp(self):
-        """Query the alarm value and store in the class member 'values_alarm'.
-        Also stores the unit of measure in class member 'units'.
+    def query_alarm_LO_temp(self) -> bool:
+        """Query the alarm value and store in the class member `values_alarm`.
+        Also stores the unit of measure in class member `units`.
         Will be set to [numpy.nan] if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x40, 0x00, 0xBE])  # includes checksum
+        msg_bytes = RS232_START + b"\x40\x00\xBE"  # With checksum
         success, value, units = self.query_data_as_float_and_uom(msg_bytes)
         self.values_alarm.LO_temp = value
         self.units.temp = units
         return success
 
-    def query_alarm_LO_pres(self):
-        """Query the alarm value and store in the class member 'values_alarm'.
-        Also stores the unit of measure in class member 'units'.
+    def query_alarm_LO_pres(self) -> bool:
+        """Query the alarm value and store in the class member `values_alarm`.
+        Also stores the unit of measure in class member `units`.
         Will be set to [numpy.nan] if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x48, 0x00, 0xB6])  # includes checksum
+        msg_bytes = RS232_START + b"\x48\x00\xB6"  # With checksum
         success, value, units = self.query_data_as_float_and_uom(msg_bytes)
         self.values_alarm.LO_pres = value
         self.units.pres = units
         return success
 
-    def query_alarm_HI_flow(self):
-        """Query the alarm value and store in the class member 'values_alarm'.
-        Also stores the unit of measure in class member 'units'.
+    def query_alarm_HI_flow(self) -> bool:
+        """Query the alarm value and store in the class member `values_alarm`.
+        Also stores the unit of measure in class member `units`.
         Will be set to [numpy.nan] if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x50, 0x00, 0xAE])  # includes checksum
+        msg_bytes = RS232_START + b"\x50\x00\xAE"  # With checksum
         success, value, units = self.query_data_as_float_and_uom(msg_bytes)
         self.values_alarm.HI_flow = value
         self.units.flow = units
         return success
 
-    def query_alarm_HI_temp(self):
-        """Query the alarm value and store in the class member 'values_alarm'.
-        Also stores the unit of measure in class member 'units'.
+    def query_alarm_HI_temp(self) -> bool:
+        """Query the alarm value and store in the class member `values_alarm`.
+        Also stores the unit of measure in class member `units`.
         Will be set to [numpy.nan] if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x60, 0x00, 0x9E])  # includes checksum
+        msg_bytes = RS232_START + b"\x60\x00\x9E"  # With checksum
         success, value, units = self.query_data_as_float_and_uom(msg_bytes)
         self.values_alarm.HI_temp = value
         self.units.temp = units
         return success
 
-    def query_alarm_HI_pres(self):
-        """Query the alarm value and store in the class member 'values_alarm'.
-        Also stores the unit of measure in class member 'units'.
+    def query_alarm_HI_pres(self) -> bool:
+        """Query the alarm value and store in the class member `values_alarm`.
+        Also stores the unit of measure in class member `units`.
         Will be set to [numpy.nan] if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x68, 0x00, 0x96])  # includes checksum
+        msg_bytes = RS232_START + b"\x68\x00\x96"  # With checksum
         success, value, units = self.query_data_as_float_and_uom(msg_bytes)
         self.values_alarm.HI_pres = value
         self.units.pres = units
@@ -608,43 +613,43 @@ class ThermoFlex_chiller(SerialDevice):
     #   Query PID values
     # --------------------------------------------------------------------------
 
-    def query_PID_values(self):
-        """Query all PID values and store in the class member 'values_PID'.
+    def query_PID_values(self) -> bool:
+        """Query all PID values and store in the class member `values_PID`.
         Each will be set to [numpy.nan] if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
         return self.query_PID_P() & self.query_PID_I() & self.query_PID_D()
 
-    def query_PID_P(self):
-        """Query the PID value and store in the class member 'values_PID'.
+    def query_PID_P(self) -> bool:
+        """Query the PID value and store in the class member `values_PID`.
         Will be set to [numpy.nan] if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x74, 0x00, 0x8A])  # includes checksum
+        msg_bytes = RS232_START + b"\x74\x00\x8A"  # With checksum
         success, value, _units = self.query_data_as_float_and_uom(msg_bytes)
         self.values_PID.P = value
         return success
 
-    def query_PID_I(self):
-        """Query the PID value and store in the class member 'values_PID'.
+    def query_PID_I(self) -> bool:
+        """Query the PID value and store in the class member `values_PID`.
         Will be set to [numpy.nan] if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x75, 0x00, 0x89])  # includes checksum
+        msg_bytes = RS232_START + b"\x75\x00\x89"  # With checksum
         success, value, _units = self.query_data_as_float_and_uom(msg_bytes)
         self.values_PID.I = value
         return success
 
-    def query_PID_D(self):
-        """Query the PID value and store in the class member 'values_PID'.
+    def query_PID_D(self) -> bool:
+        """Query the PID value and store in the class member `values_PID`.
         Will be set to [numpy.nan] if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x76, 0x00, 0x88])  # includes checksum
+        msg_bytes = RS232_START + b"\x76\x00\x88"  # With checksum
         success, value, _units = self.query_data_as_float_and_uom(msg_bytes)
         self.values_PID.D = value
         return success
@@ -653,26 +658,26 @@ class ThermoFlex_chiller(SerialDevice):
     #   query_status_bits
     # --------------------------------------------------------------------------
 
-    def query_status_bits(self):
+    def query_status_bits(self) -> bool:
         """Query and parse the status bits, which are indicators for any faults
         and/or warnings of the chiller. This status gets stored in the class
-        member 'status_bits.
+        member `status_bits`.
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x09, 0x00, 0xF5])  # included checksum
-        success, ans_bytes = self.query(msg_bytes)
-        if success:
-            self.parse_status_bits(ans_bytes)
+        msg_bytes = RS232_START + b"\x09\x00\xF5"  # With checksum
+        success, reply = self.query(msg_bytes)
+        if isinstance(reply, bytes):
+            self.parse_status_bits(reply)
         return success
 
     # --------------------------------------------------------------------------
     #   Query state variables
     # --------------------------------------------------------------------------
 
-    def query_state(self):
+    def query_state(self) -> bool:
         """Query all process and measurement variables and store in the class
-        member 'state'.
+        member `state`.
         Each will be set to [numpy.nan] if unsuccessful.
 
         Returns: True if successful, False otherwise.
@@ -685,62 +690,62 @@ class ThermoFlex_chiller(SerialDevice):
             & self.query_suction_pres()
         )
 
-    def query_setpoint(self):
-        """Query and store in the class member 'state':
+    def query_setpoint(self) -> bool:
+        """Query and store in the class member `state`:
         The temperature setpoint value read from the chiller.
         Will be set to [numpy.nan] if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x70, 0x00, 0x8E])  # includes checksum
+        msg_bytes = RS232_START + b"\x70\x00\x8E"  # With checksum
         success, value, _units = self.query_data_as_float_and_uom(msg_bytes)
         self.state.setpoint = value
         return success
 
-    def query_temp(self):
-        """Query and store in the class member 'state':
+    def query_temp(self) -> bool:
+        """Query and store in the class member `state`:
         The temperature measured by the chiller.
         Will be set to [numpy.nan] if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x20, 0x00, 0xDE])  # includes checksum
+        msg_bytes = RS232_START + b"\x20\x00\xDE"  # With checksum
         success, value, _units = self.query_data_as_float_and_uom(msg_bytes)
         self.state.temp = value
         return success
 
-    def query_flow(self):
-        """Query and store in the class member 'state':
+    def query_flow(self) -> bool:
+        """Query and store in the class member `state`:
         The flow rate measured by the chiller.
         Will be set to [numpy.nan] if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x10, 0x00, 0xEE])  # includes checksum
+        msg_bytes = RS232_START + b"\x10\x00\xEE"  # With checksum
         success, value, _units = self.query_data_as_float_and_uom(msg_bytes)
         self.state.flow = value
         return success
 
-    def query_supply_pres(self):
-        """Query and store in the class member 'state':
+    def query_supply_pres(self) -> bool:
+        """Query and store in the class member `state`:
         The supply pressure measured by the chiller.
         Will be set to [numpy.nan] if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x28, 0x00, 0xD6])  # includes checksum
+        msg_bytes = RS232_START + b"\x28\x00\xD6"  # With checksum
         success, value, _units = self.query_data_as_float_and_uom(msg_bytes)
         self.state.supply_pres = value
         return success
 
-    def query_suction_pres(self):
-        """Query and store in the class member 'state':
+    def query_suction_pres(self) -> bool:
+        """Query and store in the class member `state`:
         The suction pressure measured by the chiller.
         Will be set to [numpy.nan] if unsuccessful.
 
         Returns: True if successful, False otherwise.
         """
-        msg_bytes = bytes(RS232_START + [0x29, 0x00, 0xD5])  # includes checksum
+        msg_bytes = RS232_START + b"\x29\x00\xD5"  # With checksum
         success, value, _units = self.query_data_as_float_and_uom(msg_bytes)
         self.state.suction_pres = value
         return success
@@ -749,15 +754,15 @@ class ThermoFlex_chiller(SerialDevice):
     #   query_display_msg
     # --------------------------------------------------------------------------
 
-    def query_display_msg(self):
+    def query_display_msg(self) -> str | None:
         """Query the display text shown on the chiller.
 
-        Returns: The display text as (str), or None if unsuccessful.
+        Returns: The display text as `str`, or None if unsuccessful.
         """
-        msg_bytes = bytes(RS232_START + [0x07, 0x00, 0xF7])  # includes checksum
-        success, ans_bytes = self.query(msg_bytes)
-        if success:
-            return self.parse_ASCII_bytes(ans_bytes)
+        msg_bytes = RS232_START + b"\x07\x00\xF7"  # With checksum
+        _success, reply = self.query(msg_bytes)
+        if isinstance(reply, bytes):
+            return self.parse_ASCII_bytes(reply)
 
         return None
 
@@ -765,45 +770,34 @@ class ThermoFlex_chiller(SerialDevice):
     #   send_setpoint
     # --------------------------------------------------------------------------
 
-    def send_setpoint(self, temp_deg_C):
+    def send_setpoint(self, temp_deg_C: float) -> bool:
         """Send a new temperature setpoint in [deg C.] to the chiller.
         Subsequently, the chiller replies with the currently set setpoint and
-        this value will be stored in the class member 'state'.
+        this value will be stored in the class member `state`.
 
         Args:
-            temp_deg_C (float): temperature in [deg C].
+            temp_deg_C (`float`):
+                Temperature in [deg C].
 
         Returns: True if successful, False otherwise.
         """
-        try:
-            temp_deg_C = float(temp_deg_C)
-        except (TypeError, ValueError):
-            # Invalid number
-            print("WARNING: Received illegal setpoint value")
-            print("Setpoint not updated")
-            return False
-
         if temp_deg_C < self.min_setpoint_degC:
             temp_deg_C = self.min_setpoint_degC
             print(
-                "WARNING: setpoint is capped\nto the lower limit of %.1f 'C"
-                % self.min_setpoint_degC
+                "WARNING: setpoint is capped\nto the lower limit of "
+                f"{self.min_setpoint_degC:.1f} 'C"
             )
         elif temp_deg_C > self.max_setpoint_degC:
             temp_deg_C = self.max_setpoint_degC
             print(
-                "WARNING: setpoint is capped\nto the upper limit of %.1f 'C"
-                % self.max_setpoint_degC
+                "WARNING: setpoint is capped\nto the upper limit of "
+                f"{self.max_setpoint_degC:.1f} 'C"
             )
 
         # Transform temperature to bytes
-        pom = 0.1  # precision of measurement, fixed to 0.1
-        temp_bytes = int(np.round(temp_deg_C / pom)).to_bytes(
-            2, byteorder="big"
-        )
-        msg = RS232_START + [0xF0, 0x02] + [temp_bytes[0], temp_bytes[1]]
-        self.add_checksum(msg)
-        msg_bytes = bytes(msg)
+        pom = 0.1  # Precision of measurement, fixed to 0.1
+        temp = int(np.round(temp_deg_C / pom)).to_bytes(2, byteorder="big")
+        msg_bytes = add_checksum(RS232_START + b"\xF0\x02" + temp)
 
         # Send setpoint to chiller and receive the set setpoint
         success, value, _units = self.query_data_as_float_and_uom(msg_bytes)
@@ -812,13 +806,38 @@ class ThermoFlex_chiller(SerialDevice):
 
 
 # ------------------------------------------------------------------------------
+#   add_checksum
+# ------------------------------------------------------------------------------
+
+
+def add_checksum(bytes_in: bytes) -> bytes:
+    """Calculate a checksum over the passed `bytes_in` and return the bytes
+    extended with the checksum.
+
+    Usage example::
+
+        # Request setpoint
+        msg_bytes = RS232_START + b"\x70\x00"
+        msg_bytes = add_checksum(msg_bytes)
+    """
+    # The checksum runs over all bytes, except for the leading byte. It is a
+    # bitwise inversion of the 1 byte sum of bytes. We mimic the overflow of the
+    # 1 byte sum in Python by using the modulo operator `% 0x100`. The inversion
+    # is done by using the XOR operator `^ 0xFF`.
+
+    chksum = (sum(bytes_in[1:]) % 0x100) ^ 0xFF  # Is of tyype `int`
+    bytes_out = bytes_in + chksum.to_bytes(length=1, byteorder="big")
+    # print(pretty_bytes_to_hex(bytes_out))  # Debug info
+    return bytes_out
+
+
+# ------------------------------------------------------------------------------
 #   Debug functions
 # ------------------------------------------------------------------------------
 
 
-def print_as_hex(byte_list):
-    list(map(lambda x: print(format(x, "02x"), end=" "), byte_list))
-    print()
+def pretty_bytes_to_hex(values: bytes) -> str:
+    return " ".join(f"{b:02x}" for b in values)
 
 
 # -----------------------------------------------------------------------------
@@ -876,33 +895,33 @@ if __name__ == "__main__":
         print("      ALARM VALUES")
         print("        LO  |  HI")
         print(
-            " flow: %4.1f | %4.1f  LPM"
-            % (chiller.values_alarm.LO_flow, chiller.values_alarm.HI_flow)
+            f" flow: {chiller.values_alarm.LO_flow:4.1f} | "
+            f"{chiller.values_alarm.HI_flow:4.1f}  LPM"
         )
         print(
-            " pres: %4.2f | %4.2f  bar"
-            % (chiller.values_alarm.LO_pres, chiller.values_alarm.HI_pres)
+            f" pres: {chiller.values_alarm.LO_pres:4.2f} | "
+            f"{chiller.values_alarm.HI_pres:4.2f}  bar"
         )
         print(
-            " temp: %4.1f | %4.1f  'C"
-            % (chiller.values_alarm.LO_temp, chiller.values_alarm.HI_temp)
+            f" temp: {chiller.values_alarm.LO_temp:4.1f} | "
+            f"{chiller.values_alarm.HI_temp:4.1f}  'C"
         )
         print("------------------------")
-        print(" P: %4.1f  %% span 100'C" % chiller.values_PID.P)
-        print(" I: %4.2f  repeats/minute" % chiller.values_PID.I)
-        print(" D: %4.1f  minutes" % chiller.values_PID.D)
+        print(f" P: {chiller.values_PID.P:4.1f}  %% span 100'C")
+        print(f" I: {chiller.values_PID.I:4.2f}  repeats/minute")
+        print(f" D: {chiller.values_PID.D:4.1f}  minutes")
         print("------------------------")
-        print(" running         : %i" % chiller.status_bits.running)
-        print(" powering up/down: %i" % chiller.status_bits.powering_down)
-        print(" fault_tripped   : %i" % chiller.status_bits.fault_tripped)
-        print(" MSG: %s" % chiller.query_display_msg())
+        print(f" running         : {chiller.status_bits.running}")
+        print(f" powering up/down: {chiller.status_bits.powering_down}")
+        print(f" fault_tripped   : {chiller.status_bits.fault_tripped}")
+        print(f" MSG: {chiller.query_display_msg()}")
         print("------------------------")
-        print(" setpoint: %6.1f 'C" % chiller.state.setpoint)
+        print(f" setpoint: {chiller.state.setpoint:6.1f} 'C")
         print("------------------------")
-        print(" temp    : %6.1f 'C" % chiller.state.temp)
-        print(" flow    : %6.1f LPM" % chiller.state.flow)
-        print(" supply  : %6.2f bar" % chiller.state.supply_pres)
-        print(" suction : %6.2f bar" % chiller.state.suction_pres)
+        print(f" temp    : {chiller.state.temp:6.1f} 'C")
+        print(f" flow    : {chiller.state.flow:6.1f} LPM")
+        print(f" supply  : {chiller.state.supply_pres:6.2f} bar")
+        print(f" suction : {chiller.state.suction_pres:6.2f} bar")
         print("------------------------")
         sys.stdout.flush()
 
@@ -916,8 +935,16 @@ if __name__ == "__main__":
                         print("Switching off chiller and quitting.")
                         done = True
                 elif key == b"s":
-                    send_setpoint = input("\nEnter new setpoint [deg C]: ")
-                    do_send_setpoint = True
+                    input_str = input("\nEnter new setpoint [deg C]: ")
+                    try:
+                        input_float = float(input_str)
+                    except ValueError:
+                        print(
+                            "Illegal value entered. Setpoint remains unchanged."
+                        )
+                    else:
+                        send_setpoint = input_float
+                        do_send_setpoint = True
                 elif key == b"o":
                     if chiller.status_bits.running:
                         chiller.turn_off()

@@ -34,18 +34,19 @@ If you wish to interface with an GPIB device you need to additionally install a 
 Supported devices
 -----------------
 
-    =======================    =======================
-    Arduino, or similar        microcontroller board
-    Aim TTi QL series II       power supply
-    Bronkhorst EL-FLOW         mass flow controller
-    Julabo circulator          recirculating bath
-    Keysight 3497xA            digital multimeter
-    Keysight N8700             power supply
-    Parker Compax3             servo controller
-    Picotech PT104             temperature logger
-    PolyScience PD             recirculating bath
-    ThermoFisher ThermoFlex    chiller
-    =======================    =======================
+    =======================    ==============================
+    Arduino, or similar        Microcontroller board
+    Aim TTi QL series II       Power supply
+    Bronkhorst EL-FLOW         Mass flow controller
+    Julabo circulator          Recirculating bath
+    Keysight 3497xA            Digital multimeter
+    Keysight N8700             Power supply
+    Parker Compax3             Servo controller
+    Picotech PT104             Temperature logger
+    PolyScience PD             Recirculating bath
+    ThermoFisher ThermoFlex    Chiller
+    Xylem Hydrovar HVL         Variable speed pump controller
+    =======================    ==============================
 
 Highlights
 ----------

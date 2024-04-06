@@ -11,6 +11,10 @@ Major clean-up and streamlining:
 * Individual source files now follow the PyPi package version
 * Resolved nearly all Pylint / Pylance warnings
 
+New devices added:
+
+* Xylem Hydrovar HVL - Variable speed pump controller
+
 1.3.0 (2023-02-23)
 ------------------
 * Added method ``BaseDevice.SerialDevice.query_bytes()``

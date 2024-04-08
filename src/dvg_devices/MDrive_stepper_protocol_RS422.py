@@ -50,11 +50,12 @@ Required flashed motor parameters:
         P = 0           'Redefine position to == 0
         BR M0           'Goto: Main loop
 
-- User variable with label 'C0' should be present, indicating the [steps/mm] or
-  [steps/rev] calibration factor of the stage the MDrive motor is connected to.
+- User variable with label 'C0' should be present indicating the [steps/mm] or
+  [steps/rev] calibration constant of the stage the MDrive motor is connected
+  to.
   NOTE: This library only supports integer values for 'C0'. Fractional values
   are not supported.
-- User variable with label 'CT' should be present, indicating the movement type
+- User variable with label 'CT' should be present indicating the movement type
   (0: linear, 1: angular) of the stage the MDrive motor is connected to.
 
 Physical wiring:
@@ -83,7 +84,7 @@ attached motor, allowing them to be flashed via a PC.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-04-2024"
+__date__ = "03-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=missing-function-docstring, too-many-lines
 
@@ -214,8 +215,8 @@ class MDrive_Controller(SerialDevice):
             valid_ID_specific=None,
         )
 
-        # Dictionary of all detected motors, addressable by their device name
-        self.motors: dict[str, MDrive_Motor] = {}
+        # List of all detected motors
+        self.motors: list[MDrive_Motor] = []
 
     # --------------------------------------------------------------------------
     #   flush_serial_in
@@ -278,8 +279,7 @@ class MDrive_Controller(SerialDevice):
         device_names_to_scan: str | None = None,
     ):
         """Scan for connected motors, set them up and store them in member
-        `MDrive_Controller.motors` as a dictionary of `MDrive_Motor` instances,
-        addressable by their device name.
+        `MDrive_Controller.motors` as a list of `MDrive_Motor` instances.
 
         This method should be called directly after having established a
         serial connection to the motors, e.g. after method
@@ -343,11 +343,13 @@ class MDrive_Controller(SerialDevice):
                         f"{ANSI.WHITE}"
                     )
 
-                    self.motors[scan_DN] = MDrive_Motor(
-                        controller=self,
-                        device_name=scan_DN,
+                    self.motors.append(
+                        MDrive_Motor(
+                            controller=self,
+                            device_name=scan_DN,
+                        )
                     )
-                    self.motors[scan_DN].begin()
+                    self.motors[-1].begin()
 
                     print("")
 
@@ -357,7 +359,9 @@ class MDrive_Controller(SerialDevice):
         if N_motors == 0:
             print_warning("NO MOTORS DETECTED.\n")
         else:
-            pretty_list = ", ".join([f"'{DN}'" for DN in self.motors])
+            pretty_list = ", ".join(
+                [f"'{motor.device_name}'" for motor in self.motors]
+            )
             print(
                 f"Detected {N_motors} motor{'s' if N_motors > 1 else ''}: "
                 f"{pretty_list}.\n"
@@ -534,11 +538,11 @@ class MDrive_Motor:
         """Maximum velocity [steps/sec]"""
 
         movement_type: Movement_type = Movement_type.LINEAR
-        """Taken from MDrive user variable 'CT'. 0: linear, 1: angular."""
-        steps_per_mm: float | int = np.nan
-        """Taken from MDrive user variable 'C0'."""
-        steps_per_rev: float | int = np.nan
-        """Taken from MDrive user variable 'C0'."""
+        """Read from MDrive user variable 'CT'. 0: linear, 1: angular."""
+        calibration_constant: float | int = np.nan
+        """Read from MDrive user variable 'C0'. The step calibration constant in
+        units of [steps/mm] or [steps/rev], depending on the movement type
+        parameter 'CT'."""
 
     class State:
         """Container for the MDrive motor measurement variables."""
@@ -546,7 +550,7 @@ class MDrive_Motor:
         position: float | int = np.nan
         """Param P: Read position [steps]"""
         velocity: float | int = np.nan
-        """Param V: Read current velocity [steps/sec]"""
+        """Param V: Read velocity [steps/sec]"""
         is_moving: bool = False
         """Param MV: Moving flag [True/False]"""
         is_velocity_changing: bool = False
@@ -557,11 +561,26 @@ class MDrive_Motor:
         error: int = 0
         """Param ER: Error number"""
 
+        is_home_known: bool = False
+        """Does not exist as a build-in MDrive motor parameter that we can
+        query, but is supplied here as a means to keep (loosely) track of
+        whether the `position` parameter is to be trusted or not. The end-user
+        is free to set and get the `is_home_known` parameter by themselves for
+        whatever reason that is not captured by the following automation:
+
+        This flag only gets automatically set to True whenever method `home()`
+        has ran. Also, any reported error by the MDrive motor via a call to
+        method `query_errors` will set this flag automatically to False."""
+
     def __init__(self, controller: MDrive_Controller, device_name: str):
         self.controller = controller
         self.device_name = device_name  # Param DN
         self.config = self.Config()
         self.state = self.State()
+
+        # Placeholder for a future `QtCore.QMutex()` instance to allow for
+        # proper multithreading. Will be assigned in `MDrive_stepper_qdev.py`.
+        self.mutex: None | object = None
 
     # --------------------------------------------------------------------------
     #   query
@@ -620,6 +639,8 @@ class MDrive_Motor:
         # \any\ subroutine seems to fix the issue. We use subroutine 'F1' here.
         self.init_interface()
 
+        self.ensure_existence_user_variables_C0_and_CT()
+
         self.query_config()
         self.print_config()
 
@@ -640,32 +661,79 @@ class MDrive_Motor:
             )
             sys.exit(0)
 
-        CT = self.config.user_variables.get("CT")
-        if CT is None:
-            self.config.movement_type = Movement_type.LINEAR
-            print_warning(
-                "WARNING: User variable CT as movement type linear/angular was "
-                "not found. Defaulting to linear."
-            )
-        else:
-            self.config.movement_type = Movement_type(CT)
-            print(f"    Found user variable   CT: {Movement_type(CT)}")
-
-        C0 = self.config.user_variables.get("C0")
-        if C0 is None:
-            print_warning(
-                "WARNING: User variable C0 as step calibration factor was "
-                "not found.",
-            )
-        else:
-            if self.config.movement_type == Movement_type.LINEAR:
-                self.config.steps_per_mm = C0
-                print("    Found user variable   C0: Calibration [steps/mm]")
-            else:
-                self.config.steps_per_rev = C0
-                print("    Found user variable   C0: Calibration [steps/rev]")
-
         self.print_motion_config()
+
+    # --------------------------------------------------------------------------
+    #   get_base_unit
+    # --------------------------------------------------------------------------
+
+    def get_base_unit(self) -> str:
+        """Return a string annotating the base unit derived from MDrive user
+        variable 'CT' a follows:
+            "mm"  when CT = 0 (linear),
+            "rev" when CT = 1 (angular).
+        """
+        if self.config.movement_type == Movement_type.LINEAR:
+            return "mm"
+
+        return "rev"
+
+    # --------------------------------------------------------------------------
+    #   ensure_existence_user_variables_C0_and_CT
+    # --------------------------------------------------------------------------
+
+    def ensure_existence_user_variables_C0_and_CT(self):
+        """Will define the user variables C0 and CT with default values when
+        they don't exist in the MDrive flash memory. Unfortunately, they can
+        only be declared as local variables which don't persist a program
+        restart, unlike global variables."""
+        # Default values when not found
+        CT = Movement_type.LINEAR
+        C0 = 1
+
+        _success, reply = self.query("pr ct")
+        try:
+            CT = Movement_type(int(reply))
+        except ValueError:
+            CT_exists = False
+        except Exception as e:
+            raise e
+        else:
+            CT_exists = True
+
+        _success, reply = self.query("pr c0")
+        try:
+            C0 = int(reply)
+            C0 = max(1, C0)
+        except ValueError:
+            C0_exists = False
+        except Exception as e:
+            raise e
+        else:
+            C0_exists = True
+
+        self.config.movement_type = CT
+        self.config.calibration_constant = C0
+
+        if not CT_exists:
+            print_warning(
+                "WARNING:\n"
+                "  Global user variable CT as movement type (0: linear, 1: "
+                "angular) was not found.\n"
+                f"  Defaulting to {CT.name}."
+            )
+            self.query(f"VA CT = {CT.value:d}")
+            # In case "CT" was already defined, but out-of-enum-range
+            self.query(f"CT {CT.value:d}")
+
+        if not C0_exists:
+            print_warning(
+                "WARNING:\n"
+                "  Global user variable C0 as step calibration constant was "
+                "not found.\n"
+                f"  Defaulting to 1 [steps/{self.get_base_unit()}].",
+            )
+            self.query(f"VA C0 = {C0:d}")
 
     # --------------------------------------------------------------------------
     #   query_config
@@ -714,19 +782,27 @@ class MDrive_Motor:
 
         if success:
             # Parse each line into a dict pair: name & int value
-            dict_vars = {}
-            dict_subr = {}
+            dict_vars: dict[str, int] = {}
+            dict_subr: dict[str, int] = {}
             for line in lines:
                 parts = line.split("=")
                 dict_key = parts[0].strip()
                 dict_val = parts[1].strip()
-                if dict_val[0] == "G":
+                if dict_val[0] in ("G", "L"):  # G: global var, L: local var
                     dict_vars[dict_key] = int(dict_val[1:].strip())
                 else:
                     dict_subr[dict_key] = int(dict_val)
 
             self.config.user_variables = dict_vars
             self.config.user_subroutines = dict_subr
+
+            # Calibration variables
+            CT = dict_vars.get("CT")
+            CT = Movement_type(CT) if CT is not None else Movement_type.LINEAR
+            C0 = dict_vars.get("C0")
+            C0 = C0 if C0 is not None else np.nan
+            self.config.movement_type = CT
+            self.config.calibration_constant = C0
 
         # Motion variables
         success, reply = self.query('pr A,"_"D,"_"HC,"_"HT')
@@ -767,28 +843,28 @@ class MDrive_Motor:
     def print_config(self):
         """Print the configuration parameters of the MDrive motor to the
         terminal."""
-        C = self.config
-        print(f"    Part no.  | {C.part_number}")
-        print(f"    Serial    | {C.serial_number}")
-        print(f"    Firmware  | {C.firmware_version}")
+        config = self.config
+        print(f"    Part no.  | {config.part_number}")
+        print(f"    Serial    | {config.serial_number}")
+        print(f"    Firmware  | {config.firmware_version}")
 
         print("    IO        | ", end="")
-        print(f"S1 = {C.IO_S1}")
-        print(f"{'':15} S2 = {C.IO_S2}")
-        print(f"{'':15} S3 = {C.IO_S3}")
-        print(f"{'':15} S4 = {C.IO_S4}")
+        print(f"S1 = {config.IO_S1}")
+        print(f"{'':15} S2 = {config.IO_S2}")
+        print(f"{'':15} S3 = {config.IO_S3}")
+        print(f"{'':15} S4 = {config.IO_S4}")
 
         print("    User subr | ", end="")
-        if len(C.user_subroutines) == 0:
+        if len(config.user_subroutines) == 0:
             print("[empty]")
         else:
-            print(", ".join(C.user_subroutines.keys()))
+            print(", ".join(config.user_subroutines.keys()))
 
         print("    User vars | ", end="")
-        if len(C.user_variables) == 0:
+        if len(config.user_variables) == 0:
             print("[empty]")
         else:
-            for idx, (key, val) in enumerate(C.user_variables.items()):
+            for idx, (key, val) in enumerate(config.user_variables.items()):
                 if idx > 0:
                     print(" " * 16, end="")
                 print(f"{key} = {val}")
@@ -800,51 +876,57 @@ class MDrive_Motor:
     def print_motion_config(self):
         """Print the motion configuration parameters of the MDrive motor to the
         terminal."""
-        C = self.config
-        if C.movement_type == Movement_type.LINEAR:
-            calib_unit = C.steps_per_mm
-            calib_unit_A = "[mm/sec^2]"
-            calib_unit_V = "[mm/sec]"
-        else:
-            calib_unit = C.steps_per_rev
-            calib_unit_A = "[rev/sec^2]"
-            calib_unit_V = "[rev/sec]"
+        # Shorthands
+        config = self.config
+        C0 = config.calibration_constant
+        base_unit = self.get_base_unit()
 
         print("    Motion    | ")
         print(
-            f"{'':5} Acceleration   A  = {C.motion_A:<10} [steps/sec^2] "
-            f"= {C.motion_A / calib_unit:<9.4f} {calib_unit_A}"
+            f"{'':5} Movement type  CT = {config.movement_type.value} "
+            f"({config.movement_type.name})"
+        )
+        print(f"{'':5} Calibration    C0 = {C0:<10} [steps/{base_unit}]")
+        print(
+            f"{'':5} Acceleration   A  = {config.motion_A:<10} [steps/sec^2] "
+            f"= {config.motion_A / C0:<9.4f} [{base_unit}/sec^2]"
         )
         print(
-            f"{'':5} Deceleration   D  = {C.motion_D:<10} [steps/sec^2] "
-            f"= {C.motion_D/calib_unit:<9.4f} {calib_unit_A}"
+            f"{'':5} Deceleration   D  = {config.motion_D:<10} [steps/sec^2] "
+            f"= {config.motion_D / C0:<9.4f} [{base_unit}/sec^2]"
         )
         print(
-            f"{'':5} Initial veloc. VI = {C.motion_VI:<10} [steps/sec]   "
-            f"= {C.motion_VI/calib_unit:<9.4f} {calib_unit_V}"
+            f"{'':5} Initial veloc. VI = {config.motion_VI:<10} [steps/sec]   "
+            f"= {config.motion_VI / C0:<9.4f} [{base_unit}/sec]"
         )
         print(
-            f"{'':5} Maximum veloc. VM = {C.motion_VM:<10} [steps/sec]   "
-            f"= {C.motion_VM/calib_unit:<9.4f} {calib_unit_V}"
+            f"{'':5} Maximum veloc. VM = {config.motion_VM:<10} [steps/sec]   "
+            f"= {config.motion_VM / C0:<9.4f} [{base_unit}/sec]"
         )
-        print(f"{'':5} Microsteps     MS = {C.motion_MS:<10} [microsteps]")
-        print(f"{'':5} Limit stop     LM = {C.motion_LM:<10} [mode 1-6]")
-        print(f"{'':5} Run current    RC = {C.motion_RC:<10} [0-100 %]")
-        print(f"{'':5} Hold current   HC = {C.motion_HC:<10} [0-100 %]")
-        print(f"{'':5} Hold delay     HT = {C.motion_HT:<10} [msec]")
-        print(f"{'':5} Settling delay MT = {C.motion_MT:<10} [msec]")
+        print(f"{'':5} Microsteps     MS = {config.motion_MS:<10} [microsteps]")
+        print(f"{'':5} Limit stop     LM = {config.motion_LM:<10} [mode 1-6]")
+        print(f"{'':5} Run current    RC = {config.motion_RC:<10} [0-100 %]")
+        print(f"{'':5} Hold current   HC = {config.motion_HC:<10} [0-100 %]")
+        print(f"{'':5} Hold delay     HT = {config.motion_HT:<10} [msec]")
+        print(f"{'':5} Settling delay MT = {config.motion_MT:<10} [msec]")
 
     # --------------------------------------------------------------------------
     #   query_errors
     # --------------------------------------------------------------------------
 
-    def query_errors(self):
+    def query_errors(self) -> bool:
         """Query the error parameters of the MDrive motor and store these inside
         member `MDrive_Motor.state`.
 
         Updates:
         - state.has_error
         - state.error
+        - state.is_home_known (Automatically set to False whenever any error is
+          reported.)
+
+        Returns ('bool'):
+            True if the command was successfully send to the motor, False
+            otherwise.
 
         Query takes ~0.024 s @ 9600 baud.
         """
@@ -854,7 +936,7 @@ class MDrive_Motor:
             if len(parts) != 2:
                 dprint("MDRIVE COMMUNICATION ERROR", ANSI.RED)
                 dprint(f"  `query_errors()` failed to split reply: {reply}")
-                return
+                return False
 
             try:
                 self.state.has_error = bool(int(parts[0].strip()))
@@ -862,12 +944,18 @@ class MDrive_Motor:
             except ValueError:
                 dprint("MDRIVE COMMUNICATION ERROR", ANSI.RED)
                 dprint(f"  `query_errors()` failed to parse reply: {reply}")
+                return False
+
+        if self.state.has_error:
+            self.state.is_home_known = False
+
+        return success
 
     # --------------------------------------------------------------------------
     #   query_state
     # --------------------------------------------------------------------------
 
-    def query_state(self):
+    def query_state(self) -> bool:
         """Query the measurement parameters of the MDrive motor and store these
         inside member `MDrive_Motor.state`.
 
@@ -876,6 +964,10 @@ class MDrive_Motor:
         - state.velocity
         - state.is_moving
         - state.is_velocity_changing
+
+        Returns ('bool'):
+            True if the command was successfully send to the motor, False
+            otherwise.
 
         Query takes ~0.050 s @   9600 baud with TCO box.
         Query takes ~0.062 s @   9600 baud with direct RS422-USB cable.
@@ -887,7 +979,7 @@ class MDrive_Motor:
             if len(parts) != 4:
                 dprint("MDRIVE COMMUNICATION ERROR", ANSI.RED)
                 dprint(f"  `query_state()` failed to split reply: {reply}")
-                return
+                return False
 
             try:
                 self.state.position = int(parts[0].strip())
@@ -897,17 +989,24 @@ class MDrive_Motor:
             except ValueError:
                 dprint("MDRIVE COMMUNICATION ERROR", ANSI.RED)
                 dprint(f"  `query_state()` failed to parse reply: {reply}")
+                return False
+
+        return success
 
     # --------------------------------------------------------------------------
     #   query_is_moving
     # --------------------------------------------------------------------------
 
-    def query_is_moving(self):
+    def query_is_moving(self) -> bool:
         """Query the `is_moving` parameter of the MDrive motor and store this
         inside member `MDrive_Motor.state`.
 
         Updates:
         - state.is_moving
+
+        Returns ('bool'):
+            True if the command was successfully send to the motor, False
+            otherwise.
 
         Query takes ~0.013 s @   9600 baud with TCO box.
         Query takes ~0.016 s @   9600 baud with direct RS422-USB cable.
@@ -920,12 +1019,15 @@ class MDrive_Motor:
             except ValueError:
                 dprint("MDRIVE COMMUNICATION ERROR", ANSI.RED)
                 dprint(f"  `query_is_moving()` failed to parse reply: {reply}")
+                return False
+
+        return success
 
     # --------------------------------------------------------------------------
     #   execute_subroutine
     # --------------------------------------------------------------------------
 
-    def execute_subroutine(self, subroutine_label: str):
+    def execute_subroutine(self, subroutine_label: str) -> tuple[bool, str]:
         """Execute a subroutine or program as flashed into the MDrive motor.
 
         NOTE: Calling a subroutine inadvertently will reset any error that might
@@ -946,28 +1048,6 @@ class MDrive_Motor:
                     Reply received from the device as an ASCII string.
         """
         return self.query(f"ex {subroutine_label}")
-
-    # --------------------------------------------------------------------------
-    #   Transformations
-    # --------------------------------------------------------------------------
-
-    def steps2mm(self, x: float) -> float:
-        return x / self.config.steps_per_mm
-
-    def steps2rev(self, x: float) -> float:
-        return x / self.config.steps_per_rev
-
-    def steps2degrees(self, x: float) -> float:
-        return x / self.config.steps_per_rev * 360
-
-    def mm2steps(self, x: float) -> float:
-        return x * self.config.steps_per_mm
-
-    def rev2steps(self, x: float) -> float:
-        return x * self.config.steps_per_rev
-
-    def degrees2steps(self, x: float) -> float:
-        return x * self.config.steps_per_rev / 360
 
     # --------------------------------------------------------------------------
     #   init_interface
@@ -1003,6 +1083,7 @@ class MDrive_Motor:
             otherwise.
         """
         success, _reply = self.execute_subroutine("F2")
+        self.state.is_home_known = success
         self.query_state()
         self.query_errors()
 
@@ -1042,14 +1123,11 @@ class MDrive_Motor:
             True if the command was successfully send to the motor, False
             otherwise.
         """
-        C = self.config
+        config = self.config
 
         # Ensure x is in units of [steps] from now on
         if not in_units_of_step:
-            if C.movement_type == Movement_type.LINEAR:
-                x = self.mm2steps(x)
-            else:
-                x = self.rev2steps(x)
+            x = x * config.calibration_constant
 
         # Safety check
         if np.isnan(x):
@@ -1067,7 +1145,7 @@ class MDrive_Motor:
 
         else:
             # Absolute movement
-            if C.movement_type == Movement_type.LINEAR:
+            if config.movement_type == Movement_type.LINEAR:
                 position = int(np.round(x))
                 msg = f"MA {position}"
             else:
@@ -1082,7 +1160,7 @@ class MDrive_Motor:
                     )
                     return False
 
-                if np.isnan(C.steps_per_rev):
+                if np.isnan(config.calibration_constant):
                     print_warning(
                         "WARNING: _move() tripped because steps_per_rev=nan. "
                         "Movement got cancelled."
@@ -1092,7 +1170,7 @@ class MDrive_Motor:
                 distance = shortest_path_on_step_circle(
                     from_step=int(self.state.position),
                     to_step=int(np.round(x)),
-                    steps_per_rev=int(C.steps_per_rev),
+                    steps_per_rev=int(config.calibration_constant),
                 )
                 msg = f"MR {distance}"
 
@@ -1113,32 +1191,32 @@ class MDrive_Motor:
     def move_absolute_mm(self, x: float) -> bool:
         if not self.config.movement_type == Movement_type.LINEAR:
             print_warning(
-                "WARNING: move_absolute_mm() got called while "
-                "movement type is angular."
+                "WARNING: move_absolute_mm() got called but movement type is "
+                "angular."
             )
         return self._move(x, relative=False, in_units_of_step=False)
 
     def move_relative_mm(self, x: float) -> bool:
         if not self.config.movement_type == Movement_type.LINEAR:
             print_warning(
-                "WARNING: move_relative_mm() got called while "
-                "movement type is angular."
+                "WARNING: move_relative_mm() got called but movement type is "
+                "angular."
             )
         return self._move(x, relative=True, in_units_of_step=False)
 
     def move_absolute_rev(self, x: float) -> bool:
         if not self.config.movement_type == Movement_type.ANGULAR:
             print_warning(
-                "WARNING: move_absolute_rev() got called while "
-                "movement type is linear."
+                "WARNING: move_absolute_rev() got called but movement type is "
+                "linear."
             )
         return self._move(x, relative=False, in_units_of_step=False)
 
     def move_relative_rev(self, x: float) -> bool:
         if not self.config.movement_type == Movement_type.ANGULAR:
             print_warning(
-                "WARNING: move_relative_rev() got called while "
-                "movement type is linear."
+                "WARNING: move_relative_rev() got called but movement type is "
+                "linear."
             )
         return self._move(x, relative=True, in_units_of_step=False)
 
@@ -1169,14 +1247,10 @@ class MDrive_Motor:
             True if the command was successfully send to the motor, False
             otherwise.
         """
-        C = self.config
 
         # Ensure v is in units of [steps/sec] from now on
         if not in_units_of_step:
-            if C.movement_type == Movement_type.LINEAR:
-                v = self.mm2steps(v)
-            else:
-                v = self.rev2steps(v)
+            v = v * self.config.calibration_constant
 
         # Safety check
         if np.isnan(v):
@@ -1204,7 +1278,7 @@ class MDrive_Motor:
     def slew_mm_per_sec(self, v: float) -> bool:
         if not self.config.movement_type == Movement_type.LINEAR:
             print_warning(
-                "WARNING: slew_mm_per_sec() got called while movement type is "
+                "WARNING: slew_mm_per_sec() got called but movement type is "
                 "angular."
             )
         return self._slew(v, in_units_of_step=False)
@@ -1212,7 +1286,7 @@ class MDrive_Motor:
     def slew_rev_per_sec(self, v: float) -> bool:
         if not self.config.movement_type == Movement_type.ANGULAR:
             print_warning(
-                "WARNING: slew_rev_per_sec() got called while movement type is "
+                "WARNING: slew_rev_per_sec() got called but movement type is "
                 "linear."
             )
         return self._slew(v, in_units_of_step=False)
@@ -1224,6 +1298,43 @@ class MDrive_Motor:
     def controlled_stop(self) -> bool:
         """Bring the motor to a controlled stop."""
         return self._slew(0)
+
+    # ------------------------------------------------------------------------------
+    #   save_to_NVM
+    # ------------------------------------------------------------------------------
+
+    def save_to_NVM(self) -> bool:
+        """Save the currently known parameters to the MDrive non-volatile
+        memory. Executing this command will reinitialize the motor and stop all
+        motion."""
+        header = f"Saving parameters to NVM of MDrive '{self.device_name}':"
+
+        if not self.init_interface():
+            print(header, end="")
+            dprint(" FAILED.", ANSI.RED)
+            return False
+
+        # Wait for all motion to stop before saving to NVM as per manual
+        while self.state.is_moving:
+            self.query_is_moving()
+
+        # The "S" command takes a long time to reply back, triggering a serial
+        # communication timeout if we don't extend the current timeout.
+        timeout_backup = self.controller.ser.timeout
+        self.controller.ser.timeout = 2  # [sec]
+        success, _reply = self.query("s")
+        self.controller.ser.timeout = timeout_backup
+
+        success &= self.query_errors()
+        success &= not self.state.has_error
+
+        print(header, end="")
+        if success:
+            dprint(" Success.", ANSI.GREEN)
+        else:
+            dprint(" FAILED.", ANSI.RED)
+
+        return success
 
 
 # ------------------------------------------------------------------------------
@@ -1299,10 +1410,10 @@ if __name__ == "__main__":
     mdrive.begin(device_names_to_scan="xyza")
 
     if input("Proceed with motor movement? [y/N]").lower() == "y":
-        for DN, motor in mdrive.motors.items():
+        for motor in mdrive.motors:
             # Test: Homing
             # ------------
-            print(f"Homing '{DN}'... ", end="")
+            print(f"Homing '{motor.device_name}'... ", end="")
             sys.stdout.flush()
 
             motor.home()
@@ -1316,7 +1427,7 @@ if __name__ == "__main__":
 
             # Test: Moving
             # ------------
-            print(f"Moving '{DN}'... ", end="")
+            print(f"Moving '{motor.device_name}'... ", end="")
             sys.stdout.flush()
             count = 1
 

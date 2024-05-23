@@ -12,12 +12,13 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-04-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=missing-function-docstring
 
 import sys
 import struct
+from typing import Union, Tuple
 
 import numpy as np
 
@@ -70,7 +71,7 @@ class Bronkhorst_MFC(SerialDevice):
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> tuple[str, str | None]:
+    def ID_validation_query(self) -> Tuple[str, Union[str, None]]:
         _success, reply = self.query(":0780047163716300")
         if isinstance(reply, str):
             broad_reply = reply[3:13]  # Expected: "8002716300"

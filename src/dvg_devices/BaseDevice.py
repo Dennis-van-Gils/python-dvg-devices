@@ -10,13 +10,13 @@ class.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-04-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=broad-except
 
 import sys
 import time
-from collections.abc import Callable
+from typing import Union, Tuple, Callable
 from pathlib import Path
 
 # Use of `ast.literal_eval` got removed in v0.2.2 because it chokes on `nan`
@@ -140,7 +140,7 @@ class SerialDevice:
 
     def set_read_termination(
         self,
-        termination: str | bytes | None,
+        termination: Union[str, bytes, None],
         query_wait_time: float = 0.1,
     ):
         """Set the termination character(s) for serial read.
@@ -170,7 +170,7 @@ class SerialDevice:
     #   set_write_termination
     # --------------------------------------------------------------------------
 
-    def set_write_termination(self, termination: str | bytes | None):
+    def set_write_termination(self, termination: Union[str, bytes, None]):
         """Set the termination character(s) for serial write.
 
         Args:
@@ -281,7 +281,7 @@ class SerialDevice:
         self,
         raises_on_timeout: bool = False,
         returns_ascii: bool = True,
-    ) -> tuple[bool, str | bytes | None]:
+    ) -> Tuple[bool, Union[str, bytes, None]]:
         """Listen to the Arduino for incoming data. This method is blocking
         and returns when a full line has been received or when the serial read
         timeout has expired.
@@ -345,7 +345,9 @@ class SerialDevice:
     #   write
     # --------------------------------------------------------------------------
 
-    def write(self, msg: str | bytes, raises_on_timeout: bool = False) -> bool:
+    def write(
+        self, msg: Union[str, bytes], raises_on_timeout: bool = False
+    ) -> bool:
         """Send a message to the serial device.
 
         Args:
@@ -390,10 +392,10 @@ class SerialDevice:
 
     def query(
         self,
-        msg: str | bytes,
+        msg: Union[str, bytes],
         raises_on_timeout: bool = False,
         returns_ascii: bool = True,
-    ) -> tuple[bool, str | bytes | None]:
+    ) -> Tuple[bool, Union[str, bytes, None]]:
         """Send a message to the serial device and subsequently read the reply.
 
         Args:
@@ -486,7 +488,7 @@ class SerialDevice:
         msg: bytes,
         N_bytes_to_read: int,
         raises_on_timeout: bool = False,
-    ) -> tuple[bool, bytes | None]:
+    ) -> Tuple[bool, Union[bytes, None]]:
         """Send a message as bytes to the serial device and subsequently read
         the reply. Will block until reaching ``N_bytes_to_read`` or a read
         timeout occurs.
@@ -577,7 +579,7 @@ class SerialDevice:
         msg: str,
         delimiter="\t",
         raises_on_timeout: bool = False,
-    ) -> tuple[bool, list]:
+    ) -> Tuple[bool, list]:
         r"""Send a message to the serial device and subsequently read the reply.
         Expects a reply in the form of an ASCII string containing a list of
         numeric values, separated by a delimiter. These values will be parsed

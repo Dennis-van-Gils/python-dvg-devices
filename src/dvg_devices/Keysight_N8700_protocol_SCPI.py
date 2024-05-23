@@ -12,13 +12,14 @@ the previous query resulted in a communication error.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-04-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=missing-function-docstring, multiple-statements, broad-except
 
 import os
 import time
 from pathlib import Path
+from typing import Union, Tuple, List
 
 import pyvisa
 import numpy as np
@@ -60,14 +61,14 @@ class Keysight_N8700:
 
         # The single error string retreived from the error queue of the device.
         # None indicates no error is left in the queue.
-        error: str | None = None
+        error: Union[str, None] = None
 
         # This list of strings is provided to be able to store all errors from
         # the device queue. This list is populated by calling 'query_error'
         # until no error is left in the queue. This list can then be printed to
         # screen or GUI and the user should 'acknowledge' the list, after which
         # the list can be emptied (=[]) again.
-        all_errors: list[str] = []
+        all_errors: List[str] = []
 
         # Questionable condition status registers
         # fmt: off
@@ -116,7 +117,7 @@ class Keysight_N8700:
         self._idn: str = ""  # The identity of the device ("*IDN?")
 
         # Placeholder for the VISA device instance
-        self.device: pyvisa.resources.MessageBasedResource | None = None
+        self.device: Union[pyvisa.resources.MessageBasedResource, None] = None
 
         # Is the connection to the device alive?
         self.is_alive: bool = False
@@ -320,7 +321,7 @@ class Keysight_N8700:
     #   query
     # --------------------------------------------------------------------------
 
-    def query(self, msg_str: str) -> tuple[bool, str | None]:
+    def query(self, msg_str: str) -> Tuple[bool, Union[str, None]]:
         """Try to query the device.
 
         Args:

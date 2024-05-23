@@ -10,7 +10,7 @@ refer to this device as a multiplexer, or mux.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-04-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=wrong-import-position, missing-function-docstring
 # pylint: disable=broad-except, multiple-statements
@@ -18,6 +18,7 @@ __version__ = "1.4.0"
 import os
 import sys
 import time
+from typing import Union, List
 
 # Mechanism to support both PyQt and PySide
 # -----------------------------------------
@@ -177,7 +178,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
         # String format to use for the readings in the table widget.
         # When type is a single string, all rows will use this format.
         # When type is a list of strings, rows will be formatted consecutively.
-        self.table_readings_format: str | list[str] = ".5e"
+        self.table_readings_format: Union[str, List[str]] = ".5e"
 
         self.create_GUI()
         self.signal_DAQ_updated.connect(self.update_GUI)

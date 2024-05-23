@@ -15,11 +15,12 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-04-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=missing-function-docstring, pointless-string-statement
 
 import sys
+from typing import Union, Tuple
 
 import numpy as np
 
@@ -32,22 +33,22 @@ class Compax3_servo(SerialDevice):
         that the last query was unsuccessful in communication."""
 
         # fmt: off
-        I0                : float | bool = np.nan  # bit 0
-        I1                : float | bool = np.nan  # bit 1
-        I2                : float | bool = np.nan  # bit 2
-        I3                : float | bool = np.nan  # bit 3
-        I4                : float | bool = np.nan  # bit 4
-        I5                : float | bool = np.nan  # bit 5
-        I6                : float | bool = np.nan  # bit 6
-        I7                : float | bool = np.nan  # bit 7 'open motor holding brake'
-        no_error          : float | bool = np.nan  # bit 8
-        pos_reached       : float | bool = np.nan  # bit 9
-        powerless         : float | bool = np.nan  # bit 10
-        powered_stationary: float | bool = np.nan  # bit 11 'standstill'
-        zero_pos_known    : float | bool = np.nan  # bit 12
-        PSB0              : float | bool = np.nan  # bit 13
-        PSB1              : float | bool = np.nan  # bit 14
-        PSB2              : float | bool = np.nan  # bit 15
+        I0                : Union[float, bool] = np.nan  # bit 0
+        I1                : Union[float, bool] = np.nan  # bit 1
+        I2                : Union[float, bool] = np.nan  # bit 2
+        I3                : Union[float, bool] = np.nan  # bit 3
+        I4                : Union[float, bool] = np.nan  # bit 4
+        I5                : Union[float, bool] = np.nan  # bit 5
+        I6                : Union[float, bool] = np.nan  # bit 6
+        I7                : Union[float, bool] = np.nan  # bit 7 'open motor holding brake'
+        no_error          : Union[float, bool] = np.nan  # bit 8
+        pos_reached       : Union[float, bool] = np.nan  # bit 9
+        powerless         : Union[float, bool] = np.nan  # bit 10
+        powered_stationary: Union[float, bool] = np.nan  # bit 11 'standstill'
+        zero_pos_known    : Union[float, bool] = np.nan  # bit 12
+        PSB0              : Union[float, bool] = np.nan  # bit 13
+        PSB1              : Union[float, bool] = np.nan  # bit 14
+        PSB2              : Union[float, bool] = np.nan  # bit 15
         # fmt: on
 
     class State:
@@ -95,10 +96,10 @@ class Compax3_servo(SerialDevice):
 
     def query(
         self,
-        msg: str | bytes,
+        msg: Union[str, bytes],
         raises_on_timeout: bool = False,
         returns_ascii: bool = True,
-    ) -> tuple[bool, str | bytes | None]:
+    ) -> Tuple[bool, Union[str, bytes, None]]:
         success, reply = super().query(msg, raises_on_timeout, returns_ascii)
 
         # The Compax3 is more complex in its replies than the average device.
@@ -121,7 +122,7 @@ class Compax3_servo(SerialDevice):
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> tuple[str, str | None]:
+    def ID_validation_query(self) -> Tuple[str, Union[str, None]]:
         broad_reply = ""
         specific_reply = None
 

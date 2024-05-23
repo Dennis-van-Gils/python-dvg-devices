@@ -9,11 +9,12 @@ Tested on model PD15R-30‐A12E
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-04-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=missing-function-docstring, multiple-statements
 
 import sys
+from typing import Tuple
 
 import numpy as np
 
@@ -63,7 +64,7 @@ class PolyScience_PD_bath(SerialDevice):
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> tuple[str, None]:
+    def ID_validation_query(self) -> Tuple[str, None]:
         # We'll use the `Disable command echo` of the PolyScience bath and check
         # for the proper reply '!'.
         _success, reply = self.query("SE0")

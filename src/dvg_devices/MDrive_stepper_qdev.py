@@ -14,6 +14,7 @@ __version__ = "1.4.0"
 
 from enum import Enum
 from functools import partial
+from typing import List
 
 import numpy as np
 from qtpy import QtCore, QtGui, QtWidgets as QtWid
@@ -400,7 +401,7 @@ class GUI_MDrive_motor_panel(QtCore.QObject):
 
         def add_motion_row(
             grid: QtWid.QGridLayout,
-            row_idx: list[int],  # Single int put in a list to allow pass by ref
+            row_idx: List[int],  # Single int put in a list to allow pass by ref
             descr: str = "",
             abbrev: str = "",
             unit: str = "",
@@ -418,7 +419,7 @@ class GUI_MDrive_motor_panel(QtCore.QObject):
 
             return line_edit, unit_label
 
-        def add_spacer_row(grid: QtWid.QGridLayout, row_idx: list[int]):
+        def add_spacer_row(grid: QtWid.QGridLayout, row_idx: List[int]):
             grid.addItem(QtWid.QSpacerItem(1, 10), row_idx[0], 0)
             row_idx[0] += 1
 

@@ -84,13 +84,14 @@ attached motor, allowing them to be flashed via a PC.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "03-05-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=missing-function-docstring, too-many-lines
 
 import sys
 import time
 from enum import Enum
+from typing import Union, Tuple, Dict
 
 import numpy as np
 import serial
@@ -241,7 +242,7 @@ class MDrive_Controller(SerialDevice):
 
     def ID_validation_query(
         self,
-    ) -> tuple[str | bytes | None, str | bytes | None]:
+    ) -> Tuple[Union[str, bytes, None], Union[str, bytes, None]]:
         r"""Sends the escape character "\x1b" which stops all current motion of
         the MDrive motors to which we expect any of the following replies::
 
@@ -276,7 +277,7 @@ class MDrive_Controller(SerialDevice):
 
     def begin(
         self,
-        device_names_to_scan: str | None = None,
+        device_names_to_scan: Union[str, None] = None,
     ):
         """Scan for connected motors, set them up and store them in member
         `MDrive_Controller.motors` as a list of `MDrive_Motor` instances.
@@ -420,7 +421,7 @@ class MDrive_Controller(SerialDevice):
     #   query_half_duplex
     # --------------------------------------------------------------------------
 
-    def query_half_duplex(self, msg: str) -> tuple[bool, str]:
+    def query_half_duplex(self, msg: str) -> Tuple[bool, str]:
         r"""Send a message over the MDrive serial port and subsequently read the
         reply.
 
@@ -511,35 +512,35 @@ class MDrive_Motor:
         IO_S4: str = ""
         """Setup IO Point 4"""
 
-        user_variables: dict[str, int] = {}
+        user_variables: Dict[str, int] = {}
         """Param UV: Dictionary of user variables"""
-        user_subroutines: dict[str, int] = {}
+        user_subroutines: Dict[str, int] = {}
         """Param UV: Dictionary of user subroutines"""
 
-        motion_A: float | int = np.nan
+        motion_A: Union[float, int] = np.nan
         """Acceleration [steps/sec^2]"""
-        motion_D: float | int = np.nan
+        motion_D: Union[float, int] = np.nan
         """Deceleration [steps/sec^2]"""
-        motion_HC: float | int = np.nan
+        motion_HC: Union[float, int] = np.nan
         """Hold current [0-100 %]"""
-        motion_HT: float | int = np.nan
+        motion_HT: Union[float, int] = np.nan
         """Hold current delay time [msec]"""
-        motion_LM: float | int = np.nan
+        motion_LM: Union[float, int] = np.nan
         """Limit stop modes [1-6]"""
-        motion_MS: float | int = np.nan
+        motion_MS: Union[float, int] = np.nan
         """Microstep resolution select [microsteps per full motor step]"""
-        motion_MT: float | int = np.nan
+        motion_MT: Union[float, int] = np.nan
         """Motor settling delay time [msec]"""
-        motion_RC: float | int = np.nan
+        motion_RC: Union[float, int] = np.nan
         """Run current [0-100 %]"""
-        motion_VI: float | int = np.nan
+        motion_VI: Union[float, int] = np.nan
         """Initial velocity [steps/sec]"""
-        motion_VM: float | int = np.nan
+        motion_VM: Union[float, int] = np.nan
         """Maximum velocity [steps/sec]"""
 
         movement_type: Movement_type = Movement_type.LINEAR
         """Read from MDrive user variable 'CT'. 0: linear, 1: angular."""
-        calibration_constant: float | int = np.nan
+        calibration_constant: Union[float, int] = np.nan
         """Read from MDrive user variable 'C0'. The step calibration constant in
         units of [steps/mm] or [steps/rev], depending on the movement type
         parameter 'CT'."""
@@ -547,9 +548,9 @@ class MDrive_Motor:
     class State:
         """Container for the MDrive motor measurement variables."""
 
-        position: float | int = np.nan
+        position: Union[float, int] = np.nan
         """Param P: Read position [steps]"""
-        velocity: float | int = np.nan
+        velocity: Union[float, int] = np.nan
         """Param V: Read velocity [steps/sec]"""
         is_moving: bool = False
         """Param MV: Moving flag [True/False]"""
@@ -580,13 +581,13 @@ class MDrive_Motor:
 
         # Placeholder for a future `QtCore.QMutex()` instance to allow for
         # proper multithreading. Will be assigned in `MDrive_stepper_qdev.py`.
-        self.mutex: None | object = None
+        self.mutex: Union[object, None] = None
 
     # --------------------------------------------------------------------------
     #   query
     # --------------------------------------------------------------------------
 
-    def query(self, msg: str) -> tuple[bool, str]:
+    def query(self, msg: str) -> Tuple[bool, str]:
         r"""Send a message to this particular MDrive motor and subsequently read
         the reply.
 
@@ -1027,7 +1028,7 @@ class MDrive_Motor:
     #   execute_subroutine
     # --------------------------------------------------------------------------
 
-    def execute_subroutine(self, subroutine_label: str) -> tuple[bool, str]:
+    def execute_subroutine(self, subroutine_label: str) -> Tuple[bool, str]:
         """Execute a subroutine or program as flashed into the MDrive motor.
 
         NOTE: Calling a subroutine inadvertently will reset any error that might

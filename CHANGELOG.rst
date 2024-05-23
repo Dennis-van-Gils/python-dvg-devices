@@ -1,12 +1,12 @@
 Changelog
 =========
 
-1.4.0 (2024-04-05)
+1.4.0 (2024-05-23)
 ------------------
 Major clean-up and streamlining:
 
 * Changed all string formatting to f-strings
-* Extended type hinting and checking, relying on built-in types
+* Extended type hinting and checking
 * Made demos uniform and passing `qdev` arguments to `MainWindow` now
 * Individual source files now follow the PyPi package version
 * Resolved nearly all Pylint / Pylance warnings
@@ -14,6 +14,7 @@ Major clean-up and streamlining:
 New devices added:
 
 * Xylem Hydrovar HVL - Variable speed pump controller
+* Novanta IMS MDrive - Stepper motor controller
 
 1.3.0 (2023-02-23)
 ------------------

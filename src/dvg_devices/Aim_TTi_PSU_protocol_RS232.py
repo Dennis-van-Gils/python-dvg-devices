@@ -9,13 +9,14 @@ Note:
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-04-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=broad-except, missing-function-docstring, multiple-statements
 
 import os
 import sys
 import time
+from typing import Union, Tuple
 from pathlib import Path
 
 import numpy as np
@@ -105,7 +106,7 @@ class Aim_TTi_PSU(SerialDevice):
 
     def write_and_wait_for_opc(
         self,
-        msg: str | bytes,
+        msg: Union[str, bytes],
         raises_on_timeout: bool = False,
     ) -> bool:
         """For proper synchronization we have to wait for the Operation Complete
@@ -122,7 +123,7 @@ class Aim_TTi_PSU(SerialDevice):
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> tuple[bool, str]:
+    def ID_validation_query(self) -> Tuple[bool, str]:
         success = self.query_IDN()
         return success, self.serial_str
 

@@ -6,13 +6,14 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-04-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=wrong-import-position, missing-function-docstring, bare-except
 
 import os
 import sys
 from pathlib import Path
+from typing import List
 
 # Mechanism to support both PyQt and PySide
 # -----------------------------------------
@@ -91,7 +92,7 @@ DEBUG = False
 class MainWindow(QtWid.QWidget):
     def __init__(
         self,
-        qdevs: list[Keysight_N8700_qdev],
+        qdevs: List[Keysight_N8700_qdev],
         parent=None,
         **kwargs,
     ):
@@ -184,7 +185,7 @@ if __name__ == "__main__":
     #   Set up communication threads for the PSUs
     # --------------------------------------------------------------------------
 
-    psu_qdevs: list[Keysight_N8700_qdev] = []
+    psu_qdevs: List[Keysight_N8700_qdev] = []
     for psu in psus:
         psu_qdevs.append(
             Keysight_N8700_qdev(

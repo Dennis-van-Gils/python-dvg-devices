@@ -17,13 +17,14 @@ Reference documents:
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "06-04-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=missing-function-docstring, too-many-lines
 
 import sys
 from enum import IntEnum
 import time
+from typing import Union, Tuple
 
 import numpy as np
 
@@ -342,7 +343,7 @@ class XylemHydrovarHVL(SerialDevice):
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> tuple[bool, int | None]:
+    def ID_validation_query(self) -> Tuple[bool, Union[int, None]]:
         # We're using a query on the Modbus slave address (P1205) as ID
         # validation
         success, data_val = self._RTU_read(HVLREG_ADDRESS)
@@ -377,7 +378,7 @@ class XylemHydrovarHVL(SerialDevice):
     #   _RTU_read
     # --------------------------------------------------------------------------
 
-    def _RTU_read(self, hvlreg: HVL_Register) -> tuple[bool, int | None]:
+    def _RTU_read(self, hvlreg: HVL_Register) -> Tuple[bool, Union[int, None]]:
         """Send a 'read' RTU command over Modbus to the slave device.
 
         Args:
@@ -487,7 +488,7 @@ class XylemHydrovarHVL(SerialDevice):
 
     def _RTU_write(
         self, hvlreg: HVL_Register, value: int
-    ) -> tuple[bool, int | None]:
+    ) -> Tuple[bool, Union[int, None]]:
         """Send a 'write' RTU command over Modbus to the slave device.
 
         Args:
@@ -870,7 +871,7 @@ class XylemHydrovarHVL(SerialDevice):
 
         return success
 
-    def set_error_reset(self, flag: int | bool) -> bool:
+    def set_error_reset(self, flag: Union[int, bool]) -> bool:
         """P615: Select automatic reset of errors."""
         success, data_val = self._RTU_write(HVLREG_ERROR_RESET, int(flag))
         if data_val is not None:

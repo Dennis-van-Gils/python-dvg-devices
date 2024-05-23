@@ -6,12 +6,13 @@ Tested on model FP51-SL.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-04-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=broad-except, missing-function-docstring, multiple-statements
 
 import time
 import serial
+from typing import Union, Tuple
 
 import numpy as np
 
@@ -35,9 +36,9 @@ class Julabo_circulator(SerialDevice):
         version: str = ""    # Version of the Julabo firmware
                              # FP51-SL: "JULABO HIGHTECH FL HL/SL VERSION 4.0"
         temp_unit: str = ""  # Temperature unit used by the Julabo  ("C"; "F")
-        status   : float | str  = np.nan  # Status or error message of the Julabo
-        has_error: float | bool = np.nan  # True when status is a negative number
-        running  : float | bool = np.nan  # Is the circulator running?
+        status   : Union[float, str] = np.nan  # Status or error message of the Julabo
+        has_error: Union[float, bool] = np.nan  # True when status is a negative number
+        running  : Union[float, bool] = np.nan  # Is the circulator running?
 
         setpoint_preset = np.nan # Active setpoint preset in the Julabo (1; 2; 3)
         setpoint = np.nan    # Read-out temp. setpoint of active preset [C; F]
@@ -88,7 +89,7 @@ class Julabo_circulator(SerialDevice):
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> tuple[str, str | None]:
+    def ID_validation_query(self) -> Tuple[str, Union[str, None]]:
         # Strange Julabo quirk: The first query always times out
         try:
             self.query("VERSION")
@@ -753,7 +754,7 @@ class Julabo_circulator(SerialDevice):
     #   query_
     # --------------------------------------------------------------------------
 
-    def query_(self, *args, **kwargs) -> tuple[bool, str | bytes | None]:
+    def query_(self, *args, **kwargs) -> Tuple[bool, Union[str, bytes, None]]:
         """Wrapper for :meth:`dvg_qdevices.query` to add enforcing of time gaps
         between commands as per the Julabo manual.
 

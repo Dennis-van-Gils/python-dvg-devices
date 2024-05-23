@@ -16,11 +16,12 @@ or that the previous query resulted in a communication error.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-04-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=missing-function-docstring, multiple-statements
 
 import time
+from typing import Union, Tuple, List
 
 import pyvisa
 import numpy as np
@@ -80,7 +81,7 @@ class Keysight_3497xA:
         # All the channels in the scan list retreived from the 3497xA [list of
         # strings]. This can be used to e.g. populate a table view with correct
         # labels.
-        all_scan_list_channels: list[str] = []
+        all_scan_list_channels: List[str] = []
 
         # Number of channels making up the scan list
         N_channels: int = 0
@@ -90,14 +91,14 @@ class Keysight_3497xA:
 
         # The single error string retreived from the error queue of the device.
         # None indicates no error is left in the queue.
-        error: str | None = None
+        error: Union[str, None] = None
 
         # This list of strings is provided to be able to store all errors from
         # the device queue. This list is populated by calling 'query_error'
         # until no error is left in the queue. This list can then be printed to
         # screen or GUI and the user should 'acknowledge' the list, after which
         # the list can be emptied (=[]) again.
-        all_errors: list[str] = []
+        all_errors: List[str] = []
 
     class Diag:
         """Container for the diagnostic information.
@@ -107,9 +108,9 @@ class Keysight_3497xA:
 
         # Cycle count of the three backplane relays on the internal DMM.
         # diag:dmm:cycl?
-        slot_1_DMM_cycles: float | int = np.nan
-        slot_2_DMM_cycles: float | int = np.nan
-        slot_3_DMM_cycles: float | int = np.nan
+        slot_1_DMM_cycles: Union[float, int] = np.nan
+        slot_2_DMM_cycles: Union[float, int] = np.nan
+        slot_3_DMM_cycles: Union[float, int] = np.nan
 
         # Identity of the three plug-in modules in the specified slot.
         # syst:ctyp?
@@ -146,7 +147,7 @@ class Keysight_3497xA:
         self._idn: str = ""  # The identity of the device ("*IDN?")
 
         # Placeholder for the VISA device instance
-        self.device: pyvisa.resources.MessageBasedResource | None = None
+        self.device: Union[pyvisa.resources.MessageBasedResource, None] = None
 
         # Is the connection to the device alive?
         self.is_alive: bool = False
@@ -222,7 +223,7 @@ class Keysight_3497xA:
     #   begin
     # --------------------------------------------------------------------------
 
-    def begin(self, SCPI_setup_commands: list[str] | None = None) -> bool:
+    def begin(self, SCPI_setup_commands: Union[List[str], None] = None) -> bool:
         """This function should run directly after having established a
         connection to a 3497xA.
 
@@ -306,7 +307,7 @@ class Keysight_3497xA:
     #   query
     # --------------------------------------------------------------------------
 
-    def query(self, msg_str: str) -> tuple[bool, str | None]:
+    def query(self, msg_str: str) -> Tuple[bool, Union[str, None]]:
         """Try to query the device.
 
         Args:
@@ -345,7 +346,7 @@ class Keysight_3497xA:
     #   query_ascii_values
     # --------------------------------------------------------------------------
 
-    def query_ascii_values(self, msg_str: str) -> tuple[bool, list]:
+    def query_ascii_values(self, msg_str: str) -> Tuple[bool, list]:
         """Try to query the device.
 
         Args:

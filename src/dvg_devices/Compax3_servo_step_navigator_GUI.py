@@ -14,12 +14,13 @@ module. It will only read out the software state. Pure GUI.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-04-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=wrong-import-position, missing-function-docstring
 
 import os
 import sys
+from typing import Union
 
 # Mechanism to support both PyQt and PySide
 # -----------------------------------------
@@ -95,8 +96,8 @@ class Compax3_step_navigator(QtWid.QWidget):
 
     def __init__(
         self,
-        trav_horz: Compax3_servo | None = None,
-        trav_vert: Compax3_servo | None = None,
+        trav_horz: Union[Compax3_servo, None] = None,
+        trav_vert: Union[Compax3_servo, None] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)

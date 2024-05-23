@@ -15,12 +15,13 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "05-04-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=missing-function-docstring, broad-except
 
 import sys
 import time
+from typing import Union, Tuple
 
 import numpy as np
 
@@ -84,34 +85,34 @@ class ThermoFlex_chiller(SerialDevice):
 
     class Status_bits:
         # Container for the status bits of the chiller
-        running                    : int | float = np.nan
-        RTD1_open                  : int | float = np.nan
-        RTD2_open                  : int | float = np.nan
-        RTD3_open                  : int | float = np.nan
-        high_temp_fixed_fault      : int | float = np.nan
-        low_temp_fixed_fault       : int | float = np.nan
-        high_temp_fault            : int | float = np.nan
-        low_temp_fault             : int | float = np.nan
-        high_pressure_fault        : int | float = np.nan
-        low_pressure_fault         : int | float = np.nan
-        phase_monitor_fault        : int | float = np.nan
-        high_level_fault           : int | float = np.nan
-        drip_pan_fault             : int | float = np.nan
-        motor_overload_fault       : int | float = np.nan
-        LPC_fault                  : int | float = np.nan
-        HPC_fault                  : int | float = np.nan
-        external_EMO_fault         : int | float = np.nan
-        local_EMO_fault            : int | float = np.nan
-        low_flow_fault             : int | float = np.nan
-        low_level_fault            : int | float = np.nan
-        sense_5V_fault             : int | float = np.nan
-        invalid_level_fault        : int | float = np.nan
-        low_fixed_flow_warning     : int | float = np.nan
-        high_pressure_fault_factory: int | float = np.nan
-        low_pressure_fault_factory : int | float = np.nan
-        powering_up                : int | float = np.nan
-        powering_down              : int | float = np.nan
-        fault_tripped              : int | float = np.nan
+        running                    : Union[int, float] = np.nan
+        RTD1_open                  : Union[int, float] = np.nan
+        RTD2_open                  : Union[int, float] = np.nan
+        RTD3_open                  : Union[int, float] = np.nan
+        high_temp_fixed_fault      : Union[int, float] = np.nan
+        low_temp_fixed_fault       : Union[int, float] = np.nan
+        high_temp_fault            : Union[int, float] = np.nan
+        low_temp_fault             : Union[int, float] = np.nan
+        high_pressure_fault        : Union[int, float] = np.nan
+        low_pressure_fault         : Union[int, float] = np.nan
+        phase_monitor_fault        : Union[int, float] = np.nan
+        high_level_fault           : Union[int, float] = np.nan
+        drip_pan_fault             : Union[int, float] = np.nan
+        motor_overload_fault       : Union[int, float] = np.nan
+        LPC_fault                  : Union[int, float] = np.nan
+        HPC_fault                  : Union[int, float] = np.nan
+        external_EMO_fault         : Union[int, float] = np.nan
+        local_EMO_fault            : Union[int, float] = np.nan
+        low_flow_fault             : Union[int, float] = np.nan
+        low_level_fault            : Union[int, float] = np.nan
+        sense_5V_fault             : Union[int, float] = np.nan
+        invalid_level_fault        : Union[int, float] = np.nan
+        low_fixed_flow_warning     : Union[int, float] = np.nan
+        high_pressure_fault_factory: Union[int, float] = np.nan
+        low_pressure_fault_factory : Union[int, float] = np.nan
+        powering_up                : Union[int, float] = np.nan
+        powering_down              : Union[int, float] = np.nan
+        fault_tripped              : Union[int, float] = np.nan
 
     class State:
         # Container for the process and measurement variables
@@ -186,10 +187,10 @@ class ThermoFlex_chiller(SerialDevice):
 
     def query(
         self,
-        msg: str | bytes,
+        msg: Union[str, bytes],
         raises_on_timeout: bool = False,
         returns_ascii: bool = False,
-    ) -> tuple[bool, bytes | None]:
+    ) -> Tuple[bool, Union[bytes, None]]:
         """Send a message to the ThermoFlex chiller and subsequently read the
         reply.
 
@@ -242,7 +243,7 @@ class ThermoFlex_chiller(SerialDevice):
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> tuple[bool, None]:
+    def ID_validation_query(self) -> Tuple[bool, None]:
         return self.query_Ack(), None
 
     # --------------------------------------------------------------------------
@@ -283,7 +284,7 @@ class ThermoFlex_chiller(SerialDevice):
 
     def query_data_as_float_and_uom(
         self, msg_bytes: bytes
-    ) -> tuple[bool, float, int | float]:
+    ) -> Tuple[bool, float, Union[int, float]]:
         """Query the ThermoFlex chiller and parse its reply as data bytes
         decoding a float value and an unit of measure index.
 
@@ -316,7 +317,9 @@ class ThermoFlex_chiller(SerialDevice):
     #   Parsing
     # --------------------------------------------------------------------------
 
-    def parse_data_bytes(self, ans_bytes: bytes) -> tuple[float, int | float]:
+    def parse_data_bytes(
+        self, ans_bytes: bytes
+    ) -> Tuple[float, Union[int, float]]:
         """Parse the data bytes. The manual states:
 
         data_bytes[0]:
@@ -371,7 +374,7 @@ class ThermoFlex_chiller(SerialDevice):
         d3 = np.uint8(status_bits[2])
         d4 = np.uint8(status_bits[3])
 
-        [
+        (
             self.status_bits.low_temp_fault,
             self.status_bits.high_temp_fault,
             self.status_bits.low_temp_fixed_fault,
@@ -380,8 +383,8 @@ class ThermoFlex_chiller(SerialDevice):
             self.status_bits.RTD2_open,
             self.status_bits.RTD1_open,
             self.status_bits.running,
-        ] = np.unpackbits(d1)
-        [
+        ) = np.unpackbits(d1)
+        (
             self.status_bits.HPC_fault,
             self.status_bits.LPC_fault,
             self.status_bits.motor_overload_fault,
@@ -390,8 +393,8 @@ class ThermoFlex_chiller(SerialDevice):
             self.status_bits.drip_pan_fault,
             self.status_bits.low_pressure_fault,
             self.status_bits.high_pressure_fault,
-        ] = np.unpackbits(d2)
-        [
+        ) = np.unpackbits(d2)
+        (
             self.status_bits.high_pressure_fault_factory,
             self.status_bits.low_fixed_flow_warning,
             self.status_bits.invalid_level_fault,
@@ -400,8 +403,8 @@ class ThermoFlex_chiller(SerialDevice):
             self.status_bits.low_flow_fault,
             self.status_bits.local_EMO_fault,
             self.status_bits.external_EMO_fault,
-        ] = np.unpackbits(d3)
-        [
+        ) = np.unpackbits(d3)
+        (
             _dummy,
             _dummy,
             _dummy,
@@ -410,7 +413,7 @@ class ThermoFlex_chiller(SerialDevice):
             self.status_bits.powering_down,
             self.status_bits.powering_up,
             self.status_bits.low_pressure_fault_factory,
-        ] = np.unpackbits(d4)
+        ) = np.unpackbits(d4)
 
         self.status_bits.fault_tripped = int(
             sum(
@@ -432,7 +435,7 @@ class ThermoFlex_chiller(SerialDevice):
         # print(np.unpackbits(d3))
         # print(np.unpackbits(d4))
 
-    def parse_ASCII_bytes(self, ans_bytes: bytes) -> str | None:
+    def parse_ASCII_bytes(self, ans_bytes: bytes) -> Union[str, None]:
         """Parse the ASCII-encoded text bytes.
 
         Returns: The decoded text as `str`, or None if unsuccessful.
@@ -452,7 +455,7 @@ class ThermoFlex_chiller(SerialDevice):
     #   ON/OFF
     # --------------------------------------------------------------------------
 
-    def turn_off(self) -> bool | float:
+    def turn_off(self) -> Union[bool, float]:
         """Turn the chiller off.
 
         Returns: The effected on/off state of the chiller, or [numpy.nan] if
@@ -465,7 +468,7 @@ class ThermoFlex_chiller(SerialDevice):
 
         return np.nan
 
-    def turn_on(self) -> bool | float:
+    def turn_on(self) -> Union[bool, float]:
         """Turn the chiller on.
 
         Returns: The effected on/off state of the chiller, or [numpy.nan] if
@@ -478,7 +481,7 @@ class ThermoFlex_chiller(SerialDevice):
 
         return np.nan
 
-    def query_is_on(self) -> bool | float:
+    def query_is_on(self) -> Union[bool, float]:
         """Query the on/off state of the chiller.
         This is identical to the status bit `status.chiller_running`.
 
@@ -754,7 +757,7 @@ class ThermoFlex_chiller(SerialDevice):
     #   query_display_msg
     # --------------------------------------------------------------------------
 
-    def query_display_msg(self) -> str | None:
+    def query_display_msg(self) -> Union[str, None]:
         """Query the display text shown on the chiller.
 
         Returns: The display text as `str`, or None if unsuccessful.

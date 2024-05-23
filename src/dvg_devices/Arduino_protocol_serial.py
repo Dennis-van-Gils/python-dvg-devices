@@ -5,11 +5,12 @@ Arduino(-like) board over the serial connection."""
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-04-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=missing-function-docstring
 
 import sys
+from typing import Union, Tuple
 
 from dvg_devices.BaseDevice import SerialDevice
 
@@ -73,7 +74,7 @@ class Arduino(SerialDevice):
     #   ID_validation_query
     # --------------------------------------------------------------------------
 
-    def ID_validation_query(self) -> tuple[str, str | None]:
+    def ID_validation_query(self) -> Tuple[str, Union[str, None]]:
         # Expected: reply = "Arduino, [specific ID]"
         _success, reply = self.query("id?")
         if isinstance(reply, str):

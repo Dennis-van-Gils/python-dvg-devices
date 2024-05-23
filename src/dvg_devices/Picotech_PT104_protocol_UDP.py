@@ -6,11 +6,13 @@ logger.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-04-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=missing-function-docstring, multiple-statements
 
 import socket
+from typing import Union, Tuple, List
+
 import numpy as np
 
 # ITS-90 resistance-temperature relation for PT100/PT1000
@@ -74,7 +76,7 @@ class Picotech_PT104:
         self.name: str = name
         self._ip_address: str = ""
         self._port: int = 0
-        self._sock: socket.socket | None = None
+        self._sock: Union[socket.socket, None] = None
         self._eeprom = self.Eeprom()
 
         # List corresponding to channels 1 to 4, where
@@ -168,7 +170,7 @@ class Picotech_PT104:
     #   UDP_recv
     # --------------------------------------------------------------------------
 
-    def UDP_recv(self) -> tuple[bool, bytes | None]:
+    def UDP_recv(self) -> Tuple[bool, Union[bytes, None]]:
         """Receive one UDP packet at a time when available.
 
         Returns:
@@ -201,7 +203,7 @@ class Picotech_PT104:
         self,
         msg_bytes: bytes,
         check_reply_bytes: bytes,
-    ) -> tuple[bool, bytes | None]:
+    ) -> Tuple[bool, Union[bytes, None]]:
         """
         Args:
             msg_bytes (bytes):
@@ -291,8 +293,8 @@ class Picotech_PT104:
 
     def start_conversion(
         self,
-        ENA_channels: list[int] | None = None,
-        gain_channels: list[int] | None = None,
+        ENA_channels: Union[List[int], None] = None,
+        gain_channels: Union[List[int], None] = None,
     ) -> bool:
         """
         Starts the continuous acquisition of measurements over channels 1 to 4

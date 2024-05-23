@@ -5,8 +5,10 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "06-04-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
+
+from typing import Tuple
 
 # fmt:off
 auchCRCHi = [
@@ -58,7 +60,7 @@ def pretty_hex(bytes_in: bytes, delimiter: str = " ") -> str:
     return delimiter.join(f"{byte:02x}" for byte in bytes_in)
 
 
-def crc16(bytes_in: bytes) -> tuple[int, int]:
+def crc16(bytes_in: bytes) -> Tuple[int, int]:
     """Calculate and return the 16-bit CRC of the passed bytes sequence as
     (CRC Hi, CRC Lo).
     """

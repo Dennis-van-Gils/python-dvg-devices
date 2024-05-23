@@ -6,70 +6,14 @@ acquisition for an Aim TTi power supply unit (PSU), QL series II.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "04-04-2024"
+__date__ = "23-05-2024"
 __version__ = "1.4.0"
 # pylint: disable=broad-except, missing-function-docstring, multiple-statements
-# pylint: disable=wrong-import-position
 
-import os
-import sys
 import time
 
-# Mechanism to support both PyQt and PySide
-# -----------------------------------------
-
-PYQT5 = "PyQt5"
-PYQT6 = "PyQt6"
-PYSIDE2 = "PySide2"
-PYSIDE6 = "PySide6"
-QT_LIB_ORDER = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
-QT_LIB = None
-
-if QT_LIB is None:
-    for lib in QT_LIB_ORDER:
-        if lib in sys.modules:
-            QT_LIB = lib
-            break
-
-if QT_LIB is None:
-    for lib in QT_LIB_ORDER:
-        try:
-            __import__(lib)
-            QT_LIB = lib
-            break
-        except ImportError:
-            pass
-
-if QT_LIB is None:
-    this_file = __file__.rsplit(os.sep, maxsplit=1)[-1]
-    raise ImportError(
-        f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
-        "none of these packages could be imported."
-    )
-
-# fmt: off
-# pylint: disable=import-error, no-name-in-module
-if QT_LIB == PYQT5:
-    from PyQt5 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
-    from PyQt5.QtCore import pyqtSlot as Slot              # type: ignore
-    from PyQt5.QtCore import pyqtSignal as Signal          # type: ignore
-elif QT_LIB == PYQT6:
-    from PyQt6 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
-    from PyQt6.QtCore import pyqtSlot as Slot              # type: ignore
-    from PyQt6.QtCore import pyqtSignal as Signal          # type: ignore
-elif QT_LIB == PYSIDE2:
-    from PySide2 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
-    from PySide2.QtCore import Slot                        # type: ignore
-    from PySide2.QtCore import Signal                      # type: ignore
-elif QT_LIB == PYSIDE6:
-    from PySide6 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
-    from PySide6.QtCore import Slot                        # type: ignore
-    from PySide6.QtCore import Signal                      # type: ignore
-# pylint: enable=import-error, no-name-in-module
-# fmt: on
-
-# \end[Mechanism to support both PyQt and PySide]
-# -----------------------------------------------
+from qtpy import QtCore, QtGui, QtWidgets as QtWid
+from qtpy.QtCore import Signal, Slot  # type: ignore
 
 from dvg_pyqt_controls import create_Toggle_button, create_tiny_error_LED
 from dvg_debug_functions import dprint, print_fancy_traceback as pft

@@ -5,11 +5,13 @@ Changelog
 ------------------
 Major clean-up and streamlining:
 
+* Using `qtpy` library instead of my own Qt5/6 mechanism
 * Changed all string formatting to f-strings
 * Extended type hinting and checking
 * Made demos uniform and passing `qdev` arguments to `MainWindow` now
 * Individual source files now follow the PyPi package version
 * Resolved nearly all Pylint / Pylance warnings
+* Removed Python 3.6 support
 
 New devices added:
 

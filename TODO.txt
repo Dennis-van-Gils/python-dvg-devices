@@ -1,19 +1,1 @@
 * Showcase all device demos with pictures
-
-* Ditch my own custom PyQt5/6, PySide2/6 import routine and use `qtpy` instead.
-  Remember to check `app.exec_()` vs `app.exec()`
-  
-    import qtpy
-    from qtpy import QtCore, QtGui, QtWidgets as QtWid
-    from qtpy.QtCore import Signal, Slot  # type: ignore
-
-* In all demos, make use of the following code:
-    
-    main_thread = QtCore.QThread.currentThread()
-    if isinstance(main_thread, QtCore.QThread):
-        main_thread.setObjectName("MAIN")  # For DEBUG info
-
-    if qtpy.PYQT6 or qtpy.PYSIDE6:
-        sys.argv += ["-platform", "windows:darkmode=0"]
-    app = QtWid.QApplication(sys.argv)
-    app.setStyle("Fusion")

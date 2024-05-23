@@ -16,9 +16,9 @@ from enum import Enum
 from functools import partial
 from typing import List
 
-import numpy as np
 from qtpy import QtCore, QtGui, QtWidgets as QtWid
 from qtpy.QtCore import Signal, Slot  # type: ignore
+import numpy as np
 
 import dvg_pyqt_controls as controls
 from dvg_debug_functions import print_fancy_traceback as pft

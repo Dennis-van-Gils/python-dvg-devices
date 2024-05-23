@@ -8,6 +8,7 @@ __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "23-05-2024"
 __version__ = "1.4.0"
+print(__url__)
 # pylint: disable=wrong-import-position, missing-function-docstring, bare-except
 
 import os
@@ -15,68 +16,12 @@ import sys
 from pathlib import Path
 from typing import List
 
-# Mechanism to support both PyQt and PySide
-# -----------------------------------------
-
-PYQT5 = "PyQt5"
-PYQT6 = "PyQt6"
-PYSIDE2 = "PySide2"
-PYSIDE6 = "PySide6"
-QT_LIB_ORDER = [PYQT5, PYSIDE2, PYSIDE6, PYQT6]
-QT_LIB = None
-
-# Parse optional cli argument to enfore a QT_LIB
-# cli example: python benchmark.py pyside6
-if len(sys.argv) > 1:
-    arg1 = str(sys.argv[1]).upper()
-    for i, lib in enumerate(QT_LIB_ORDER):
-        if arg1 == lib.upper():
-            QT_LIB = lib
-            break
-
-if QT_LIB is None:
-    for lib in QT_LIB_ORDER:
-        if lib in sys.modules:
-            QT_LIB = lib
-            break
-
-if QT_LIB is None:
-    for lib in QT_LIB_ORDER:
-        try:
-            __import__(lib)
-            QT_LIB = lib
-            break
-        except ImportError:
-            pass
-
-if QT_LIB is None:
-    this_file = __file__.rsplit(os.sep, maxsplit=1)[-1]
-    raise ImportError(
-        f"{this_file} requires PyQt5, PyQt6, PySide2 or PySide6; "
-        "none of these packages could be imported."
-    )
-
-# fmt: off
-# pylint: disable=import-error, no-name-in-module
-if QT_LIB == PYQT5:
-    from PyQt5 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
-elif QT_LIB == PYQT6:
-    from PyQt6 import QtCore, QtGui, QtWidgets as QtWid    # type: ignore
-elif QT_LIB == PYSIDE2:
-    from PySide2 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
-elif QT_LIB == PYSIDE6:
-    from PySide6 import QtCore, QtGui, QtWidgets as QtWid  # type: ignore
-# pylint: enable=import-error, no-name-in-module
-# fmt: on
-
-# \end[Mechanism to support both PyQt and PySide]
-# -----------------------------------------------
-
+import qtpy
+from qtpy import QtCore, QtGui, QtWidgets as QtWid
 import pyvisa
 
 import dvg_pyqt_controls as controls
 from dvg_debug_functions import ANSI, dprint
-
 from dvg_qdeviceio import DAQ_TRIGGER
 from dvg_devices.Keysight_N8700_protocol_SCPI import Keysight_N8700
 from dvg_devices.Keysight_N8700_qdev import Keysight_N8700_qdev
@@ -178,8 +123,14 @@ if __name__ == "__main__":
     #   Create application
     # --------------------------------------------------------------------------
 
-    QtCore.QThread.currentThread().setObjectName("MAIN")  # For DEBUG info
+    main_thread = QtCore.QThread.currentThread()
+    if isinstance(main_thread, QtCore.QThread):
+        main_thread.setObjectName("MAIN")  # For DEBUG info
+
+    if qtpy.PYQT6 or qtpy.PYSIDE6:
+        sys.argv += ["-platform", "windows:darkmode=0"]
     app = QtWid.QApplication(sys.argv)
+    app.setStyle("Fusion")
 
     # --------------------------------------------------------------------------
     #   Set up communication threads for the PSUs
@@ -243,7 +194,4 @@ if __name__ == "__main__":
     window = MainWindow(qdevs=psu_qdevs)
     window.show()
 
-    if QT_LIB in (PYQT5, PYSIDE2):
-        sys.exit(app.exec_())
-    else:
-        sys.exit(app.exec())
+    sys.exit(app.exec())

@@ -52,7 +52,6 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
@@ -81,7 +80,7 @@ setup(
         "serial",
         "VISA",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     install_requires=[
         "dvg-debug-functions~=2.4",
         "dvg-pid-controller~=2.1",
@@ -93,6 +92,7 @@ setup(
         "numpy~=1.15",
         "pyserial~=3.4",
         "pyvisa~=1.11",
+        "qtpy",
     ],
     extras_require={
         "pyqt5": ["pyqt5~=5.12"],

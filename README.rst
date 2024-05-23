@@ -1,12 +1,14 @@
-.. image:: https://img.shields.io/pypi/v/dvg-devices
+|pypi| |python| |readthedocs| |black| |license|
+
+.. |pypi| image:: https://img.shields.io/pypi/v/dvg-devices
     :target: https://pypi.org/project/dvg-devices
-.. image:: https://img.shields.io/pypi/pyversions/dvg-devices
+.. |python| image:: https://img.shields.io/pypi/pyversions/dvg-devices
     :target: https://pypi.org/project/dvg-devices
-.. image:: https://readthedocs.org/projects/python-dvg-devices/badge/?version=latest
+.. |readthedocs| image:: https://readthedocs.org/projects/python-dvg-devices/badge/?version=latest
     :target: https://python-dvg-devices.readthedocs.io/en/latest/?badge=latest
-.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
+.. |black| image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/psf/black
-.. image:: https://img.shields.io/badge/License-MIT-purple.svg
+.. |license| image:: https://img.shields.io/badge/License-MIT-purple.svg
     :target: https://github.com/Dennis-van-Gils/python-dvg-devices/blob/master/LICENSE.txt
 
 DvG_Devices
@@ -41,6 +43,7 @@ Supported devices
     Julabo circulator          Recirculating bath
     Keysight 3497xA            Digital multimeter
     Keysight N8700             Power supply
+    Novanta IMS MDrive         Stepper motor controller
     Parker Compax3             Servo controller
     Picotech PT104             Temperature logger
     PolyScience PD             Recirculating bath

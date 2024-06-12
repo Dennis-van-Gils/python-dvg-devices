@@ -6,14 +6,14 @@ Tested on model FP51-SL.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "23-05-2024"
+__date__ = "12-06-2024"
 __version__ = "1.4.0"
 # pylint: disable=broad-except, missing-function-docstring, multiple-statements
 
 import time
-import serial
 from typing import Union, Tuple
 
+import serial
 import numpy as np
 
 from dvg_debug_functions import print_fancy_traceback as pft

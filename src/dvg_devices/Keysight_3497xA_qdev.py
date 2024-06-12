@@ -10,7 +10,7 @@ refer to this device as a multiplexer, or mux.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "23-05-2024"
+__date__ = "12-06-2024"
 __version__ = "1.4.0"
 # pylint: disable=missing-function-docstring, broad-except, multiple-statements
 
@@ -172,7 +172,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
 
     def DAQ_function(self) -> bool:
         tick = time.perf_counter()
-        print_debug = self.worker_DAQ is not None and self.worker_DAQ.debug
+        print_debug = self.worker_DAQ.debug
 
         # Clear input and output buffers of the device. Seems to resolve
         # intermittent communication time-outs.

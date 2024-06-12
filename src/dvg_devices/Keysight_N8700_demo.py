@@ -6,7 +6,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "23-05-2024"
+__date__ = "12-06-2024"
 __version__ = "1.4.0"
 print(__url__)
 # pylint: disable=wrong-import-position, missing-function-docstring, bare-except
@@ -147,10 +147,10 @@ if __name__ == "__main__":
         )
 
     # DEBUG information
-    psu_qdevs[0].worker_DAQ.debug_color = ANSI.YELLOW  # type: ignore
-    psu_qdevs[0].worker_jobs.debug_color = ANSI.CYAN  # type: ignore
-    psu_qdevs[1].worker_DAQ.debug_color = ANSI.GREEN  # type: ignore
-    psu_qdevs[1].worker_jobs.debug_color = ANSI.RED  # type: ignore
+    psu_qdevs[0].worker_DAQ.debug_color = ANSI.YELLOW
+    psu_qdevs[0].worker_jobs.debug_color = ANSI.CYAN
+    psu_qdevs[1].worker_DAQ.debug_color = ANSI.GREEN
+    psu_qdevs[1].worker_jobs.debug_color = ANSI.RED
 
     for psu_qdev in psu_qdevs:
         psu_qdev.start()

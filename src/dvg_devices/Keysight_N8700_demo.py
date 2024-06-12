@@ -164,8 +164,7 @@ if __name__ == "__main__":
             dprint("timer_psus: wake up all DAQ")
 
         for psu_qdev_ in psu_qdevs:
-            if psu_qdev_.worker_DAQ is not None:
-                psu_qdev_.worker_DAQ.wake_up()
+            psu_qdev_.wake_up_DAQ()
 
     timer_psus = QtCore.QTimer()
     timer_psus.timeout.connect(trigger_update_psus)

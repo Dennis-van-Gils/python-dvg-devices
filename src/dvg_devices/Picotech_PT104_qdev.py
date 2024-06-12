@@ -6,13 +6,12 @@ acquisition for a Picotech PT-104 pt100/1000 temperature logger.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "23-05-2024"
+__date__ = "12-06-2024"
 __version__ = "1.4.0"
 # pylint: disable=missing-function-docstring
 
 from qtpy import QtCore, QtGui, QtWidgets as QtWid
 from qtpy.QtCore import Slot  # type: ignore
-import numpy as np
 
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 from dvg_devices.Picotech_PT104_protocol_UDP import Picotech_PT104
@@ -61,7 +60,7 @@ class Picotech_PT104_qdev(QDeviceIO):
         dev: Picotech_PT104,
         DAQ_interval_ms=1000,
         DAQ_timer_type=QtCore.Qt.TimerType.CoarseTimer,
-        critical_not_alive_count=np.nan,
+        critical_not_alive_count=0,
         debug=False,
         **kwargs,
     ):

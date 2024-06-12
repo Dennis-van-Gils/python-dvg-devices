@@ -415,10 +415,9 @@ class Keysight_3497xA_qdev(QDeviceIO):
         self.qpte_SCPI_commands.setPlainText(
             f"{chr(10).join(self.dev.SCPI_setup_commands)}"
         )
-        if self.worker_DAQ is not None:
-            self.qled_scanning_interval_ms.setText(
-                f"{self.worker_DAQ._DAQ_interval_ms}"  # pylint: disable=protected-access
-            )
+        self.qled_scanning_interval_ms.setText(
+            f"{self.worker_DAQ._DAQ_interval_ms}"  # pylint: disable=protected-access
+        )
 
     # --------------------------------------------------------------------------
     #   Table widget related

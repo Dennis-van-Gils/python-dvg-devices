@@ -118,7 +118,7 @@ class GUI_MDrive_motor_panel(QtCore.QObject):
     ):
         super().__init__(**kwargs)  # Pass kwargs onto QtCore.QObject()
 
-        self.controller_qdev: MDrive_Controller_qdev = controller_qdev
+        self.controller_qdev = controller_qdev
         self.motor = motor
         self._create_panel()
 

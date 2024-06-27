@@ -27,11 +27,19 @@ Installation::
 
     pip install dvg-devices
 
-To be able to run the several provided graphical user-interfaces, one has to install an additional Qt-library. This can be either PyQt5, PyQt6, PySide2 or PySide6. Installation with an optional Qt-library::
+To be able to run the several provided graphical user-interfaces, one has to
+install an additional Qt-library. This can be either PyQt5, PyQt6, PySide2 or
+PySide6. Pick one. My personal recommendation is ``PyQt5 for Python <= 3.7``,
+and ``PySide6 for Python >= 3.8``::
 
-    pip install dvg-devices[pyqt5/pyqt6/pyside2/pyside6]
+    pip install pyqt5
+    pip install pyqt6
+    pip install pyside2
+    pip install pyside6
 
-If you wish to interface with an GPIB device you need to additionally install a Visa backend. See https://pyvisa.readthedocs.io/en/latest/introduction/getting.html
+If you wish to interface with an GPIB device you need to additionally install a
+Visa backend. See
+https://pyvisa.readthedocs.io/en/latest/introduction/getting.html
 
 Supported devices
 -----------------

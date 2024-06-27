@@ -1,6 +1,15 @@
 Changelog
 =========
 
+1.5.0 (2024-06-27)
+------------------
+* Support for Numpy 2.0
+* Restore support for Python 3.6. Was removed by mistake. Version 1.4.0 and this
+  version do support Python 3.6 actually, but only in combination with PyQt5.
+  PySide2 will not work because the wrapper library `qtpy` still expects
+  `app.exec_()` instead of `app.exec()`. That got fixed in the `qtpy` version
+  for Python >= 3.7.
+
 1.4.0 (2024-05-23)
 ------------------
 Major clean-up and streamlining:

@@ -8,7 +8,7 @@ __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "12-06-2024"
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 # pylint: disable=broad-except, missing-function-docstring
 # pylint: disable=multiple-statements, unnecessary-lambda, too-many-lines
 

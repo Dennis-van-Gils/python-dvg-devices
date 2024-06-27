@@ -10,7 +10,7 @@ refer to this device as a multiplexer, or mux.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "12-06-2024"
+__date__ = "27-06-2024"
 __version__ = "1.5.0"
 # pylint: disable=missing-function-docstring, broad-except, multiple-statements
 
@@ -263,7 +263,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
             "parent": None,
             "alignment": QtCore.Qt.AlignmentFlag(
                 QtCore.Qt.AlignmentFlag.AlignCenter
-                + QtCore.Qt.AlignmentFlag.AlignVCenter
+                | QtCore.Qt.AlignmentFlag.AlignVCenter
             ),
         }
         # self.qlbl_mux = QtWid.QLabel("Keysight 34972a", **p2)
@@ -435,7 +435,7 @@ class Keysight_3497xA_qdev(QDeviceIO):
             item = QtWid.QTableWidgetItem("nan")
             item.setTextAlignment(
                 QtCore.Qt.AlignmentFlag.AlignRight
-                + QtCore.Qt.AlignmentFlag.AlignCenter
+                | QtCore.Qt.AlignmentFlag.AlignCenter
             )
             self.qtbl_readings.setItem(i, 0, item)
 

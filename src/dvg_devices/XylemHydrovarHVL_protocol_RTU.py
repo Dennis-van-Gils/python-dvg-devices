@@ -17,7 +17,7 @@ Reference documents:
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "23-05-2024"
+__date__ = "27-06-2024"
 __version__ = "1.5.0"
 # pylint: disable=missing-function-docstring, too-many-lines
 
@@ -207,7 +207,7 @@ class XylemHydrovarHVL(SerialDevice):
                 self.setpoint_2_low_mA,
             )
 
-            return bool(np.any(error_list, where=True))
+            return bool(np.any(error_list))
 
         def report(self):
             """Report the last read error status to the terminal."""

@@ -16,8 +16,8 @@ or that the previous query resulted in a communication error.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "23-05-2024"
-__version__ = "1.5.0"
+__date__ = "21-01-2025"
+__version__ = "1.5.1"
 # pylint: disable=missing-function-docstring, multiple-statements
 
 import time
@@ -33,9 +33,6 @@ READ_TERMINATION = "\n"
 
 # 'No error left' reply
 STR_NO_ERROR = "+0,"
-
-# VISA settings
-VISA_TIMEOUT = 2000  # 4000 [msec]
 
 
 class Keysight_3497xA:
@@ -174,14 +171,25 @@ class Keysight_3497xA:
     #   connect
     # --------------------------------------------------------------------------
 
-    def connect(self, rm: pyvisa.ResourceManager) -> bool:
+    def connect(
+        self,
+        rm: pyvisa.ResourceManager,
+        visa_timeout: float = 2000,
+    ) -> bool:
         """Try to connect to the device over VISA at the given address. When
         succesful the VISA device instance will be stored in member 'device'
         and its identity is queried and stored in '_idn'.
 
         Args:
-            rm `(pyvisa.ResourceManager)`:
+            rm (`pyvisa.ResourceManager`):
                 Instance of VISA ResourceManager.
+
+            visa_timeout (`float`, optional):
+                Timeout in milliseconds for all VISA I/O operations. Make sure
+                to have this timeout set larger than the time needed to finish a
+                full scan cycle of the data acquisition unit.
+
+                Default: 2000
 
         Returns: True if successful, False otherwise.
         """
@@ -191,7 +199,7 @@ class Keysight_3497xA:
         print(f"  @ {self._visa_address} : ", end="")
 
         try:
-            device = rm.open_resource(self._visa_address, timeout=VISA_TIMEOUT)
+            device = rm.open_resource(self._visa_address, timeout=visa_timeout)
             device.clear()
         except pyvisa.VisaIOError:
             print("Could not open resource.\n")
@@ -521,6 +529,7 @@ class Keysight_3497xA:
 
         # The reset operation can take a long time to complete. Momentarily
         # increase the timeout to 2000 msec if necessary.
+        backup_timeout = self.device.timeout
         self.device.timeout = max(self.device.timeout, 2000)
 
         # Send clear and reset
@@ -530,7 +539,7 @@ class Keysight_3497xA:
         self.wait_for_OPC()
 
         # Restore timeout
-        self.device.timeout = VISA_TIMEOUT
+        self.device.timeout = backup_timeout
 
         return success
 

@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.5.1 (2025-01-21)
+------------------
+* Device Keysight_3497xA: Made hard-coded `VISA_TIMEOUT` an input argument
+  instead
+
 1.5.0 (2024-06-27)
 ------------------
 * Support for Numpy 2.0

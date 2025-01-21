@@ -6,8 +6,8 @@ Agilent) 34970A/34972A data acquisition/switch unit.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "23-05-2024"
-__version__ = "1.5.0"
+__date__ = "21-01-2025"
+__version__ = "1.5.1"
 print(__url__)
 # pylint: disable=wrong-import-position, missing-function-docstring, bare-except
 
@@ -316,7 +316,7 @@ if __name__ == "__main__":
     mux = Keysight_3497xA(MUX_VISA_ADDRESS, "MUX")
 
     try:
-        if mux.connect(rm):
+        if mux.connect(rm, visa_timeout=4000):
             mux.begin(MUX_SCPI_COMMANDS)
     except ValueError as e:
         # No connection could be made to the VISA device because module

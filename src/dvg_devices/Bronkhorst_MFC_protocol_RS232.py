@@ -12,8 +12,8 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "23-05-2024"
-__version__ = "1.5.0"
+__date__ = "10-11-2025"
+__version__ = "1.5.2"
 # pylint: disable=missing-function-docstring
 
 import sys
@@ -241,7 +241,7 @@ class Bronkhorst_MFC(SerialDevice):
         setpoint = int(setpoint / self.max_flow_rate * 32000)
         setpoint = max(0, min(setpoint, 32000))
 
-        _success, reply = self.query(f":0680010121{setpoint:04x}")
+        _success, reply = self.query(f":0680010121{setpoint:04X}")
         if isinstance(reply, str) and reply[5:].strip() == "000005":
             return True  # Also checked status reply
 

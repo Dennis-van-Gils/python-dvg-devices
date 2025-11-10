@@ -1,6 +1,12 @@
 Changelog
 =========
 
+1.5.2 (2025-11-10)
+------------------
+* Fixed communication error in `Bronkhorst_MFC_protocol_RS232.py` where the
+  send setpoint value was incorrectly decoded into lower case hex, instead of
+  higher case hex. Fixed.
+
 1.5.1 (2025-01-21)
 ------------------
 * Device Keysight_3497xA: Made hard-coded `VISA_TIMEOUT` an input argument

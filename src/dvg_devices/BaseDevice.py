@@ -7,6 +7,7 @@ nicely with :class:`dvg_qdeviceio.QDeviceIO`.
 These base classes are meant to be inherited into your own specific *Device*
 class.
 """
+
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
@@ -282,7 +283,7 @@ class SerialDevice:
         raises_on_timeout: bool = False,
         returns_ascii: bool = True,
     ) -> Tuple[bool, Union[str, bytes, None]]:
-        """Listen to the Arduino for incoming data. This method is blocking
+        """Listen to the device for incoming data. This method is blocking
         and returns when a full line has been received or when the serial read
         timeout has expired.
 

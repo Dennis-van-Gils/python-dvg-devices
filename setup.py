@@ -24,7 +24,7 @@ def read(*names, **kwargs):
 
 setup(
     name="dvg-devices",
-    version="1.5.2",
+    version="1.6.0",
     license="MIT",
     description="Collection of I/O interfaces to communicate with microcontroller boards and laboratory devices, with optional PyQt/PySide multithread support and graphical user-interfaces.",
     long_description="%s\n%s"
@@ -52,7 +52,7 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Topic :: Scientific/Engineering ",
+        "Topic :: Scientific/Engineering",
         "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
         "Topic :: Scientific/Engineering :: Physics",
     ],
@@ -74,6 +74,7 @@ setup(
         "Arduino",
         "serial",
         "VISA",
+        "telnet",
     ],
     python_requires=">=3.6",
     install_requires=[
@@ -88,6 +89,7 @@ setup(
         "pyserial~=3.4",
         "pyvisa~=1.11",
         "qtpy",
+        "telnetlib3",
     ],
     extras_require={
         "pyqt5": ["pyqt5~=5.12"],

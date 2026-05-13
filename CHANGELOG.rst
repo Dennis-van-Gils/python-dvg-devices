@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.6.0 (2026-05-13)
+------------------
+* Added class ``BaseDevice.TelnetServerDevice``, useful for e.g. communicating
+  with an ESP32 microcontroller over telnet.
+
 1.5.2 (2025-11-10)
 ------------------
 * Fixed communication error in `Bronkhorst_MFC_protocol_RS232.py` where the

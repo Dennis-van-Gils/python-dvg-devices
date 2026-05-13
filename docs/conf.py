@@ -23,7 +23,7 @@ copyright = "2022, Dennis van Gils"
 author = "Dennis van Gils"
 
 # The full version, including alpha/beta/rc tags
-release = "1.5.2"
+release = "1.6.0"
 
 # -- General configuration ---------------------------------------------------
 
@@ -42,6 +42,7 @@ intersphinx_mapping = {
     "NumPy": ("https://numpy.org/doc/stable/", None),
     "python": ("https://docs.python.org/3", None),
     "serial": ("https://pyserial.readthedocs.io/en/latest/", None),
+    "telnetlib3": ("https://telnetlib3.readthedocs.io/en/latest/", None),
     "dvg_qdeviceio": (
         "https://python-dvg-qdeviceio.readthedocs.io/en/latest/",
         None,

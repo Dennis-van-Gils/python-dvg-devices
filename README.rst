@@ -29,8 +29,8 @@ Installation::
 
 To be able to run the several provided graphical user-interfaces, one has to
 install an additional Qt-library. This can be either PyQt5, PyQt6, PySide2 or
-PySide6. Pick one. My personal recommendation is ``PyQt5 for Python <= 3.7``,
-and ``PySide6 for Python >= 3.8``::
+PySide6. My personal recommendation is ``PyQt5 for Python <= 3.7``,
+and ``PySide6 for Python >= 3.8``. Pick one::
 
     pip install pyqt5
     pip install pyqt6
@@ -44,8 +44,8 @@ https://pyvisa.readthedocs.io/en/latest/introduction/getting.html
 Supported devices
 -----------------
 
-    =======================    ==============================
-    Arduino, or similar        Microcontroller board
+    =======================    ===============================
+    Arduino, ESP32, etc        Microcontroller (serial/telnet)
     Aim TTi QL series II       Power supply
     Bronkhorst EL-FLOW         Mass flow controller
     Julabo circulator          Recirculating bath
@@ -57,7 +57,7 @@ Supported devices
     PolyScience PD             Recirculating bath
     ThermoFisher ThermoFlex    Chiller
     Xylem Hydrovar HVL         Variable speed pump controller
-    =======================    ==============================
+    =======================    ===============================
 
 Highlights
 ----------
@@ -69,9 +69,31 @@ Highlights
   allows for automatically connecting to your Arduino(-like) device and for easy
   serial I/O communication.
 
+* Class ``TelnetServerDevice()`` offering higher-level general I/O methods for
+  e.g. an ESP32 microcontroller.
+
 * Separate PyQt/PySide interfaces are provided for each of these devices,
   offering out-of-the-box multithreaded data acquisition and communication. It
   relies on `DvG_QDeviceIO <https://python-dvg-qdeviceio.readthedocs.io>`_.
 
 * Ready-to-run PyQt/PySide demos to directly control many of the supported
   devices with a graphical user-interface.
+
+Examples
+--------
+
+* SerialDevice ::
+
+    from dvg_devices.BaseDevice import SerialDevice
+
+    dev = SerialDevice()
+    dev.connect_at_port(port="COM3")
+    success, reply = dev.query("My query command")
+
+* TelnetServerDevice ::
+
+    from dvg_devices.BaseDevice import TelnetServerDevice
+
+    dev = TelnetServerDevice()
+    dev.connect(host="10.10.100.2", port=23)
+    success, reply = dev.query("My query command")

@@ -13,15 +13,12 @@ __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
 __date__ = "23-05-2024"
 __version__ = "1.5.0"
-# pylint: disable=broad-except
+# pylint: disable=broad-except, too-many-instance-attributes
 
 import sys
 import time
 from typing import Union, Tuple, Callable
 from pathlib import Path
-
-# Use of `ast.literal_eval` got removed in v0.2.2 because it chokes on `nan`
-# from ast import literal_eval
 
 import serial
 import serial.tools.list_ports
@@ -36,8 +33,8 @@ class SerialDevice:
 
     The following functionality is offered:
 
-    * TODO: mention `write()`, `query()`, `query_ascii_values()`,
-      `query_bytes()`, `readline()` and `close()`.
+    * I/O methods: `readline()`, `write()`, `query()`, `query_ascii_values()`,
+      `query_bytes()`.
 
     * Scanning over all serial ports to autoconnect to the desired serial
       device, based on the device's reply to a validation query.
@@ -329,9 +326,9 @@ class SerialDevice:
                 raise serial.SerialException(
                     "Received 0 bytes. Read probably timed out."
                 )
-            else:
-                pft("Received 0 bytes. Read probably timed out.")
-                return False, None
+
+            pft("Received 0 bytes. Read probably timed out.")
+            return False, None
 
         if returns_ascii:
             try:
@@ -796,8 +793,8 @@ class SerialDevice:
             port = p[0]
             if self.connect_at_port(port, verbose=False):
                 return True
-            else:
-                continue
+
+            continue
 
         # Scanned over all the ports without finding a match
         dprint("  Error: Device not found.\n", ANSI.RED)

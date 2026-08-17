@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.7.0 (2026-08-17)
+------------------
+* Added support for OptLaser thermoelectric cooler (TEC) controller
+  TEC-8A-24V-PID-HC-RS232.
+
 1.6.0 (2026-05-13)
 ------------------
 * Added class ``BaseDevice.TelnetServerDevice``, useful for e.g. communicating

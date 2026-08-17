@@ -52,6 +52,7 @@ Supported devices
     Keysight 3497xA            Digital multimeter
     Keysight N8700             Power supply
     Novanta IMS MDrive         Stepper motor controller
+    OptLaser TEC RS232         Thermoelectric cooler controller
     Parker Compax3             Servo controller
     Picotech PT104             Temperature logger
     PolyScience PD             Recirculating bath

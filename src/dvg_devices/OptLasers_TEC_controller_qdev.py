@@ -17,7 +17,7 @@ import os
 from enum import IntEnum
 from pathlib import Path
 
-from qtpy import QtCore, QtWidgets as QtWid
+from qtpy import QtCore, QtWidgets as QtWid, QtGui
 from qtpy.QtCore import Slot, Signal  # type: ignore
 
 import dvg_pyqt_controls as controls
@@ -80,7 +80,7 @@ class OptLasersTEC_qdev(QDeviceIO):
         dev: OptLasersTEC,
         DAQ_interval_ms=1250,
         DAQ_timer_type=QtCore.Qt.TimerType.CoarseTimer,
-        critical_not_alive_count=0,
+        critical_not_alive_count=3,
         debug=False,
         **kwargs,
     ):
@@ -134,6 +134,13 @@ class OptLasersTEC_qdev(QDeviceIO):
     # --------------------------------------------------------------------------
 
     def _create_GUI(self):
+        self.qlbl_offline = QtWid.QLabel("OFFLINE")
+        self.qlbl_offline.setVisible(False)
+        self.qlbl_offline.setFont(
+            QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Weight.Bold)
+        )
+        self.qlbl_offline.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+
         # Hyperlink to device manual
         # --------------------------
         path_manual = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -182,7 +189,8 @@ class OptLasersTEC_qdev(QDeviceIO):
         self.grid.setVerticalSpacing(0)
         i = 0
         # fmt: off
-        self.grid.addWidget(QtWid.QLabel("<b>Settings</b>"), i, 0)      ; i += 1
+        self.grid.addWidget(self.qlbl_offline              , i, 0, 1, 3); i += 1
+        self.grid.addWidget(QtWid.QLabel("<b>Settings</b>"), i, 0, 1, 3); i += 1
         self.grid.addItem(QtWid.QSpacerItem(0, 2)          , i, 0)      ; i += 1
         self.grid.addWidget(QtWid.QLabel("Supply")         , i, 0)
         self.grid.addWidget(self.pbtn_supply               , i, 1, 1, 2); i += 1
@@ -210,7 +218,7 @@ class OptLasersTEC_qdev(QDeviceIO):
         self.grid.addWidget(QtWid.QLabel(CHAR_DEG_C)       , i, 2)      ; i += 1
 
         self.grid.addItem(QtWid.QSpacerItem(0, 10)         , i, 0)      ; i += 1
-        self.grid.addWidget(QtWid.QLabel("<b>Readings</b>"), i, 0)      ; i += 1
+        self.grid.addWidget(QtWid.QLabel("<b>Readings</b>"), i, 0, 1, 3); i += 1
         self.grid.addItem(QtWid.QSpacerItem(0, 2)          , i, 0)      ; i += 1
         self.grid.addWidget(QtWid.QLabel("Open\nCollector"), i, 0)
         self.grid.addWidget(self.indicator_OC              , i, 1)      ; i += 1
@@ -238,6 +246,7 @@ class OptLasersTEC_qdev(QDeviceIO):
         self.qlin_T_min.editingFinished.connect(self._process_qlin_T_min)
         self.qlin_T_max.editingFinished.connect(self._process_qlin_T_max)
         self.qlin_T_set.editingFinished.connect(self._process_qlin_T_set)
+        self.signal_connection_lost.connect(self._connection_lost)
 
     # --------------------------------------------------------------------------
     #   GUI updates
@@ -248,7 +257,7 @@ class OptLasersTEC_qdev(QDeviceIO):
         # NOTE: It is not necessary to lock and unlock 'self.dev.mutex' here,
         # because the `state` members are written and read atomicly.
         if not self.dev.is_alive:
-            self.qgrp.setEnabled(False)
+            self._connection_lost()
             return
 
         if self.dev.state.PWM < 0:
@@ -296,6 +305,11 @@ class OptLasersTEC_qdev(QDeviceIO):
     # --------------------------------------------------------------------------
     #   Handle controls
     # --------------------------------------------------------------------------
+
+    @Slot()
+    def _connection_lost(self):
+        self.qgrp.setEnabled(False)
+        self.qlbl_offline.setVisible(True)
 
     def _process_qlin_helper(self, func, value, field: GUI_input_fields):
         self.add_to_jobs_queue(func, value)

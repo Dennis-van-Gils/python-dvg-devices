@@ -3,7 +3,8 @@ Changelog
 
 1.7.1 (2026-08-17)
 ------------------
-* Fixed broken link to OptLaser manual
+* OptLaser TEC controller: Fixed broken link to OptLaser manual.
+* OptLaser TEC controller: Notify user of "Connection lost".
 
 1.7.0 (2026-08-17)
 ------------------

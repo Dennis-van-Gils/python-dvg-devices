@@ -7,8 +7,8 @@ cooler (TEC) controller.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "17-08-2026"
-__version__ = "1.7.1"
+__date__ = "27-08-2026"
+__version__ = "1.7.2"
 print(__url__)
 # pylint: disable=wrong-import-position, missing-function-docstring
 
@@ -47,7 +47,7 @@ if TRY_USING_OPENGL:
 pg.setConfigOption("foreground", "#EEE")
 
 CHART_INTERVAL_MS = 1000  # [ms] Update interval for all charts
-CHART_CAPACITY = 1800  # [samples]
+CHART_CAPACITY = 3600  # [samples]
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
 DEBUG = False
@@ -144,12 +144,6 @@ class MainWindow(QtWid.QWidget):
             linked_curves=self.tscurves_tec,
             presets=[
                 {
-                    "button_label": "0:30",
-                    "x_axis_label": "history (sec)",
-                    "x_axis_divisor": 1,
-                    "x_axis_range": (-30, 0),
-                },
-                {
                     "button_label": "01:00",
                     "x_axis_label": "history (sec)",
                     "x_axis_divisor": 1,
@@ -178,6 +172,12 @@ class MainWindow(QtWid.QWidget):
                     "x_axis_label": "history (min)",
                     "x_axis_divisor": 60,
                     "x_axis_range": (-30, 0),
+                },
+                {
+                    "button_label": "60:00",
+                    "x_axis_label": "history (min)",
+                    "x_axis_divisor": 60,
+                    "x_axis_range": (-60, 0),
                 },
             ],
         )
@@ -230,9 +230,7 @@ if __name__ == "__main__":
     # --------------------------------------------------------------------------
 
     tec = OptLasersTEC(debug=DEBUG)
-    tec.auto_connect()
-
-    if tec.is_alive:
+    if tec.auto_connect():
         tec.begin()
 
     # --------------------------------------------------------------------------

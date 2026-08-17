@@ -1,6 +1,10 @@
 Changelog
 =========
 
+1.7.2 (2026-08-27)
+------------------
+* OptLaser TEC controller: Minor changes on the demos.
+
 1.7.1 (2026-08-17)
 ------------------
 * OptLaser TEC controller: Fixed broken link to OptLaser manual.

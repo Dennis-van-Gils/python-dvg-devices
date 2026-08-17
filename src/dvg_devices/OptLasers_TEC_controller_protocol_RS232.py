@@ -11,8 +11,8 @@ When this module is directly run from the terminal a demo will be shown.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "13-08-2026"
-__version__ = "1.7.0"
+__date__ = "27-08-2026"
+__version__ = "1.7.2"
 # pylint: disable=missing-function-docstring
 
 from typing import Union, Tuple

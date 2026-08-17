@@ -7,8 +7,8 @@ cooler (TEC) controller.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "13-08-2026"
-__version__ = "1.7.0"
+__date__ = "27-08-2026"
+__version__ = "1.7.2"
 print(__url__)
 # pylint: disable=wrong-import-position, missing-function-docstring
 
@@ -72,9 +72,7 @@ if __name__ == "__main__":
     # --------------------------------------------------------------------------
 
     tec = OptLasersTEC(debug=DEBUG)
-    tec.auto_connect()
-
-    if tec.is_alive:
+    if tec.auto_connect():
         tec.begin()
 
     # --------------------------------------------------------------------------

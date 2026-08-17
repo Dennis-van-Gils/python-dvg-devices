@@ -9,8 +9,8 @@ https://optlasers.com/tec-controllers/tec-8a-24v-pid-hc-rs232-programmable-tempe
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "13-08-2026"
-__version__ = "1.7.0"
+__date__ = "17-08-2026"
+__version__ = "1.7.1"
 # pylint: disable=missing-function-docstring, multiple-statements
 
 import os
@@ -138,8 +138,9 @@ class OptLasersTEC_qdev(QDeviceIO):
         # --------------------------
         path_manual = Path(os.path.dirname(os.path.realpath(__file__)))
         path_manual = os.path.join(
-            path_manual.parents[1].as_uri(),
-            "manuals/Opt Lasers TEC-8A-24V-PID-HC Manual.pdf",
+            path_manual.as_uri(),
+            "manuals",
+            "Manual_OptLasers_TEC_controller.pdf",
         )
         self.qlbl_manual = QtWid.QLabel(
             f"<a href='{path_manual}'>Open manual</a>"
@@ -152,9 +153,12 @@ class OptLasersTEC_qdev(QDeviceIO):
 
         # TEC settings
         # ------------
+        fm = self.qlbl_manual.fontMetrics()
+        em_width = fm.horizontalAdvance("M")
+
         p = {
             "alignment": QtCore.Qt.AlignmentFlag.AlignCenter,
-            "minimumWidth": 60,
+            "fixedWidth": em_width * 6,
         }
 
         self.pbtn_supply = controls.create_Toggle_button()
@@ -176,7 +180,6 @@ class OptLasersTEC_qdev(QDeviceIO):
 
         self.grid = QtWid.QGridLayout()
         self.grid.setVerticalSpacing(0)
-        # self.grid.setHorizontalSpacing(0)
         i = 0
         # fmt: off
         self.grid.addWidget(QtWid.QLabel("<b>Settings</b>"), i, 0)      ; i += 1

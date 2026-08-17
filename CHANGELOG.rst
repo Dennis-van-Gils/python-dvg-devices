@@ -1,6 +1,10 @@
 Changelog
 =========
 
+1.7.1 (2026-08-17)
+------------------
+* Fixed broken link to OptLaser manual
+
 1.7.0 (2026-08-17)
 ------------------
 * Added support for OptLaser thermoelectric cooler (TEC) controller

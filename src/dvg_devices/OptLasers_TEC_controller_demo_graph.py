@@ -7,8 +7,8 @@ cooler (TEC) controller.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "13-08-2026"
-__version__ = "1.7.0"
+__date__ = "17-08-2026"
+__version__ = "1.7.1"
 print(__url__)
 # pylint: disable=wrong-import-position, missing-function-docstring
 
@@ -92,6 +92,7 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
 
         self.gw_tec = pg.GraphicsLayoutWidget()
+        self.gw_tec.setMinimumWidth(600)
 
         p = {"color": "#EEE", "font-size": "12pt"}
         self.pi_tec = self.gw_tec.addPlot()
@@ -202,7 +203,7 @@ class MainWindow(QtWid.QWidget):
 
         hbox1 = QtWid.QHBoxLayout()
         hbox1.addWidget(self.gw_tec, stretch=1)
-        hbox1.addLayout(vbox1, stretch=0)
+        hbox1.addLayout(vbox1)
 
         vbox = QtWid.QVBoxLayout(self)
         vbox.addLayout(grid_top)

@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.7.3 (2026-08-28)
+------------------
+* OptLaser TEC controller: Fixed error "`fixedWidth` is an unknown keyword
+  parameter" in `OptLaser_TEC_controller_qdev.py`.
+
 1.7.2 (2026-08-27)
 ------------------
 * OptLaser TEC controller: Minor changes on the demos.

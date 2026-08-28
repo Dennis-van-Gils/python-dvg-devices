@@ -9,8 +9,8 @@ https://optlasers.com/tec-controllers/tec-8a-24v-pid-hc-rs232-programmable-tempe
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "27-08-2026"
-__version__ = "1.7.2"
+__date__ = "28-08-2026"
+__version__ = "1.7.3"
 # pylint: disable=missing-function-docstring, multiple-statements
 
 import os
@@ -165,7 +165,8 @@ class OptLasersTEC_qdev(QDeviceIO):
 
         p = {
             "alignment": QtCore.Qt.AlignmentFlag.AlignCenter,
-            "fixedWidth": em_width * 6,
+            "maximumWidth": em_width * 6,
+            "minimumWidth": em_width * 6,
         }
 
         self.pbtn_supply = controls.create_Toggle_button()

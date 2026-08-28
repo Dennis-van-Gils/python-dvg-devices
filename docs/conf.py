@@ -23,7 +23,7 @@ copyright = "2022, Dennis van Gils"
 author = "Dennis van Gils"
 
 # The full version, including alpha/beta/rc tags
-release = "1.7.2"
+release = "1.7.3"
 
 # -- General configuration ---------------------------------------------------
 

@@ -1,6 +1,12 @@
 Changelog
 =========
 
+1.8.0 (2026-09-25)
+==================
+* ``BaseDevice.TelnetServerDevice.readline()`` now catches `EOFError` and
+  `ConnectionResetError` when the telnet connection was closed unexpectedly (by
+  the user or OS).
+
 1.7.3 (2026-08-28)
 ------------------
 * OptLaser TEC controller: Fixed error "`fixedWidth` is an unknown keyword

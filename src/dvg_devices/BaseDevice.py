@@ -12,8 +12,8 @@ Instances of these classes will tie in nicely with
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "13-05-2026"
-__version__ = "1.6.0"
+__date__ = "25-09-2026"
+__version__ = "1.8.0"
 # pylint: disable=broad-except, too-many-instance-attributes, too-many-lines
 
 import sys
@@ -1023,13 +1023,20 @@ class TelnetServerDevice:
                     Reply received from the device. :obj:`None` if unsuccessful.
         """
 
+        if not self.is_alive:
+            pft("Device is not connected yet or already closed.", 3)
+            return False, None
+
         try:
             reply = self.conn.readline()
         except TimeoutError as err:
             if raises_on_timeout:
                 raise err
-
             pft(err)
+            return False, None
+        except (EOFError, ConnectionResetError):
+            pft("Telnet connection closed.")
+            self.is_alive = False
             return False, None
         except Exception as err:
             pft(err)

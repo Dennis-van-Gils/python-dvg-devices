@@ -717,6 +717,8 @@ class SerialDevice:
             _print_hrule()
 
         print(f"  @ {port:<11s} ", end="")
+        sys.stdout.flush()
+
         try:
             # Open the serial port
             self.ser = serial.Serial(port=port, **self.serial_settings)
@@ -1162,6 +1164,8 @@ class TelnetServerDevice:
             _print_hrule()
 
         print(f"  @ {host:<s}:{port} ", end="")
+        sys.stdout.flush()
+
         try:
             # Open the telnet connection
             self.conn = telnetlib3.sync.TelnetConnection(

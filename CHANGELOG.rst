@@ -5,6 +5,7 @@ Changelog
 ==================
 * ``BaseDevice.TelnetServerDevice.connect()`` now catches `TimeoutError`
   gracefully.
+* Flush stdout just before trying to connect.
 
 1.8.0 (2026-09-25)
 ==================

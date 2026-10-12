@@ -12,8 +12,8 @@ Instances of these classes will tie in nicely with
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-devices"
-__date__ = "25-09-2026"
-__version__ = "1.8.0"
+__date__ = "12-10-2026"
+__version__ = "1.8.1"
 # pylint: disable=broad-except, too-many-instance-attributes, too-many-lines
 
 import sys
@@ -1168,7 +1168,7 @@ class TelnetServerDevice:
                 host=host, port=port, **self.telnet_settings
             )
             self.conn.connect()
-        except ConnectionError:
+        except (ConnectionError, TimeoutError):
             print("Could not open telnet connection.")
             return False  # --> leaving
         except Exception as err:

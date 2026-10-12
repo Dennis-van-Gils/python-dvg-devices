@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.8.1 (2026-10-12)
+==================
+* ``BaseDevice.TelnetServerDevice.connect()`` now catches `TimeoutError`
+  gracefully.
+
 1.8.0 (2026-09-25)
 ==================
 * ``BaseDevice.TelnetServerDevice.readline()`` now catches `EOFError` and
